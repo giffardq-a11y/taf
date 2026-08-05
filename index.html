@@ -684,6 +684,22 @@ function parseWorkbook(dateRefArg) {
       const jours = Math.round(diffDays(fin, debut));
       if (jours > 0) ballastP6[id] = jours;
     });
+    // « Ready for float up » : le moment où un SPE est prêt à être immergé. Il ne dépend pas
+    // de la zone où il se trouve — il peut l'être dans n'importe quelle UB. Quand le planning
+    // fournit ces dates, elles font foi sur la sortie de la chaîne SPE.
+    const readyFU = {};
+    imm.forEach(row => {
+      const nom = row['Activity Name'];
+      if (typeof nom !== 'string' || !/ready.*float|float.*up.*ready/i.test(nom)) return;
+      const m = nom.match(/S(?:PE?)?[\s.\-]*0*(\d+)/i);
+      const fin = excelDate(row['Finish']);
+      if (!m || !fin) return;
+      const id = 'SPE-' + String(parseInt(m[1], 10)).padStart(2, '0');
+      if (!readyFU[id] || fin < readyFU[id]) readyFU[id] = fin;
+    });
+    const nbReady = Object.keys(readyFU).length;
+    if (nbReady) log(`Ready for float-up : ${nbReady} SPE datés — c'est cette date qui commande leur sortie de chaîne.`);
+
     const nbBallast = Object.keys(ballastP6).length;
     if (nbBallast) {
       const dur = [...new Set(Object.values(ballastP6))].sort((x, y) => x - y);
@@ -702,6 +718,7 @@ function parseWorkbook(dateRefArg) {
       e.zonesP6 = (e.ligne === 6 && passagesP6[e.id] && Object.keys(passagesP6[e.id]).length >= 3)
         ? passagesP6[e.id] : null;
       e.dureeBallastP6 = ballastP6[e.id] || null;
+      e.dateReadyFU = readyFU[e.id] || null;
       e.dateImmersion = map[e.id] || null;
       e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
       if (!e.dateImmersion) missing++;
@@ -1570,11 +1587,20 @@ function runSimulation(paramsArg) {
   function entreeZoneP6(e, zoneNum) {
     return (e.zonesP6 && e.zonesP6[zoneNum]) ? e.zonesP6[zoneNum] : null;
   }
-  // La ligne SPE suit le planning P6 : il date chaque passage de zone. À défaut, on retombe
-  // sur les durées fixes de Config_SPE.
+  // La ligne SPE suit le planning P6 : il date chaque passage de zone.
+  //
+  // Pour la dernière zone qu'il date, le planning ne donne pas de sortie. Lui appliquer la
+  // durée fixe de Config_SPE reviendrait à inventer un délai que le planning ne contient pas
+  // — c'était la règle des 21 jours d'UB3, héritée d'avant le planning détaillé. Le SPE est
+  // donc prêt dès qu'il atteint sa dernière zone datée, sauf si une date « ready for float
+  // up » le précise : c'est elle qui commande alors, quelle que soit la zone où il se trouve.
+  //
+  // Les durées fixes ne servent plus qu'à un SPE dont le planning ne dit rien du tout.
   function zoneSPETerminee(e, z, dCur, jourCourant) {
+    if (e.dateReadyFU) return dCur >= e.dateReadyFU;
     const suivante = entreeZoneP6(e, z + 1);
     if (suivante) return dCur >= suivante;
+    if (e.zonesP6) return true;
     const zc = zonesSPE[z - 1];
     return jourCourant >= zc.jourEntree + zc.dureeEff;
   }

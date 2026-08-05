@@ -8,46 +8,35 @@ ce document ne couvre que ce qui reste à faire et les décisions en attente.
 Date de référence 05/08/2026, cadence de départ 3 semaines/segment (confirmée), staggering
 actif, ligne SPE sur planning P6, séquence automatique :
 
-**2 éléments en retard sur 89, 5 jours au maximum, 6 jours de retard cumulé**, aucun bloqué,
-aucune fermeture provisoire de SPE nécessaire.
+**Aucun retard. Les 89 éléments s'immergent à leur date cible, au jour près.** Aucun bloqué,
+aucune inversion sur les lignes PL, une seule fermeture provisoire de SPE à programmer.
+Répartition retenue : 18/17/17/17/10 sur les lignes PL.
 
-Quatre corrections y ont conduit, toutes mesurées :
+Cinq corrections y ont conduit, toutes mesurées :
 
 | | Retards | Retard max | Retard cumulé |
 |---|---|---|---|
 | Ligne SPE estimée, cadence relâchée | 18 | 133 j | 774 j |
 | + ligne SPE sur planning P6 | 8 | 12 j | 34 j |
 | + cadence jamais relâchée, lignes rééquilibrées | 4 | 12 j | 29 j |
-| + ballast au planning, aucun pour les SPE | **2** | **5 j** | **6 j** |
+| + ballast au planning, aucun pour les SPE | 2 | 5 j | 6 j |
+| + plus de durée inventée en fin de chaîne SPE | **0** | **0** | **0** |
 
-Ce qui reste : `SPE-06` à 5 jours — le planning P6 le fait entrer en FI3 le 18/09/2028 pour
-une immersion au 16/10, soit 28 jours, quand il en faut 21 (UB3) plus 11,5 de float-up et
-hook-up — et `STE-43` à 1 jour, qui le suit dans l'ordre d'immersion.
+## Sortie de chaîne SPE : plus aucune durée inventée
 
-## Les retards qui restent, un par un
+Le planning ne date pas la sortie de la dernière zone qu'il couvre — la section `FI3` ne
+contient de groupe que pour 2 SPE sur 10. Le solveur y appliquait la durée fixe d'UB3 de
+`Config_SPE`, 3 semaines, ce qui rendait `SPE-06` en retard de 5 jours. Cette règle datait
+d'avant l'exploitation du planning détaillé et **inventait un délai que le planning ne
+contient pas** : elle est supprimée. Un SPE que le planning pilote est désormais prêt dès
+qu'il atteint sa dernière zone datée.
 
-Question posée : pourquoi reste-t-il des retards alors que l'application choisit la séquence ?
-Réponse élément par élément, sur le meilleur plan obtenu (4 retards, 29 j de cumul) :
+Les durées fixes de `Config_SPE` ne servent plus qu'à un SPE dont le planning ne dit rien.
 
-| Élément | Retard | Cause |
-|---|---|---|
-| `SPE-06` | 5 j | Le planning P6 le fait entrer en FI3 le 18/09/2028 pour une immersion cible au 16/10 — 28 jours. Il en faut 21 (durée UB3 de `Config_SPE`) plus 11,5 de float-up et hook-up, soit 32,5. **Le planning se contredit de 5 jours.** |
-| `STE-43` | 1 j | Suit `SPE-06` dans l'ordre d'immersion : il hérite d'un jour de son retard. |
-
-Autrement dit : **les deux retards descendent d'une seule incohérence du planning P6 sur
-`SPE-06`**. Aucun ne vient de la séquence de production, et aucun ne se corrige en la
-changeant.
-
-**D'où viennent les 21 jours** : de `Config_SPE`, ligne 7 — zone UB3 « Commissioning »,
-durée fixe 3 semaines. Le solveur y recourt faute de mieux : la section `FI3` du planning ne
-contient de groupe que pour **2 SPE sur 10** (`SPE-05` et `SPE-10`). Pour les huit autres,
-dont `SPE-06`, le planning date l'entrée en FI3 mais pas la sortie. Le calcul est donc :
-entrée FI3 le 18/09/2028 + 21 j (`Config_SPE`) = sortie le 09/10, + 7 j de float-up
-+ 3,5 j de hook-up = immersion au 21/10, contre une cible au 16/10.
-
-Deux façons de lever le doute, l'une ou l'autre suffit : compléter la section `FI3` du
-planning pour les huit SPE qui n'y figurent pas, ou confirmer que 3 semaines est bien la
-durée de commissioning.
+**À venir** : les dates *ready for float up*, c'est-à-dire le moment où un SPE est prêt à être
+immergé — indépendamment de la zone UB où il se trouve. Le raccord est en place : dès que ces
+activités figurent dans l'onglet `Immersion`, elles commandent la sortie de chaîne à la place
+de tout le reste.
 
 **Correspondance des zones — tranchée.** Le planning nomme trois zones d'aménagement :
 `FI1 - Fit Out in Outfitting Buffer Area`, `FI2 - Fit Out in Upper Basin 1`,

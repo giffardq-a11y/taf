@@ -210,6 +210,16 @@ compte donc pour la porte d'inondation, au même titre que dans les deux bassins
 
 La **sortie de CP3** ainsi datée est la référence du jalon d'étanchéité provisoire.
 
+**Sortie de chaîne.** Le planning ne date pas la sortie de la dernière zone qu'il couvre. Le
+solveur n'y applique aucune durée de remplacement : un SPE que le planning pilote est prêt
+pour le float-up dès qu'il atteint sa dernière zone datée. Inventer un délai absent du
+planning ne ferait que produire des retards fictifs. Les durées de `Config_SPE` ne servent
+qu'à un SPE dont le planning ne dit rien.
+
+Quand l'onglet `Immersion` contient des activités **« ready for float up »**, c'est cette date
+qui commande la sortie de chaîne — elle marque le moment où le SPE est prêt à être immergé,
+quelle que soit la zone UB où il se trouve.
+
 ## Étanchéité SPE : trois niveaux en cascade
 
 Un SPE non étanche interdit d'inonder le Basin C, donc d'en évacuer un élément normal. La
