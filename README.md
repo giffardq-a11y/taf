@@ -118,8 +118,23 @@ coordonnées du dossier de référence ; une image de plan peut y être ajoutée
 
 `Béton (1 place/ligne)` → `Outfitting (1 place/ligne)` → `Float-up couplé
 (PL1+2 / PL3+4 / PL5+SPE)` → `Lower Basin (3 bassins × 2 places, hook-up sur place)` →
-`Parking (pool de 6 places, sauté si l'immersion arrive dans moins de N semaines)` →
-`Ballast Jetty` → `Immersion`.
+`Parking (5 places + 1 réserve)` → `Ballast Jetty` → `Immersion`.
+
+**Séjour en bassin et parking.** Un élément reste dans son bassin tant que sa place n'est
+pas réclamée par la production : le déplacer plus tôt ne ferait que consommer une place de
+parking. Dès qu'un autre élément du groupe attend le bassin, il en sort. Le **seuil de
+parking** n'est pas une contrainte de flux mais une économie de mouvement : quand
+l'immersion est assez proche, on évite le détour par le parking — sauf si la place est
+réclamée, auquel cas la production prime.
+
+**Hook-up** : 24 h, sur place, juste avant le Ballast Jetty.
+
+**Parking** : 5 places sans limite de durée, plus une 6e réservée au déblocage ponctuel,
+ouverte seulement si les autres sont pleines et si l'élément repart dans le mois.
+
+**Stockage croisé** : parking saturé, un élément peut être garé dans une place de bassin
+libre — mais jamais dans le bassin d'un groupe ayant encore des éléments en amont, sous
+peine de bloquer ce groupe. C'est une soupape de déblocage, comptabilisée dans le journal.
 
 **Ordre d'immersion imposé.** Les éléments s'immergent dans l'ordre des lignes de
 l'onglet `Immersion`. Un élément qui n'est pas prêt bloque tous ceux qui le suivent,
@@ -164,6 +179,11 @@ normaux de PL-5 défilent.
    indépendamment plusieurs SPE présents simultanément dans les UB.
 2. **Rythme SPE long en UB** (colonne G, optionnelle). Dans les zones UB1/UB2/UB3, le SPE
    peut suivre un rythme propre, bien plus long que les durées standard de la colonne D.
+**Étanchéité datée.** Si l'onglet `Immersion` contient les activités *clamping* du planning
+P6 (colonnes `Activity Name` / `Start` / `Finish`), un SPE est réputé étanche à la dernière
+fin de clamping le concernant. Cette date réelle prime sur le jalon théorique de la
+colonne F.
+
 3. **Le SPE n'est évacué qu'avant son utilisation finale** : il reste en Basin C
    jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien
    au-delà de la fin de son hook-up.

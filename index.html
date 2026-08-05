@@ -400,8 +400,28 @@ function parseWorkbook(dateRefArg) {
       const id = String(row['ID Element'] ?? '').trim();
       if (id) { map[id] = excelDate(row['Date Immersion']); rang[id] = i; }
     });
+    // Activités « clamping » du planning P6 collé en colonnes F/G/H : un SPE est étanche
+    // quand toutes les siennes sont terminées. Cette date réelle prime sur le jalon
+    // théorique de Config_SPE.
+    const etancheP6 = {};
+    imm.forEach(row => {
+      const act = String(row['Activity Name'] ?? '');
+      if (!/clamp/i.test(act)) return;
+      const m = act.match(/SP-?\s?(\d+)/i);
+      const fin = excelDate(row['Finish']);
+      if (!m || !fin) return;
+      const id = 'SPE-' + String(parseInt(m[1], 10)).padStart(2, '0');
+      if (!etancheP6[id] || fin > etancheP6[id]) etancheP6[id] = fin;
+    });
+    const nbEtanche = Object.keys(etancheP6).length;
+    if (nbEtanche) {
+      const dates = Object.values(etancheP6).sort((a, b) => a - b);
+      log(`Clamping : étanchéité datée pour ${nbEtanche} SPE (de ${fmt(dates[0])} à ${fmt(dates[dates.length-1])}).`);
+    }
+
     let missing = 0, sansRang = 0;
     elements.forEach(e => {
+      e.dateEtancheP6 = etancheP6[e.id] || null;
       e.dateImmersion = map[e.id] || null;
       e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
       if (!e.dateImmersion) missing++;
@@ -564,7 +584,7 @@ function runSimulation(paramsArg) {
     dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
-    dateBallast:null, dateFinBallast:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false,
+    dateBallast:null, dateFinBallast:null, dateHookup:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false, stockeEnBassin:false,
   }));
 
   const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
@@ -583,6 +603,7 @@ function runSimulation(paramsArg) {
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
   const parkingReserveUsages = []; // recours à la 6e place de parking (réserve de déblocage)
+  const stockagesBassin = [];      // éléments garés en bassin faute de place au parking
 
   simTimeline = {};
   let joursMax = 365 * 6;
@@ -804,6 +825,8 @@ function runSimulation(paramsArg) {
   }
   // Une fois ballasté, l'élément est immergé directement : la fin du ballast EST l'immersion.
   function demarrerBallast(e, dCur) {
+    // Le hook-up standard occupe les 24 h précédant le Ballast Jetty.
+    e.dateHookup = addDays(dCur, -PARAMS.hookupSem * 7);
     e.dateBallast = dCur;
     e.dateFinBallast = addDays(dCur, PARAMS.ballastSem * 7);
     e.statut = 'Ballast';
@@ -841,7 +864,7 @@ function runSimulation(paramsArg) {
   // Évacuer un élément normal du Basin C impose d'inonder le bassin : tout SPE présent dans
   // les zones UB doit avoir franchi son jalon d'étanchéité.
   function speNonEtancheEnUB(dCur) {
-    if (!speEtancheSem || !premiereUB) return false; // jalon non configuré : contrainte inactive
+    if (!premiereUB) return false;
     return elements.some(x => x.ligne === 6 && !x.termine && x.statut === 'Outfitting'
       && x.zoneSPE >= premiereUB && (!x.dateEtanche || dCur < x.dateEtanche));
   }
@@ -915,22 +938,58 @@ function runSimulation(paramsArg) {
       case 'AttenteBasin':
         tenterEntreeBasin(e, dCur);
         break;
-      case 'Basin':
-        if (dCur >= e.dateFinBasin) {
-          // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
-          // que le SPE présent en zone UB soit étanche.
-          if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
+      case 'Basin': {
+        if (dCur < e.dateFinBasin) break;
+        // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
+        // que le SPE présent en zone UB soit étanche.
+        if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
+
+        // Départ direct au Ballast Jetty dès que sa date est atteinte et que l'ordre l'autorise :
+        // le hook-up occupe les 24 h qui précèdent, sur place.
+        const dBallast = dateDebutBallastDe(e);
+        if (dBallast && dCur >= dBallast && ballastAutorise(e)) {
+          libererBasin(e); e.parkingSaute = true; demarrerBallast(e, dCur);
+          break;
+        }
+
+        // Un élément déjà garé en bassin y reste jusqu'à trouver une vraie destination :
+        // le renvoyer vers un stockage ferait tourner la soupape en boucle.
+        if (e.stockeEnBassin) {
+          const avant = e.basinNum + '-' + e.basinPlace;
           libererBasin(e);
-          const joursSeuil = PARAMS.seuilParkingSem * 7;
-          // Immersion proche : on saute le parking — mais seulement si l'ordre l'autorise déjà,
-          // sinon l'élément patiente au parking comme les autres.
-          if (e.dateImmersion && diffDays(e.dateImmersion, dCur) <= joursSeuil && ballastAutorise(e)) {
-            e.parkingSaute = true; demarrerBallast(e, dCur);
-          } else e.statut = 'AttenteParking';
+          e.statut = 'AttenteParking';
+          tenterEntreeParking(e, dCur);
+          if (e.statut === 'AttenteParking') {
+            // aucune place au parking : on le laisse où il était
+            basinOccupee[e.basinNum][e.basinPlace] = true;
+            e.statut = 'Basin';
+          } else {
+            e.stockeEnBassin = false;
+          }
+          break;
+        }
+
+        // Le seuil de parking évite un mouvement coûteux quand l'immersion est proche — mais
+        // il ne doit jamais retenir un élément dont la place est réclamée par la production.
+        const placeReclamee = elements.some(x => x !== e && !x.termine
+          && groupeId(x.ligne) === e.basinNum && x.statut === 'AttenteBasin');
+        const immersionProche = dBallast && diffDays(dBallast, dCur) <= PARAMS.seuilParkingSem * 7;
+        if (immersionProche && !placeReclamee) break;
+        if (!placeReclamee) break; // rien ne presse : inutile de consommer une place de parking
+
+        libererBasin(e);
+        e.statut = 'AttenteParking';
+        tenterEntreeParking(e, dCur);
+        if (e.statut === 'AttenteParking' && !stockerEnBassin(e, dCur)) {
+          // ni parking ni bassin libre : l'élément reprend sa place et réessaiera
+          basinOccupee[e.basinNum][e.basinPlace] = true;
+          e.statut = 'Basin';
         }
         break;
+      }
       case 'AttenteParking':
         tenterEntreeParking(e, dCur);
+        if (e.statut === 'AttenteParking') stockerEnBassin(e, dCur);
         break;
       case 'Parking': {
         const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : dCur;
@@ -950,7 +1009,14 @@ function runSimulation(paramsArg) {
   function marquerEntreeUB(e, dCur) {
     e.dateDebutOut = dCur;
     e.dateEntreeUB = dCur;
-    e.dateEtanche = speEtancheSem ? addDays(dCur, speEtancheSem * 7) : null;
+    e.dateEtanche = dateEtancheDe(e, dCur);
+  }
+
+  // Étanchéité d'un SPE : la date réelle issue des activités de clamping fait foi ;
+  // à défaut, le jalon théorique compté depuis l'entrée en UB1.
+  function dateEtancheDe(e, dEntreeUB) {
+    if (e.dateEtancheP6) return e.dateEtancheP6;
+    return speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null;
   }
 
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
@@ -1061,6 +1127,37 @@ function runSimulation(paramsArg) {
 
   const bloquesParOrdre = new Map(); // id -> jours d'attente imposés par l'ordre seul
 
+  function dateDebutBallastDe(e) {
+    return e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+  }
+
+  // Stockage croisé : quand le parking est saturé, un élément peut être garé dans une place
+  // de bassin libre, quel que soit le groupe. C'est une soupape de déblocage, comptabilisée
+  // comme telle — pas un mode de stockage ordinaire.
+  // Un groupe a encore besoin de son bassin tant qu'il lui reste des éléments en amont.
+  function groupeEncoreActif(g) {
+    return elements.some(x => !x.termine && groupeId(x.ligne) === g
+      && EN_AMONT_BASIN.includes(x.statut));
+  }
+
+  function stockerEnBassin(e, dCur) {
+    for (let b = 1; b <= 3; b++) {
+      // Occuper la place d'un groupe encore en production le bloquerait : la soupape doit
+      // soulager la production, pas la gêner ailleurs.
+      if (groupeEncoreActif(b)) continue;
+      for (let pl = 1; pl <= 2; pl++) {
+        if (basinOccupee[b][pl]) continue;
+        basinOccupee[b][pl] = true;
+        e.basinNum = b; e.basinPlace = pl;
+        e.statut = 'Basin'; e.stockeEnBassin = true;
+        e.dateFinBasin = dCur; // disponible au départ dès qu'une place se libère en aval
+        stockagesBassin.push({id: e.id, ligne: LIGNE_NOM[e.ligne], date: new Date(dCur), bassin: b, place: pl});
+        return true;
+      }
+    }
+    return false;
+  }
+
   function ballastAutorise(e) {
     if (!isFinite(e.rangImmersion)) return true;
     avancerFileImmersion();
@@ -1118,6 +1215,7 @@ function runSimulation(paramsArg) {
   log(`Solveur terminé sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés. ${changements.length} changement(s) de rythme planifié(s)${nbRisk ? `, ${nbRisk} alerte(s) de délai` : ''}.`, nbRisk ? 'warn' : undefined);
   if (lastRetards.length) log(`⚠ ${lastRetards.length} élément(s) ratent leur date d'immersion cible (retard max ${lastRetards[0].retardJours} j sur ${lastRetards[0].id}).`, 'err');
   if (bloquesParOrdre.size) log(`${bloquesParOrdre.size} élément(s) prêts mais retenus par l'ordre d'immersion (attente max ${Math.max(...bloquesParOrdre.values())} j).`, 'warn');
+  if (stockagesBassin.length) log(`Stockage croisé en bassin (parking saturé) : ${stockagesBassin.length} fois — ${stockagesBassin.slice(0,5).map(x=>x.id).join(', ')}${stockagesBassin.length>5?'…':''}.`, 'warn');
   if (parkingReserveUsages.length) log(`6e place de parking (réserve) utilisée ${parkingReserveUsages.length} fois : ${parkingReserveUsages.slice(0,5).map(u=>u.id).join(', ')}${parkingReserveUsages.length>5?'…':''}.`, 'warn');
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
