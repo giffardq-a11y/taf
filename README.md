@@ -24,8 +24,8 @@ Pour chaque élément au moment où il entre en zone béton, le solveur teste le
 autorisés **du plus lent (économique) au plus rapide** et retient le premier qui respecte
 simultanément :
 
-- **la pente d'inertie de la ligne** — 0,5 sem de variation tous les 4 mois maximum,
-  mesurée depuis le dernier changement réellement appliqué sur cette ligne ;
+- **la pente d'inertie de la ligne** — 1 semaine de variation par tranche de 4 mois
+  maximum, mesurée depuis le dernier changement réellement appliqué sur cette ligne ;
 - **les dates d'immersion de tout le reste de la file** de cette ligne, pas seulement
   celle de l'élément courant.
 
@@ -108,6 +108,12 @@ resteraient bloqués indéfiniment. Ces départs solo sont signalés dans le jou
 | X entrée (Est) → fin de halle → fin outfitting → bassin (Ouest) | 58,40 → 50,98 → 42,68 → 37,01 |
 | Y PL-1 / PL-2 / PL-3 / PL-4 / PL-5 / SPE | 71,71 / 69,29 / 60,66 / 58,38 / 51,83 / 48,23 |
 | Parking (épi -75°) | de [16,31 ; 80,97] à [10,25 ; 47,13] |
+
+## À venir
+
+- **Contraintes spécifiques à la paire PL-5 / SPE.** Ce groupe obéit à des règles
+  particulières qui restent à définir ; pour l'instant il est traité comme les deux
+  autres paires (float-up couplé, bassin C, sortie synchronisée).
 
 ## Limites connues
 

@@ -225,8 +225,10 @@ function lenOf(l){ return l===6 ? GEO.len_spe : GEO.len_std; }
 // --- Contraintes du solveur de rythme (cf. dossier de référence, section 3) ---
 // Rythmes discrets autorisés (semaines / segment béton), du plus lent (économique) au plus rapide.
 const RYTHMES = [4, 3.5, 3, 2.5, 2, 1.5, 1];
-// Inertie de ligne : 0,5 sem de changement autorisé tous les 4 mois (~8 mois pour 2 sem).
-const SLOPE_DAYS_PER_HALF_SEM = 4 * 30.44;
+// Inertie de ligne : la cadence ne peut varier que de 1 semaine par tranche de 4 mois
+// écoulée depuis le dernier changement effectivement appliqué sur la ligne.
+const SLOPE_SEM_PAR_PERIODE = 1;
+const SLOPE_PERIODE_JOURS = 4 * 30.44;
 
 /* ================================================================
    2. CONFIGURATION PAR DEFAUT (reprise des valeurs par défaut de la macro VBA)
@@ -681,7 +683,7 @@ function runSimulation() {
   function chooseRhythm(ligne, dConcreteStart, elemCourant) {
     const state = lastRhythmState[ligne];
     const gapDays = Math.max(0, diffDays(dConcreteStart, state.changeDate));
-    const slopeMax = (0.5 * gapDays) / SLOPE_DAYS_PER_HALF_SEM;
+    const slopeMax = (SLOPE_SEM_PAR_PERIODE * gapDays) / SLOPE_PERIODE_JOURS;
 
     // File restante sur cette ligne : l'élément courant, puis ceux encore en attente, dans l'ordre.
     const queue = [elemCourant].concat(
