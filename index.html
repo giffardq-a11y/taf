@@ -126,18 +126,29 @@
     <input type="file" id="file-img" accept="image/*">
 
     <h4>2 — Données Excel</h4>
-    <div class="drop-zone" id="drop-xlsx">📁 Charger le classeur (.xlsx)<br><span style="font-size:10px;opacity:.7">Onglets : Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</span></div>
-    <input type="file" id="file-xlsx" accept=".xlsx,.xls">
+    <div class="drop-zone" id="drop-xlsx">📁 Charger le classeur (.xlsx / .xlsm)<br><span style="font-size:10px;opacity:.7">Onglets : Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</span></div>
+    <input type="file" id="file-xlsx" accept=".xlsx,.xls,.xlsm">
     <div id="log">En attente de fichiers…</div>
 
-    <h4>3 — Paramètres</h4>
-    <label class="field">Date début simulation <input type="date" id="p-datedebut" value="2026-07-01"></label>
+    <h4>3 — État initial (as-built)</h4>
+    <div style="font-size:10.5px; color:var(--text-dim); line-height:1.5; margin-bottom:6px;">
+      Auto : un élément dont la Date Immersion (onglet Immersion) est ≤ Date de référence est considéré <b>terminé</b>.<br>
+      Pour un élément en cours, remplir la colonne juste à droite de son ID dans <b>Inputs</b> (C/E/G/I/K/M) :
+      <code>Beton:N</code>, <code>Outfitting</code>, <code>FloatUp</code>, <code>Basin</code>, <code>Parking[:N]</code>,
+      <code>Ballast</code>, <code>Done</code> (SPE : <code>Zone:N</code> à la place de Beton/Outfitting).
+      Ajouter <code>:AAAA-MM-JJ</code> en suffixe pour préciser la date de début réelle (sinon = date de référence).
+    </div>
+    <label class="field">Date de référence (aujourd'hui) <input type="date" id="p-dateref"></label>
+
+    <h4>4 — Paramètres du solveur</h4>
     <label class="field">Seuil saut Parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
     <label class="field">Durée Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
     <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
 
-    <button class="main-btn" id="btn-run" disabled>🚀 LANCER LA SIMULATION</button>
+    <button class="main-btn" id="btn-run" disabled>🚀 LANCER LE SOLVEUR</button>
+    <button class="sub-btn" id="btn-export-csv" disabled>📄 Exporter le rapport de cadence (CSV)</button>
+    <button class="sub-btn" id="btn-export-wb" disabled>💾 Exporter le classeur (Config_Cycles + rapport)</button>
     <button class="sub-btn" id="btn-template">📥 Télécharger un classeur modèle vide</button>
 
     <h4>Statistiques</h4>
@@ -154,9 +165,9 @@
     <div class="legend-item"><div class="legend-swatch" style="background:var(--ballast)"></div>Ballast Jetty</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--late);box-shadow:none"></div>Retard vs. date d'immersion</div>
 
-    <h4>Changements de cadence détectés</h4>
-    <div style="max-height: 150px; overflow-y: auto;">
-      <table class="change-table" id="change-table"><thead><tr><th>Ligne</th><th>Date</th><th>Rythme (sem/seg)</th></tr></thead><tbody></tbody></table>
+    <h4>Rythmes calculés par le solveur</h4>
+    <div style="max-height: 220px; overflow-y: auto;">
+      <table class="change-table" id="change-table"><thead><tr><th>Ligne</th><th>Date</th><th>De</th><th>Vers</th><th>⚠</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
@@ -211,16 +222,21 @@ function groupeId(l){ return l<=2?1:(l<=4?2:3); }
 function partenaire(l){ return ({1:2,2:1,3:4,4:3,5:6,6:5})[l]; }
 function lenOf(l){ return l===6 ? GEO.len_spe : GEO.len_std; }
 
+// --- Contraintes du solveur de rythme (cf. dossier de référence, section 3) ---
+// Rythmes discrets autorisés (semaines / segment béton), du plus lent (économique) au plus rapide.
+const RYTHMES = [4, 3.5, 3, 2.5, 2, 1.5, 1];
+// Inertie de ligne : 0,5 sem de changement autorisé tous les 4 mois (~8 mois pour 2 sem).
+const SLOPE_DAYS_PER_HALF_SEM = 4 * 30.44;
+
 /* ================================================================
    2. CONFIGURATION PAR DEFAUT (reprise des valeurs par défaut de la macro VBA)
    ================================================================ */
-function defaultCyclesConfig(dateDebut) {
+function defaultCyclesConfig(dateRef) {
+  // Seul le slot 1 (Date Seuil 1 / Cycle 1) sert d'ancre "état actuel" au solveur ;
+  // les slots 2-4 sont laissés vides, c'est au solveur de les déterminer.
   const cfg = {};
   for (let pl=1; pl<=5; pl++) {
-    cfg[pl] = {
-      seuils: [dateDebut, addDays(dateDebut,180), addDays(dateDebut,360), addDays(dateDebut,540)],
-      durees: [0.9, 0.85, 0.8, 0.75]
-    };
+    cfg[pl] = { seuils: [dateRef, null, null, null], durees: [1, null, null, null] };
   }
   return cfg;
 }
@@ -267,6 +283,9 @@ let dateSeq2Debut = null;
 let PARAMS = {};
 let simTimeline = {};        // { 'YYYY-MM-DD': [renderItem, ...] }
 let dateKeys = [];
+let lastChangements = [];    // dernier rapport de rythmes calculé par le solveur
+let lastRisques = [];        // alertes de délai non tenable relevées par le solveur
+let lastRetards = [];        // éléments ratant leur date d'immersion cible
 let logEl = document.getElementById('log');
 
 function log(msg, cls) {
@@ -309,7 +328,7 @@ fileXlsx.onchange = (e) => {
   reader.onload = (ev) => {
     try {
       const data = new Uint8Array(ev.target.result);
-      wb = XLSX.read(data, {type:'array', cellDates:true});
+      wb = XLSX.read(data, {type:'array', cellDates:true, bookVBA:true});
       parseWorkbook();
       dropXlsx.classList.add('loaded');
       dropXlsx.textContent = '✅ ' + f.name;
@@ -336,7 +355,7 @@ function sheetRows(name) {
 function parseWorkbook() {
   elements = [];
   logEl.innerHTML = '';
-  const dateDebut = new Date(document.getElementById('p-datedebut').value);
+  const dateRef = new Date(document.getElementById('p-dateref').value);
 
   // --- Inputs ---
   const rowsIn = sheetRows('Inputs');
@@ -351,6 +370,7 @@ function parseWorkbook() {
   const colOf = (name) => header.findIndex(c => String(c).trim() === name);
   const cols = {1: colOf('PL-1'), 2: colOf('PL-2'), 3: colOf('PL-3'), 4: colOf('PL-4'), 5: colOf('PL-5'), 6: colOf('SPE')};
   const colNo = 0;
+  let nbStatuts = 0;
 
   for (let r = hIdx + 1; r < rowsIn.length; r++) {
     const row = rowsIn[r];
@@ -363,8 +383,12 @@ function parseWorkbook() {
       if (c < 0) continue;
       const raw = String(row[c] ?? '').trim();
       if (raw === '' || raw.toLowerCase() === 'empty') continue;
+      // Statut as-built : colonne immédiatement à droite de l'ID (C pour PL-1/B, E pour PL-2/D, ...)
+      const statutBrut = String(row[c + 1] ?? '').trim();
+      if (statutBrut) nbStatuts++;
       elements.push({
-        id: raw, ligne: l, ordreSeq, zoneSPE: 0, statut: 'EnAttente', termine: false,
+        id: raw, ligne: l, ordreSeq, statutBrut, zoneSPE: 0, statut: 'EnAttente', termine: false,
+        rythme: null, atRisk: false,
         dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
         dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
         basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
@@ -372,7 +396,7 @@ function parseWorkbook() {
       });
     }
   }
-  log(`Inputs : ${elements.length} éléments chargés (${new Set(elements.map(e=>e.ligne)).size} lignes).`);
+  log(`Inputs : ${elements.length} éléments chargés (${new Set(elements.map(e=>e.ligne)).size} lignes), ${nbStatuts} statut(s) as-built renseigné(s).`);
 
   // Seq2_Debut
   const headerRow0 = rowsIn[0] || [];
@@ -381,9 +405,9 @@ function parseWorkbook() {
     if (String(headerRow0[c]).trim() === 'Seq2_Debut') { seqCol = c; break; }
   }
   if (seqCol >= 0 && rowsIn[1] && rowsIn[1][seqCol]) {
-    dateSeq2Debut = excelDate(rowsIn[1][seqCol]) || addDays(dateDebut, 365);
+    dateSeq2Debut = excelDate(rowsIn[1][seqCol]) || addDays(dateRef, 365);
   } else {
-    dateSeq2Debut = addDays(dateDebut, 365);
+    dateSeq2Debut = addDays(dateRef, 365);
     log('Seq2_Debut non trouvé — bascule Sequence 2 par défaut à +365j.', 'warn');
   }
 
@@ -407,24 +431,22 @@ function parseWorkbook() {
   }
 
   // --- Config_Cycles ---
+  // Seuls Date Seuil 1 / Cycle 1 (colonnes B/C) font foi : c'est l'ancre "rythme actuel" du solveur.
+  // Les colonnes suivantes (Seuil 2..4 / Cycle 2..4) sont ignorées en entrée : le solveur les détermine.
   const rowsCyc = sheetRows('Config_Cycles');
   if (rowsCyc) {
     cyclesConfig = {};
     for (let pl = 1; pl <= 5; pl++) {
       const row = rowsCyc[pl];
       if (!row) continue;
-      const seuils = [], durees = [];
-      for (let s = 0; s < 4; s++) {
-        seuils.push(excelDate(row[1 + s*2]) || dateDebut);
-        const dv = row[2 + s*2];
-        durees.push(typeof dv === 'number' ? dv : 0.9);
-      }
-      cyclesConfig[pl] = {seuils, durees};
+      const seuil1 = excelDate(row[1]) || dateRef;
+      const cycle1 = typeof row[2] === 'number' ? row[2] : 1;
+      cyclesConfig[pl] = {seuils: [seuil1, null, null, null], durees: [cycle1, null, null, null]};
     }
-    log('Config_Cycles chargé.');
+    log(`Config_Cycles chargé — rythme actuel : ${Object.entries(cyclesConfig).map(([pl,c])=>`PL-${pl}=${c.durees[0]}`).join(', ')}.`);
   } else {
-    cyclesConfig = defaultCyclesConfig(dateDebut);
-    log('Config_Cycles absent — valeurs par défaut appliquées (0.9/0.85/0.8/0.75 sem).', 'warn');
+    cyclesConfig = defaultCyclesConfig(dateRef);
+    log('Config_Cycles absent — rythme actuel par défaut : 1.0 sem/segment sur toutes les lignes.', 'warn');
   }
 
   // --- Config_SPE ---
@@ -466,36 +488,57 @@ function parseWorkbook() {
 }
 
 /* ================================================================
-   7. MOTEUR DE CYCLE (rythme béton/outfitting par ligne, dans le temps)
+   7. MOTEUR DE CYCLE — durée outfitting pour un rythme R donné
    ================================================================ */
-function cycleApplicable(ligne, d) {
-  const c = cyclesConfig[ligne];
-  for (let s = 3; s >= 0; s--) {
-    if (c.seuils[s] && d >= c.seuils[s]) return c.durees[s];
-  }
-  return 0.9;
-}
-function dureeOutfittingJours(ligne, dStart) {
+function dureeOutfittingJoursForR(ligne, dStart, R) {
   const seq = (dStart >= dateSeq2Debut) ? outfittingConfig.seq2 : outfittingConfig.seq1;
-  const c = cycleApplicable(ligne, dStart);
-  return seq.reduce((tot, ph) => tot + ph.duree * c * 7, 0);
+  return seq.reduce((tot, ph) => tot + ph.duree * R * 7, 0);
+}
+function anchorRhythm(ligne) {
+  return (cyclesConfig[ligne] && typeof cyclesConfig[ligne].durees[0] === 'number') ? cyclesConfig[ligne].durees[0] : 1;
+}
+function anchorDate(ligne) {
+  return (cyclesConfig[ligne] && cyclesConfig[ligne].seuils[0]) || PARAMS.dateRef;
 }
 
 /* ================================================================
-   8. SIMULATION JOUR PAR JOUR (portage fidèle de la macro VBA)
+   7bis. PARSEUR DE STATUT AS-BUILT (colonnes C/E/G/I/K/M de Inputs)
+   Format : TYPE[:N][:AAAA-MM-JJ]  — ex: "Beton:5", "Outfitting:2026-07-15",
+   "Zone:6" (SPE), "Parking:3", "Basin", "Ballast", "Done".
+   ================================================================ */
+function parseAsBuiltCode(raw) {
+  if (!raw) return null;
+  const parts = String(raw).trim().split(':').map(p => p.trim()).filter(p => p !== '');
+  if (!parts.length) return null;
+  const type = parts[0].toLowerCase();
+  let n = null, date = null;
+  for (let i = 1; i < parts.length; i++) {
+    if (/^\d+(\.\d+)?$/.test(parts[i])) n = parseFloat(parts[i]);
+    else { const d = excelDate(parts[i]); if (d) date = d; }
+  }
+  return {type, n, date};
+}
+
+/* ================================================================
+   8. SOLVEUR + SIMULATION JOUR PAR JOUR
+   Backward scheduling : au lancement de chaque nouvel élément, le
+   solveur teste les rythmes discrets du plus lent au plus rapide et
+   retient le premier qui respecte à la fois la pente d'inertie de la
+   ligne (vs. son dernier changement réel) et la date d'immersion cible.
    ================================================================ */
 function runSimulation() {
   PARAMS = {
-    dateDebut: new Date(document.getElementById('p-datedebut').value),
+    dateRef: new Date(document.getElementById('p-dateref').value),
     seuilParkingSem: parseFloat(document.getElementById('p-seuilparking').value) || 4,
     floatUpSem: parseFloat(document.getElementById('p-floatup').value) || 1,
     hookupSem: parseFloat(document.getElementById('p-hookup').value) || 0.5,
     ballastSem: parseFloat(document.getElementById('p-ballast').value) || 1,
   };
+  const REF = PARAMS.dateRef;
 
-  // reset element states (garde id/ligne/ordreSeq/dateImmersion)
+  // reset element states (garde id/ligne/ordreSeq/dateImmersion/statutBrut)
   elements.forEach(e => Object.assign(e, {
-    zoneSPE: 0, statut: 'EnAttente', termine: false,
+    zoneSPE: 0, statut: 'EnAttente', termine: false, rythme: null, atRisk: false,
     dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
@@ -507,9 +550,102 @@ function runSimulation() {
   const zonesSPE = speConfig.map(z => ({...z, occupee:false, idOccupant:'', jourEntree:0}));
   const basinOccupee = {1:{1:false,2:false}, 2:{1:false,2:false}, 3:{1:false,2:false}};
   const parkingOccupee = {1:false,2:false,3:false,4:false,5:false,6:false};
+  const nBetonSPE = speConfig.filter(z=>z.estBeton).length;
+
+  // Etat du solveur par ligne PL : dernier rythme réellement en vigueur + date de ce changement.
+  const lastRhythmState = {};
+  for (let l = 1; l <= 5; l++) lastRhythmState[l] = {rhythm: anchorRhythm(l), changeDate: anchorDate(l)};
+  const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
+  const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
+  const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
 
   simTimeline = {};
   let joursMax = 365 * 6;
+
+  /* ---- Application de l'état "as-built" à la date de référence ---- */
+  let nbAutoTermine = 0, nbOverride = 0, nbOverrideIgnore = 0;
+  elements.forEach(e => {
+    const code = parseAsBuiltCode(e.statutBrut);
+    if (!code) {
+      // Pas de statut saisi : on retombe sur la déduction automatique (immergé si sa date
+      // d'immersion est déjà passée), sinon l'élément n'a pas encore démarré et le solveur
+      // décidera de son rythme le moment venu.
+      if (e.dateImmersion && e.dateImmersion <= REF) { e.termine = true; e.statut = 'Immerge'; nbAutoTermine++; }
+      return;
+    }
+    const ligne = e.ligne;
+    const anchorR = ligne <= 5 ? anchorRhythm(ligne) : null;
+    switch (code.type) {
+      case 'done': case 'immerge': case 'termine':
+        e.termine = true; e.statut = 'Immerge'; nbOverride++; return;
+      case 'beton': {
+        if (ligne > 5) { nbOverrideIgnore++; return; }
+        const n = Math.min(9, Math.max(1, code.n || 1));
+        e.rythme = anchorR;
+        e.dateDebutBeton = code.date || addDays(REF, -n * anchorR * 7);
+        e.dateFinBeton = addDays(e.dateDebutBeton, anchorR * 7 * 9);
+        e.statut = 'Beton';
+        zoneBetonOccupee[ligne] = true;
+        break;
+      }
+      case 'zone': {
+        if (ligne !== 6) { nbOverrideIgnore++; return; }
+        const n = Math.min(7, Math.max(1, Math.round(code.n || 1)));
+        const zc = speConfig[n-1];
+        e.zoneSPE = n;
+        e.statut = zc.estBeton ? 'Beton' : 'Outfitting';
+        zonesSPE[n-1].occupee = true; zonesSPE[n-1].idOccupant = e.id;
+        zonesSPE[n-1].jourEntree = code.date ? Math.round(diffDays(code.date, REF)) : 0;
+        if (n === 1) e.dateDebutBeton = code.date || REF;
+        if (n === nBetonSPE + 1) e.dateDebutOut = code.date || REF;
+        break;
+      }
+      case 'outfitting': {
+        if (ligne > 5) { nbOverrideIgnore++; return; } // SPE : utiliser Zone:N
+        e.rythme = anchorR;
+        e.dateDebutOut = code.date || REF;
+        e.dateFinOut = addDays(e.dateDebutOut, dureeOutfittingJoursForR(ligne, e.dateDebutOut, anchorR));
+        e.statut = 'Outfitting';
+        zoneOutOccupee[ligne] = true;
+        break;
+      }
+      case 'floatup': {
+        e.dateDebutFU = code.date || REF;
+        e.dateFinFU = addDays(e.dateDebutFU, PARAMS.floatUpSem * 7);
+        e.statut = 'FloatUp';
+        break;
+      }
+      case 'attentebasin': e.statut = 'AttenteBasin'; break;
+      case 'basin': case 'hookup': {
+        const g = groupeId(ligne);
+        const place = (ligne === 1 || ligne === 3 || ligne === 5) ? 1 : 2;
+        if (basinOccupee[g][place]) log(`As-built ${e.id} : place Basin ${g}/${place} déjà occupée — conflit à vérifier.`, 'warn');
+        basinOccupee[g][place] = true; e.basinNum = g; e.basinPlace = place;
+        e.dateDebutBasin = code.date || REF;
+        e.dateFinBasin = addDays(e.dateDebutBasin, PARAMS.hookupSem * 7);
+        e.statut = 'Basin';
+        break;
+      }
+      case 'parking': {
+        if (ligne === 6) { nbOverrideIgnore++; return; } // SPE : pas de parking
+        let slot = (code.n && code.n >= 1 && code.n <= 6) ? Math.round(code.n) : null;
+        if (!slot) { for (let p = 1; p <= 6; p++) { if (!parkingOccupee[p]) { slot = p; break; } } }
+        if (slot) { if (parkingOccupee[slot]) log(`As-built ${e.id} : place Parking ${slot} déjà occupée — conflit à vérifier.`, 'warn'); parkingOccupee[slot] = true; e.parkingNum = slot; }
+        e.dateDebutParking = code.date || REF;
+        e.statut = 'Parking';
+        break;
+      }
+      case 'ballast':
+        e.dateBallast = code.date || REF;
+        e.statut = 'Ballast';
+        break;
+      default:
+        log(`Statut as-built non reconnu pour ${e.id} : "${e.statutBrut}" — ignoré (traité comme non démarré).`, 'warn');
+        return;
+    }
+    nbOverride++;
+  });
+  log(`État as-built appliqué à la date de référence (${fmt(REF)}) : ${nbAutoTermine} élément(s) déjà immergé(s) (auto), ${nbOverride} en cours (statut manuel)${nbOverrideIgnore ? `, ${nbOverrideIgnore} statut(s) ignoré(s) (ligne incompatible)` : ''}.`);
 
   function prochainEnAttente(ligne) {
     let best = null, bestOrdre = Infinity;
@@ -519,34 +655,107 @@ function runSimulation() {
     return best;
   }
 
+  // Temps de traversée complet (jours) d'un élément lancé au rythme R, du 1er segment béton
+  // jusqu'à l'immersion. Le Parking est exclu : il n'ajoute pas de délai, il absorbe au contraire
+  // la marge éventuelle avant la date d'immersion.
+  function pipelineJours(ligne, dConcreteStart, R) {
+    const dConcreteEnd = addDays(dConcreteStart, R * 7 * 9);
+    const outDur = dureeOutfittingJoursForR(ligne, dConcreteEnd, R);
+    return (R * 7 * 9) + outDur + (PARAMS.floatUpSem * 7) + (PARAMS.hookupSem * 7) + (PARAMS.ballastSem * 7);
+  }
+
+  // Cadence de la ligne (takt) au rythme R : intervalle entre deux lancements successifs de béton.
+  // La zone béton n'est libérée que quand la zone outfitting l'est aussi, donc c'est la plus longue
+  // des deux phases qui impose le rythme d'écoulement de la ligne.
+  function taktJours(ligne, dRef, R) {
+    return Math.max(R * 7 * 9, dureeOutfittingJoursForR(ligne, dRef, R));
+  }
+
+  // Coeur du solveur — backward scheduling sur TOUTE la file restante de la ligne.
+  // On teste les rythmes du plus lent (économique) au plus rapide et on retient le premier qui
+  // respecte simultanément :
+  //   - la pente d'inertie de la ligne (0,5 sem tous les 4 mois vs. le dernier changement réel) ;
+  //   - la date d'immersion de l'élément courant ET de tous ceux qui attendent derrière lui.
+  // Regarder toute la file (et pas seulement l'élément courant) est ce qui évite l'oscillation :
+  // ralentir maintenant repousse mécaniquement tous les suivants.
+  function chooseRhythm(ligne, dConcreteStart, elemCourant) {
+    const state = lastRhythmState[ligne];
+    const gapDays = Math.max(0, diffDays(dConcreteStart, state.changeDate));
+    const slopeMax = (0.5 * gapDays) / SLOPE_DAYS_PER_HALF_SEM;
+
+    // File restante sur cette ligne : l'élément courant, puis ceux encore en attente, dans l'ordre.
+    const queue = [elemCourant].concat(
+      elements.filter(x => x.ligne === ligne && x.statut === 'EnAttente' && x !== elemCourant)
+              .sort((a, b) => a.ordreSeq - b.ordreSeq)
+    );
+
+    const feasibleForQueue = (R) => {
+      const takt = taktJours(ligne, dConcreteStart, R);
+      const pipe = pipelineJours(ligne, dConcreteStart, R);
+      for (let i = 0; i < queue.length; i++) {
+        const target = queue[i].dateImmersion;
+        if (!target) continue;
+        const finish = diffDays(dConcreteStart, dConcreteStart) + i * takt + pipe;
+        if (finish > diffDays(target, dConcreteStart) + 1e-9) return false;
+      }
+      return true;
+    };
+
+    const slopeOk = RYTHMES.filter(R => Math.abs(R - state.rhythm) <= slopeMax + 1e-9);
+    let chosen = slopeOk.find(feasibleForQueue) ?? null;
+    let atRisk = false;
+    if (chosen === null) {
+      // Aucun rythme conforme à la pente ne tient les délais : on prend le plus rapide que la pente
+      // autorise (la moins mauvaise option) et on signale le risque dans le rapport.
+      chosen = slopeOk.length ? Math.min(...slopeOk) : state.rhythm;
+      atRisk = true;
+    }
+
+    if (chosen !== state.rhythm) {
+      changements.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), from: state.rhythm, to: chosen, atRisk, declencheur: elemCourant.id});
+      lastRhythmState[ligne] = {rhythm: chosen, changeDate: new Date(dConcreteStart)};
+    } else if (atRisk) {
+      risques.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), rythme: chosen, element: elemCourant.id});
+    }
+    return {rhythm: chosen, atRisk};
+  }
+
   function demarrerBetonPL(e, dCur) {
     zoneBetonOccupee[e.ligne] = true;
     e.statut = 'Beton';
     e.dateDebutBeton = dCur;
-    const c = cycleApplicable(e.ligne, dCur);
-    e.dateFinBeton = addDays(dCur, c * 7 * 9);
+    const {rhythm, atRisk} = chooseRhythm(e.ligne, dCur, e);
+    e.rythme = rhythm; e.atRisk = atRisk;
+    e.dateFinBeton = addDays(dCur, rhythm * 7 * 9);
   }
   function demarrerOutfittingPL(e, dCur) {
     e.dateDebutOut = dCur;
-    e.dateFinOut = addDays(dCur, dureeOutfittingJours(e.ligne, dCur));
+    e.dateFinOut = addDays(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
   }
   function demarrerBallast(e, dCur) {
     e.dateBallast = dCur;
     e.statut = 'Ballast';
     if (!e.dateImmersion) e.dateImmersion = addDays(dCur, PARAMS.ballastSem * 7);
   }
+  // Statuts d'un élément encore susceptible de rejoindre son partenaire à l'entrée du bassin.
+  const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
+
   function tenterEntreeBasin(e, dCur) {
     const g = groupeId(e.ligne), part = partenaire(e.ligne);
     const idxPart = elements.find(x => x.ligne === part && x.statut === 'AttenteBasin');
-    if (!idxPart) return;
+    // Comme pour le Float-up : si la ligne partenaire est épuisée, l'élément entre seul plutôt
+    // que de rester bloqué indéfiniment en attente d'un partenaire qui n'arrivera jamais.
+    if (!idxPart && elements.some(x => x.ligne === part && EN_AMONT_BASIN.includes(x.statut))) return;
     if (basinOccupee[g][1] || basinOccupee[g][2]) return;
     const place1 = (e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2;
     const place2 = place1 === 1 ? 2 : 1;
-    basinOccupee[g][place1] = true;
-    basinOccupee[g][place2] = true;
     const dureeHookup = PARAMS.hookupSem * 7;
+    basinOccupee[g][place1] = true;
     e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place1;
-    idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeHookup); idxPart.basinNum = g; idxPart.basinPlace = place2;
+    if (idxPart) {
+      basinOccupee[g][place2] = true;
+      idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeHookup); idxPart.basinNum = g; idxPart.basinPlace = place2;
+    }
   }
   function libererBasin(e) { basinOccupee[e.basinNum][e.basinPlace] = false; }
   function tenterEntreeParking(e, dCur) {
@@ -634,18 +843,30 @@ function runSimulation() {
     }
   }
 
+  // Un élément est encore susceptible de rejoindre un Float-up sur sa ligne (amont du Float-up).
+  const EN_AMONT_FU = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp'];
+
   function verifierFloatUpGroupes(dCur) {
     for (const [lA, lB] of GROUPES) {
       const eA = elements.find(x => x.ligne===lA && x.statut==='AttenteFloatUp');
       const eB = elements.find(x => x.ligne===lB && x.statut==='AttenteFloatUp');
-      if (eA && eB) {
-        const bloque = elements.some(x => (x.ligne===lA || x.ligne===lB) && (x.statut==='Outfitting' || x.statut==='AttenteOutfitting'));
-        if (!bloque) {
-          const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
-          eA.statut='FloatUp'; eA.dateDebutFU=dCur; eA.dateFinFU=dFin;
-          eB.statut='FloatUp'; eB.dateDebutFU=dCur; eB.dateFinFU=dFin;
-        }
-      }
+      const partants = [eA, eB].filter(Boolean);
+      if (!partants.length) continue;
+
+      // Une ligne épuisée (plus aucun élément en amont du Float-up) ne peut plus fournir de
+      // partenaire : les derniers éléments de la ligne jumelle partent alors seuls, sinon ils
+      // resteraient bloqués indéfiniment (les files des 2 lignes n'ont pas la même longueur).
+      const resteA = elements.some(x => x.ligne===lA && EN_AMONT_FU.includes(x.statut));
+      const resteB = elements.some(x => x.ligne===lB && EN_AMONT_FU.includes(x.statut));
+      if (!eA && resteA) continue;   // le partenaire de A va encore arriver : on attend
+      if (!eB && resteB) continue;
+
+      const bloque = elements.some(x => (x.ligne===lA || x.ligne===lB) && (x.statut==='Outfitting' || x.statut==='AttenteOutfitting'));
+      if (bloque) continue;
+
+      const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
+      partants.forEach(e => { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFin; });
+      if (partants.length === 1) floatUpSolo.push({id: partants[0].id, ligne: LIGNE_NOM[partants[0].ligne], date: new Date(dCur)});
     }
   }
 
@@ -653,20 +874,12 @@ function runSimulation() {
   const speBetonIdx = [], speOutIdx = [];
   zonesSPE.forEach((z,i) => { (z.estBeton ? speBetonIdx : speOutIdx).push(i+1); });
 
-  const changements = []; // journal des changements de cycle détectés (pour affichage sidebar)
-  const lastCycle = {1:null,2:null,3:null,4:null,5:null};
-
   let jourCourant = 0;
   for (; jourCourant <= joursMax; jourCourant++) {
-    const dCur = addDays(PARAMS.dateDebut, jourCourant);
+    const dCur = addDays(REF, jourCourant);
 
     for (let l = 1; l <= 5; l++) {
       if (!zoneBetonOccupee[l]) { const e = prochainEnAttente(l); if (e) demarrerBetonPL(e, dCur); }
-      const c = cycleApplicable(l, dCur);
-      if (lastCycle[l] !== c) {
-        if (lastCycle[l] !== null) changements.push({ligne: LIGNE_NOM[l], date: new Date(dCur), rythme: c});
-        lastCycle[l] = c;
-      }
     }
     if (!zonesSPE[0].occupee) { const e = prochainEnAttente(6); if (e) demarrerZoneSPE(e, 1, dCur, jourCourant); }
 
@@ -691,7 +904,21 @@ function runSimulation() {
   }
 
   dateKeys = Object.keys(simTimeline).sort();
-  log(`Simulation terminée sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés.`);
+  lastChangements = changements;
+  lastRisques = risques;
+  // KPI de faisabilité : un élément rate sa cible si son Ballast Jetty démarre après sa date
+  // d'immersion contractuelle (il ne peut alors plus être immergé à temps).
+  lastRetards = elements
+    .filter(e => e.dateBallast && e.dateImmersion && e.dateBallast > e.dateImmersion)
+    .map(e => ({id: e.id, ligne: LIGNE_NOM[e.ligne], cible: e.dateImmersion, reel: e.dateBallast,
+                retardJours: Math.round(diffDays(e.dateBallast, e.dateImmersion))}))
+    .sort((a,b) => b.retardJours - a.retardJours);
+  const nbRisk = changements.filter(c=>c.atRisk).length + risques.length;
+  const nonTermines = elements.filter(e=>!e.termine).length;
+  log(`Solveur terminé sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés. ${changements.length} changement(s) de rythme planifié(s)${nbRisk ? `, ${nbRisk} alerte(s) de délai` : ''}.`, nbRisk ? 'warn' : undefined);
+  if (lastRetards.length) log(`⚠ ${lastRetards.length} élément(s) ratent leur date d'immersion cible (retard max ${lastRetards[0].retardJours} j sur ${lastRetards[0].id}).`, 'err');
+  if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
+  if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
   renderChangeTable(changements);
   renderStats();
   return jourCourant;
@@ -798,23 +1025,34 @@ function render(idx) {
 function renderStats() {
   const total = elements.length;
   const done = elements.filter(e=>e.termine).length;
-  const late = elements.filter(e=>e.dateImmersion && new Date() > e.dateImmersion && !e.termine).length;
-  const maxDate = elements.reduce((m,e)=> (e.dateImmersion && e.dateImmersion>m) ? e.dateImmersion : m, PARAMS.dateDebut);
+  const maxDate = elements.reduce((m,e)=> (e.dateImmersion && e.dateImmersion>m) ? e.dateImmersion : m, PARAMS.dateRef);
   const skip = elements.filter(e=>e.parkingSaute).length;
+  const risk = lastChangements.filter(c=>c.atRisk).length + lastRisques.length;
+  const rythmesLignes = [1,2,3,4,5].map(l => {
+    const last = [...lastChangements].reverse().find(c => c.ligne === LIGNE_NOM[l]);
+    return `<div class="stat-row"><span>Rythme actuel PL-${l}</span><b>${(last ? last.to : anchorRhythm(l)).toFixed(1)} sem/seg</b></div>`;
+  }).join('');
   document.getElementById('stats').innerHTML = `
     <div class="stat-row"><span>Total éléments</span><b>${total}</b></div>
     <div class="stat-row"><span>Immergés (fin de simulation)</span><b>${done}</b></div>
+    <div class="stat-row"><span>Éléments ratant leur date cible</span><b style="${lastRetards.length?'color:var(--late)':'color:var(--ok)'}">${lastRetards.length}</b></div>
+    <div class="stat-row"><span>Retard max</span><b style="${lastRetards.length?'color:var(--late)':''}">${lastRetards.length ? lastRetards[0].retardJours + ' j (' + lastRetards[0].id + ')' : '—'}</b></div>
     <div class="stat-row"><span>Fin de projet estimée</span><b>${fmt(maxDate)}</b></div>
     <div class="stat-row"><span>Parkings sautés (immersion proche)</span><b>${skip}</b></div>
+    <div class="stat-row"><span>Alertes de délai non tenable</span><b style="${risk?'color:var(--late)':''}">${risk}</b></div>
+    <div class="stat-row"><span>Changements de rythme planifiés</span><b>${lastChangements.length}</b></div>
+    ${rythmesLignes}
   `;
 }
 
 function renderChangeTable(changements) {
   const tbody = document.querySelector('#change-table tbody');
   tbody.innerHTML = '';
-  changements.slice(0, 200).forEach(c => {
-    tbody.innerHTML += `<tr><td>${c.ligne}</td><td>${fmt(c.date)}</td><td>${c.rythme.toFixed(2)}</td></tr>`;
+  changements.slice(0, 300).forEach(c => {
+    tbody.innerHTML += `<tr${c.atRisk ? ' style="color:var(--late)"' : ''}><td>${c.ligne}</td><td>${fmt(c.date)}</td><td>${c.from.toFixed(1)}</td><td>${c.to.toFixed(1)}</td><td>${c.atRisk?'⚠':''}</td></tr>`;
   });
+  document.getElementById('btn-export-csv').disabled = changements.length === 0 && lastRisques.length === 0 && lastRetards.length === 0;
+  document.getElementById('btn-export-wb').disabled = !wb;
 }
 
 /* ================================================================
@@ -834,7 +1072,7 @@ document.getElementById('btn-run').onclick = () => {
       log('Erreur simulation : ' + err.message, 'err');
       console.error(err);
     }
-    document.getElementById('btn-run').textContent = '🚀 RELANCER LA SIMULATION';
+    document.getElementById('btn-run').textContent = '🚀 RELANCER LE SOLVEUR';
     document.getElementById('btn-run').disabled = false;
   }, 30);
 };
@@ -859,20 +1097,26 @@ document.getElementById('play-btn').onclick = () => {
   }
 };
 
-// Re-parse workbook automatically if date début changes
-document.getElementById('p-datedebut').addEventListener('change', () => { if (wb) parseWorkbook(); });
+// Re-parse workbook automatically if reference date changes
+document.getElementById('p-dateref').addEventListener('change', () => { if (wb) parseWorkbook(); });
+
+// Défaut : la vraie date du jour (recalculée à chaque ouverture de l'outil)
+(function initDateRef() {
+  const el = document.getElementById('p-dateref');
+  if (!el.value) el.value = new Date().toISOString().slice(0,10);
+})();
 
 /* ================================================================
    11. GENERATION D'UN CLASSEUR MODELE VIDE
    ================================================================ */
 document.getElementById('btn-template').onclick = () => {
   const outWb = XLSX.utils.book_new();
-  const dateDebut = new Date(document.getElementById('p-datedebut').value || '2026-07-01');
+  const dateRef = new Date(document.getElementById('p-dateref').value || new Date().toISOString().slice(0,10));
 
-  // --- Inputs ---
+  // --- Inputs (colonnes C/E/G/I/K/M = statut as-built, laissées vides dans le modèle) ---
   const inAoa = [];
   inAoa[0] = ['Sequence Production']; inAoa[0][14] = 'Seq2_Debut';
-  inAoa[1] = []; inAoa[1][14] = addDays(dateDebut, 365);
+  inAoa[1] = []; inAoa[1][14] = addDays(dateRef, 365);
   inAoa[2] = [];
   inAoa[2][1] = 'PL-1'; inAoa[2][3] = 'PL-2'; inAoa[2][5] = 'PL-3';
   inAoa[2][7] = 'PL-4'; inAoa[2][9] = 'PL-5'; inAoa[2][11] = 'SPE';
@@ -884,16 +1128,16 @@ document.getElementById('btn-template').onclick = () => {
 
   // --- Immersion ---
   const immAoa = [['ID Element', 'Date Immersion', 'Date Hookup', 'Date Ballast Jetty'],
-                   ['STE-01', addDays(dateDebut, 730), '', '']];
+                   ['STE-01', addDays(dateRef, 730), '', '']];
   const wsImm = XLSX.utils.aoa_to_sheet(immAoa);
   wsImm['!cols'] = Array(4).fill({wch: 16});
   XLSX.utils.book_append_sheet(outWb, wsImm, 'Immersion');
 
-  // --- Config_Cycles ---
+  // --- Config_Cycles : seul Seuil1/Cycle1 (état actuel) est à renseigner, le reste est calculé par le solveur ---
   const cycAoa = [['Ligne (PL)', 'Date Seuil 1', 'Cycle 1 (sem)', 'Date Seuil 2', 'Cycle 2 (sem)',
                     'Date Seuil 3', 'Cycle 3 (sem)', 'Date Seuil 4', 'Cycle 4 (sem)']];
   for (let pl = 1; pl <= 5; pl++) {
-    cycAoa.push(['PL-' + pl, dateDebut, 0.9, addDays(dateDebut,180), 0.85, addDays(dateDebut,360), 0.8, addDays(dateDebut,540), 0.75]);
+    cycAoa.push(['PL-' + pl, dateRef, 1, '', '', '', '', '', '']);
   }
   const wsCyc = XLSX.utils.aoa_to_sheet(cycAoa);
   wsCyc['!cols'] = Array(9).fill({wch: 14});
@@ -915,6 +1159,91 @@ document.getElementById('btn-template').onclick = () => {
   XLSX.utils.book_append_sheet(outWb, wsOut, 'Config_Outfitting');
 
   XLSX.writeFile(outWb, 'Lolland_Planning_Modele.xlsx');
+};
+
+/* ================================================================
+   12. EXPORT DU RAPPORT DE CADENCE
+   ================================================================ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+document.getElementById('btn-export-csv').onclick = () => {
+  if (!lastChangements.length && !lastRisques.length && !lastRetards.length) return;
+  let csv = 'Type;Ligne;Date;Rythme precedent (sem-seg);Nouveau rythme (sem-seg);Element declencheur;Alerte\n';
+  lastChangements.forEach(c => {
+    csv += `Changement;${c.ligne};${fmt(c.date)};${c.from.toFixed(2)};${c.to.toFixed(2)};${c.declencheur || ''};${c.atRisk ? 'Delai non tenable meme au rythme max autorise' : ''}\n`;
+  });
+  lastRisques.forEach(r => {
+    csv += `Alerte;${r.ligne};${fmt(r.date)};;${r.rythme.toFixed(2)};${r.element};Delai non tenable meme au rythme max autorise\n`;
+  });
+  lastRetards.forEach(r => {
+    csv += `Retard;${r.ligne};${fmt(r.reel)};;;${r.id};Rate sa date cible du ${fmt(r.cible)} de ${r.retardJours} jours\n`;
+  });
+  downloadBlob(new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'}), 'Lolland_Rapport_Cadence.csv');
+};
+
+// Réinjecte les décisions du solveur dans Config_Cycles (slots 2-4, jusqu'à 3 changements futurs
+// par ligne) et ajoute un onglet Solver_Report avec l'historique complet, puis propose le
+// classeur mis à jour (avec macros préservées si le fichier d'origine était un .xlsm).
+document.getElementById('btn-export-wb').onclick = () => {
+  if (!wb || !lastChangements) return;
+  const wsCyc = wb.Sheets['Config_Cycles'];
+  if (wsCyc) {
+    let tronques = 0;
+    for (let pl = 1; pl <= 5; pl++) {
+      const rowIdx = pl + 1; // ligne Excel (1-indexée) de PL-pl dans Config_Cycles
+      const lineChanges = lastChangements.filter(c => c.ligne === 'PL-' + pl);
+      if (lineChanges.length > 3) tronques += lineChanges.length - 3;
+      // Les 3 slots (Seuil 2..4) sont toujours réécrits en entier — y compris vidés — sinon les
+      // anciennes valeurs du fichier subsisteraient et produiraient une configuration incohérente.
+      for (let i = 0; i < 3; i++) {
+        const c = lineChanges[i];
+        const dateCol = String.fromCharCode('D'.charCodeAt(0) + i * 2);  // D, F, H
+        const cycleCol = String.fromCharCode('E'.charCodeAt(0) + i * 2); // E, G, I
+        if (c) {
+          XLSX.utils.sheet_add_aoa(wsCyc, [[c.date]], {origin: dateCol + rowIdx, cellDates: true});
+          XLSX.utils.sheet_add_aoa(wsCyc, [[c.to]], {origin: cycleCol + rowIdx});
+        } else {
+          // sheet_add_aoa n'efface pas une cellule avec null : il faut la supprimer explicitement,
+          // sinon l'ancienne valeur du fichier subsiste et fausse la configuration.
+          delete wsCyc[dateCol + rowIdx];
+          delete wsCyc[cycleCol + rowIdx];
+        }
+      }
+    }
+    if (tronques) log(`Config_Cycles ne dispose que de 3 slots de changement par ligne : ${tronques} changement(s) au-delà ne sont pas réinjectés (voir l'onglet Solver_Report pour la liste complète).`, 'warn');
+  } else {
+    log('Config_Cycles introuvable dans le classeur — impossible d\'y réinjecter les rythmes.', 'warn');
+  }
+
+  const reportAoa = [['Type', 'Ligne', 'Date', 'Rythme précédent (sem/seg)', 'Nouveau rythme (sem/seg)', 'Élément déclencheur', 'Alerte']];
+  lastChangements.forEach(c => reportAoa.push(['Changement', c.ligne, c.date, c.from, c.to, c.declencheur || '',
+    c.atRisk ? 'Délai non tenable même au rythme max autorisé par la pente' : '']));
+  lastRisques.forEach(r => reportAoa.push(['Alerte', r.ligne, r.date, '', r.rythme, r.element,
+    'Délai non tenable même au rythme max autorisé par la pente']));
+  lastRetards.forEach(r => reportAoa.push(['Retard', r.ligne, r.reel, '', '', r.id,
+    `Rate sa date cible du ${fmt(r.cible)} de ${r.retardJours} jours`]));
+  const wsReport = XLSX.utils.aoa_to_sheet(reportAoa);
+  wsReport['!cols'] = [{wch:12},{wch:8},{wch:14},{wch:22},{wch:22},{wch:18},{wch:44}];
+  if (wb.Sheets['Solver_Report']) {
+    wb.Sheets['Solver_Report'] = wsReport;
+  } else {
+    XLSX.utils.book_append_sheet(wb, wsReport, 'Solver_Report');
+  }
+
+  const isXlsm = /\.xlsm$/i.test(dropXlsx.textContent || '') || !!(wb.vbaraw || (wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.CodeName));
+  const bookType = isXlsm ? 'xlsm' : 'xlsx';
+  try {
+    XLSX.writeFile(wb, `Lolland_Planning_SOLVED.${bookType}`, {bookType});
+  } catch (err) {
+    log('Export avec macros impossible (' + err.message + ') — export en .xlsx sans macros.', 'warn');
+    XLSX.writeFile(wb, 'Lolland_Planning_SOLVED.xlsx', {bookType:'xlsx'});
+  }
 };
 </script>
 </body>
