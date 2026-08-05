@@ -653,6 +653,9 @@
 
     if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF'))
       return { ph:'beton', x: GEO.xEntry, y, w: L * Math.max(0, Math.min(1, seg(A('bD'), A('bF')))), anchor:'right' };
+    // Béton terminé, poussé hors des positions de coulée, en attente de la zone d'outfitting.
+    if (A('bF') && ms >= A('bF') && A('oD') && ms < A('oD'))
+      return { ph:'outfitting', x: GEO.xHallEnd, y, w: L, anchor:'center', attente:true };
     if (A('oD') && ms >= A('oD') && A('oF') && ms < A('oF')) {
       const p = Math.max(0, Math.min(1, seg(A('oD'), A('oF'))));
       return { ph:'outfitting', x: GEO.xHallEnd + (GEO.xOutfitEnd - GEO.xHallEnd) * p, y, w: L, anchor:'center' };

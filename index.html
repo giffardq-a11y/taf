@@ -922,12 +922,17 @@ function runSimulation(paramsArg) {
     switch (e.statut) {
       case 'Beton':
         if (dCur >= e.dateFinBeton) {
-          if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+          // Poussage continu : l'élément quitte les positions de coulée dès son dernier
+          // segment coulé. La zone béton se libère alors pour le suivant, sans attendre
+          // que la zone d'outfitting se dégage — sinon un élément bloqué en fin de béton
+          // gèlerait toute la ligne derrière lui.
+          zoneBetonOccupee[ligne] = false;
+          if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
           else e.statut = 'AttenteOutfitting';
         }
         break;
       case 'AttenteOutfitting':
-        if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+        if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
         break;
       case 'Outfitting':
         if (dCur >= e.dateFinOut) { zoneOutOccupee[ligne]=false; e.statut='AttenteFloatUp'; }
