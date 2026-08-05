@@ -31,7 +31,8 @@ Vérifié par l'expérience : corriger les trois inversions des lignes PL ne cha
 
 **La zone de stockage SPE lève ce verrou**, sans toucher aux dates : `SPE-02` part en
 stockage quatre jours après son hook-up, `SPE-06` prend la place et s'immerge, `SPE-02`
-revient pour son ballast. Une seule place suffit — en essayer deux ne change rien.
+revient pour son ballast. Le chantier n'en compte qu'**une seule place** (confirmé), et elle
+suffit : en essayer deux ne change rien.
 
 | Variante | Inversions | Bloqués | Retards | Retard max | Retard cumulé |
 |---|---|---|---|---|---|
@@ -81,8 +82,14 @@ Objectif respecté : zéro inversion d'abord, retards ensuite, staggering en con
 
 **Constat qui a guidé la suite** : une file sans inversion est une file triée par date
 d'immersion — l'ordre est **unique aux ex æquo près**. Or les 89 éléments du classeur ont
-tous une date, toutes distinctes : à lignes figées, l'optimiseur se réduisait au tri et
-n'avait plus aucune marge. D'où l'affectation aux lignes, qui est le vrai levier.
+tous une date d'immersion, toutes distinctes, toutes issues du planning P6 : aucun élément
+sans date, aucun ex æquo (vérifié). L'ordre sans inversion est donc entièrement déterminé,
+et l'affinage à l'intérieur d'une ligne n'a rien à déplacer. À lignes figées, l'optimiseur
+se réduisait au tri. D'où l'affectation aux lignes, qui est le seul vrai levier.
+
+Les mouvements internes à une ligne (éléments sans date, dates partagées) restent codés :
+le moteur tolère un onglet `Immersion` incomplet et le signale. Sur ce classeur-ci ils ne
+s'appliquent jamais.
 
 **Affectation aux lignes** : les 5 lignes PL sont interchangeables, la ligne SPE non. Le
 classeur porte 17/17/17/17/11 éléments. L'optimiseur essaie une répartition équilibrée par
@@ -141,8 +148,8 @@ parking le même jour. La lecture normalise désormais comme l'optimiseur.
   totalement indépendant de la disposition du classeur.
 - **Pentes progressives de cadence.** Un changement de rythme se fait
   graduellement dans la réalité, pas d'un jour à l'autre.
-- **Capacité et position réelles de la zone de stockage SPE** : une place par défaut,
-  réglable dans l'interface ; la position sur le plan est estimée, à recalibrer.
+- **Position de la zone de stockage SPE** sur le plan : extrapolée à l'ouest du Basin C,
+  à recalibrer. Sa capacité, elle, est connue — une place.
 
 ## Réserves connues
 

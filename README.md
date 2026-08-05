@@ -270,8 +270,8 @@ colonne F.
    jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien
    au-delà de la fin de son hook-up. **Sauf s'il retient un SPE qui doit s'immerger avant
    lui** : la place SPE du Basin C étant unique, l'attendre bloquerait toute la file
-   d'immersion. Il part alors en **zone de stockage SPE**, dédiée aux éléments spéciaux et
-   distincte du parking, d'où il revient pour son propre ballast. Sortir du Basin C imposant
+   d'immersion. Il part alors en **zone de stockage SPE** — dédiée aux éléments spéciaux,
+   distincte du parking, et d'**une seule place** — d'où il revient pour son propre ballast. Sortir du Basin C imposant
    de l'inonder, l'évacuation attend que tout SPE encore en zone UB soit étanche. Chaque
    évacuation anticipée est signalée dans le journal.
 4. **Les éléments normaux sont évacués au fur et à mesure**, sans attendre le SPE.
@@ -289,13 +289,14 @@ place 2 = SPE).
 
 ## À venir
 
-- **Capacité réelle de la zone de stockage SPE.** Une place par défaut, réglable dans
-  l'interface. La position sur le plan est estimée.
 - **Pentes progressives de cadence.** Un changement de rythme se fait graduellement dans la
   réalité, pas d'un jour à l'autre.
 
 ## Limites connues
 
+- **Position de la zone de stockage SPE estimée.** Sa capacité (une place) est celle du
+  chantier ; ses coordonnées sur le plan, elles, sont extrapolées à l'ouest du Basin C
+  (`GEO.stockageSPE` dans `index.html`). A recalibrer.
 - **Position du Ballast Jetty estimée.** Elle n'était pas fournie dans le cahier des
   charges ; elle est extrapolée depuis l'axe du parking (`GEO.ballast` dans
   `index.html`). À recalibrer si vous avez la position réelle.
