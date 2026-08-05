@@ -572,6 +572,11 @@
   GEO.ballast = { x: GEO.park.b.x + 0.3*(GEO.park.b.x-GEO.park.a.x),
                   y: GEO.park.b.y + 0.3*(GEO.park.b.y-GEO.park.a.y) };
   const lenOf = l => l === 'SPE' ? GEO.lenSpe : GEO.lenStd;
+  // Ligne SPE : 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3, ub1, ub2, ub3.
+  // Chacune a son emplacement propre, sinon les SPE se superposent au stockage.
+  GEO.speZones = 7;
+  GEO.speSlot = (GEO.xEntry - GEO.xBasin) / GEO.speZones;
+  const xZoneSPE = k => GEO.xEntry - (k - 0.5) * GEO.speSlot;
   const NS = 'http://www.w3.org/2000/svg';
   const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
@@ -651,13 +656,22 @@
     const y = GEO.y[e.l], L = lenOf(e.l);
     const seg = (a, b) => (a && b && b > a) ? (ms - a) / (b - a) : 0;
 
-    if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF'))
-      return { ph:'beton', x: GEO.xEntry, y, w: L * Math.max(0, Math.min(1, seg(A('bD'), A('bF')))), anchor:'right' };
+    if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF')) {
+      const p = Math.max(0, Math.min(1, seg(A('bD'), A('bF'))));
+      // SPE : passage successif par cpa, cp1, cp2, cp3 — pas une coulée qui s'allonge.
+      if (e.l === 'SPE') return { ph:'beton', x: xZoneSPE(1 + Math.min(3, Math.floor(p * 4))), y, w: L, anchor:'center' };
+      return { ph:'beton', x: GEO.xEntry, y, w: L * p, anchor:'right' };
+    }
     // Béton terminé, poussé hors des positions de coulée, en attente de la zone d'outfitting.
     if (A('bF') && ms >= A('bF') && A('oD') && ms < A('oD'))
       return { ph:'outfitting', x: GEO.xHallEnd, y, w: L, anchor:'center', attente:true };
     if (A('oD') && ms >= A('oD') && A('oF') && ms < A('oF')) {
       const p = Math.max(0, Math.min(1, seg(A('oD'), A('oF'))));
+      if (e.l === 'SPE') {
+        // Progression d'ub1 à ub3, chacune sur son aire.
+        const k = 5 + Math.min(2, Math.floor(p * 3));
+        return { ph:'outfitting', x: xZoneSPE(k), y, w: L, anchor:'center' };
+      }
       return { ph:'outfitting', x: GEO.xHallEnd + (GEO.xOutfitEnd - GEO.xHallEnd) * p, y, w: L, anchor:'center' };
     }
     if (A('oF') && ms >= A('oF') && A('fu') && ms < A('fu'))

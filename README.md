@@ -33,9 +33,10 @@ simultanément :
   temps, donc accélérer une ligne sans l'autre créerait un blocage au transfert vers le
   bassin.
 
-**Une paire déjà en déficit ne ralentit jamais.** Le critère « le rythme le plus lent qui
-tient les délais » suppose de la marge ; dès qu'un élément de la paire a dépassé sa date
-d'immersion sans être immergé, cette marge n'existe plus.
+**Une cadence atteinte n'est jamais relâchée.** Le solveur ne peut qu'accélérer, dans la
+limite de la pente. Remonter puis redescendre coûterait deux réinstallations, sans commune
+mesure avec l'économie d'un cycle plus lent, et le moindre retard qui en découlerait se
+paierait en pénalités.
 
 Ce second point est essentiel : ralentir un élément repousse mécaniquement tous ceux
 qui attendent derrière lui. Regarder toute la file évite au solveur d'osciller
@@ -56,7 +57,7 @@ le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
 | `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir. |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
 | `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = jalon d'étanchéité, en semaines après l'entrée en UB1, saisi sur chaque zone UB. **Colonne G** (optionnelle) = rythme SPE long, en semaines, remplaçant la durée standard de la colonne D dans les zones UB. |
-| `Config_Outfitting` | Noms des phases d'outfitting, Séquence 1 et Séquence 2. Les durées n'y pilotent plus le calendrier : la durée d'outfitting est dérivée de la production (voir ci-dessous). |
+| `Config_Outfitting` | Sans effet sur le calendrier : la durée d'outfitting est dérivée de la production (voir ci-dessous). L'onglet ne fournit plus que les noms des phases. |
 
 ### Format des statuts as-built (colonnes C/E/G/I/K/M de `Inputs`)
 
@@ -101,7 +102,9 @@ implémentation. C'est le build **mini** de SheetJS qui est inliné — suffisan
 `.xlsx`/`.xlsm`, là où le build *full* embarque les tables de pages de code héritées.
 
 La page affiche le mouvement des éléments sur un schéma reconstruit d'après les
-coordonnées du dossier de référence ; une image de plan peut y être ajoutée en fond.
+coordonnées du dossier de référence, superposé au plan d'installation générale.
+La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
+ub1, ub2, ub3 — chacune à son emplacement propre.
 
 ## Sorties
 

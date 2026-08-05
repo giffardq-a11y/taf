@@ -785,16 +785,12 @@ function runSimulation(paramsArg) {
     const tenable = (R) => lignesPaire.every(l =>
       fileTenable(l, dConcreteStart, R, l === ligne ? elemCourant : null));
 
-    // On ne ralentit jamais une paire déjà en déficit. Le critère « le rythme le plus lent qui
-    // tient les délais » suppose de la marge ; dès qu'un élément de la paire a dépassé sa date
-    // d'immersion sans être immergé, cette marge n'existe plus. Sans cette règle le solveur
-    // relâche la cadence sur la foi d'un calcul de ligne vierge, qui ignore l'attente imposée
-    // par l'ordre d'immersion et par les ressources partagées en aval.
-    const enDeficit = elements.some(x => !x.termine && x.dateImmersion
-      && lignesPaire.includes(x.ligne) && dConcreteStart > x.dateImmersion);
-
-    const slopeOk = RYTHMES.filter(R => Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9
-      && (!enDeficit || R <= state.rhythm + 1e-9));
+    // Une cadence atteinte n'est jamais relâchée : remonter puis redescendre coûte deux
+    // réinstallations, sans commune mesure avec l'économie d'un cycle plus lent — et le
+    // moindre retard qui en découlerait se paie en pénalités. Le solveur ne peut donc
+    // qu'accélérer, dans la limite de la pente d'inertie.
+    const slopeOk = RYTHMES.filter(R => R <= state.rhythm + 1e-9
+      && Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9);
     let chosen = slopeOk.find(tenable) ?? null;
     let atRisk = false;
     if (chosen === null) {
