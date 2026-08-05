@@ -49,12 +49,11 @@ Deux façons de lever le doute, l'une ou l'autre suffit : compléter la section 
 planning pour les huit SPE qui n'y figurent pas, ou confirmer que 3 semaines est bien la
 durée de commissioning.
 
-**Question de correspondance des zones.** Le planning nomme trois zones d'aménagement :
+**Correspondance des zones — tranchée.** Le planning nomme trois zones d'aménagement :
 `FI1 - Fit Out in Outfitting Buffer Area`, `FI2 - Fit Out in Upper Basin 1`,
-`FI3 - Fit Out in Upper Basin 2` — soit **deux Upper Basin et une aire tampon**, quand
-`Config_SPE` déclare UB1, UB2, UB3. Le solveur fait aujourd'hui correspondre FI1 à UB1, donc
-il considère un SPE en aire tampon comme présent dans le bassin, ce qui ferme la porte
-d'inondation. Si l'aire tampon est hors du Basin C, c'est une contrainte de trop. À trancher.
+`FI3 - Fit Out in Upper Basin 2`, là où `Config_SPE` déclare UB1, UB2, UB3. **L'aire tampon
+est bien dans le Basin C** (confirmé) : la correspondance FI1→UB1, FI2→UB2, FI3→UB3 est la
+bonne, et un SPE qui s'y trouve ferme à juste titre la porte d'inondation. Rien à changer.
 
 Les retards d'arrondi ont disparu avec la durée de ballast lue au planning : elle vaut 4 ou
 5 jours selon l'élément, non 7, et les cibles espacées de 6 ou 7 jours ne se télescopent plus.

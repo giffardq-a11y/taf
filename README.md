@@ -203,6 +203,11 @@ d'entrée, comme l'ordre d'immersion, et non un résultat estimé par des durée
 Les durées de `Config_SPE` (colonne D, et colonne G pour le rythme long en UB) ne servent
 plus que de repli, pour un SPE dont le planning ne donne pas les passages.
 
+Les trois zones d'aménagement du planning correspondent aux trois zones UB de `Config_SPE` :
+`FI1 - Fit Out in Outfitting Buffer Area` → UB1, `FI2 - Upper Basin 1` → UB2,
+`FI3 - Upper Basin 2` → UB3. L'aire tampon fait partie du Basin C : un SPE qui s'y trouve
+compte donc pour la porte d'inondation, au même titre que dans les deux bassins.
+
 La **sortie de CP3** ainsi datée est la référence du jalon d'étanchéité provisoire.
 
 ## Étanchéité SPE : trois niveaux en cascade
