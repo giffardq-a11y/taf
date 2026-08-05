@@ -243,14 +243,16 @@ function defaultCyclesConfig(dateRef) {
   return cfg;
 }
 function defaultSPEConfig() {
+  // dureeSPEJours : rythme SPE spécifique, bien plus long, appliqué uniquement dans les zones
+  // UB (outfitting). null = pas configuré, la durée standard s'applique.
   return [
-    {nom:'CPA', activite:'Rebars', dureeJours:5*7, estBeton:true},
-    {nom:'CP1', activite:'Phase 1', dureeJours:5*7, estBeton:true},
-    {nom:'CP2', activite:'Walls', dureeJours:5*7, estBeton:true},
-    {nom:'CP3', activite:'Phase 4b', dureeJours:5*7, estBeton:true},
-    {nom:'UB1', activite:'Bulkhead', dureeJours:5*7, estBeton:false},
-    {nom:'UB2', activite:'TE System', dureeJours:5*7, estBeton:false},
-    {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false},
+    {nom:'CPA', activite:'Rebars', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
+    {nom:'CP1', activite:'Phase 1', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
+    {nom:'CP2', activite:'Walls', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
+    {nom:'CP3', activite:'Phase 4b', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
+    {nom:'UB1', activite:'Bulkhead', dureeJours:5*7, estBeton:false, dureeSPEJours:null},
+    {nom:'UB2', activite:'TE System', dureeJours:5*7, estBeton:false, dureeSPEJours:null},
+    {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false, dureeSPEJours:null},
   ];
 }
 function defaultOutfittingConfig() {
@@ -280,6 +282,7 @@ let wb = null;              // classeur XLSX chargé
 let elements = [];           // liste des éléments (production)
 let cyclesConfig = null;
 let speConfig = null;
+let speEtancheSem = null;    // jalon d'étanchéité SPE : semaines après l'entrée en UB1
 let outfittingConfig = null;
 let dateSeq2Debut = null;
 let PARAMS = {};
@@ -453,6 +456,7 @@ function parseWorkbook() {
 
   // --- Config_SPE ---
   const rowsSPE = sheetRows('Config_SPE');
+  speEtancheSem = null;
   if (rowsSPE) {
     speConfig = [];
     for (let i = 1; i <= 7; i++) {
@@ -463,9 +467,23 @@ function parseWorkbook() {
         activite: String(row[2] ?? '').trim(),
         dureeJours: (typeof row[3] === 'number' ? row[3] : 5) * 7,
         estBeton: String(row[4] ?? '').trim().toLowerCase() === 'beton',
+        dureeSPEJours: (typeof row[5] === 'number' && row[5] > 0) ? row[5] * 7 : null,
       });
     }
-    log('Config_SPE chargé.');
+    // Jalon d'étanchéité : cellule libellée quelque part dans la feuille, valeur à sa droite.
+    for (const row of rowsSPE) {
+      if (!row) continue;
+      const c = row.findIndex(v => /jalon\s*etanche/i.test(String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')));
+      if (c >= 0) {
+        const v = row.slice(c + 1).find(x => typeof x === 'number');
+        if (typeof v === 'number' && v > 0) speEtancheSem = v;
+        break;
+      }
+    }
+    const nbLong = speConfig.filter(z => z.dureeSPEJours).length;
+    log(`Config_SPE chargé${nbLong ? ` — rythme SPE long sur ${nbLong} zone(s)` : ''}${speEtancheSem ? `, jalon étanche à ${speEtancheSem} sem après entrée UB1` : ''}.`);
+    if (!nbLong) log('Rythme SPE spécifique non renseigné (colonne F de Config_SPE) — durées standard appliquées en UB.', 'warn');
+    if (!speEtancheSem) log('Jalon étanche non renseigné dans Config_SPE — la contrainte d\'étanchéité SPE est inactive.', 'warn');
   } else {
     speConfig = defaultSPEConfig();
     log('Config_SPE absent — valeurs par défaut appliquées (CPA..CP3 béton, UB1..UB3 outfitting).', 'warn');
@@ -544,15 +562,17 @@ function runSimulation() {
     dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
-    dateBallast:null,
+    dateBallast:null, dateEntreeUB:null, dateEtanche:null,
   }));
 
   const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
   const zoneOutOccupee = {1:false,2:false,3:false,4:false,5:false};
-  const zonesSPE = speConfig.map(z => ({...z, occupee:false, idOccupant:'', jourEntree:0}));
+  // dureeEff : le rythme SPE long remplace la durée standard dans les zones UB (outfitting).
+  const zonesSPE = speConfig.map(z => ({...z, occupee:false, idOccupant:'', jourEntree:0,
+    dureeEff: (!z.estBeton && z.dureeSPEJours) ? z.dureeSPEJours : z.dureeJours}));
+  const premiereUB = speConfig.findIndex(z => !z.estBeton) + 1; // n° de zone du 1er UB (0 si aucune)
   const basinOccupee = {1:{1:false,2:false}, 2:{1:false,2:false}, 3:{1:false,2:false}};
   const parkingOccupee = {1:false,2:false,3:false,4:false,5:false,6:false};
-  const nBetonSPE = speConfig.filter(z=>z.estBeton).length;
 
   // Etat du solveur par ligne PL : dernier rythme réellement en vigueur + date de ce changement.
   const lastRhythmState = {};
@@ -599,7 +619,15 @@ function runSimulation() {
         zonesSPE[n-1].occupee = true; zonesSPE[n-1].idOccupant = e.id;
         zonesSPE[n-1].jourEntree = code.date ? Math.round(diffDays(code.date, REF)) : 0;
         if (n === 1) e.dateDebutBeton = code.date || REF;
-        if (n === nBetonSPE + 1) e.dateDebutOut = code.date || REF;
+        if (n >= premiereUB && premiereUB) {
+          // Déjà en zone UB : on recale l'entrée UB (et donc le jalon d'étanchéité) sur les
+          // durées des zones UB déjà traversées avant celle où l'élément se trouve.
+          let recul = 0;
+          for (let k = premiereUB; k < n; k++) recul += zonesSPE[k-1].dureeEff;
+          e.dateEntreeUB = addDays(code.date || REF, -recul);
+          e.dateDebutOut = e.dateEntreeUB;
+          e.dateEtanche = speEtancheSem ? addDays(e.dateEntreeUB, speEtancheSem * 7) : null;
+        }
         break;
       }
       case 'outfitting': {
@@ -742,18 +770,65 @@ function runSimulation() {
   // Statuts d'un élément encore susceptible de rejoindre son partenaire à l'entrée du bassin.
   const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
 
+  /* ---- Règles spécifiques au Basin C (paire PL-5 / SPE) ---- */
+
+  // Date d'évacuation du Basin C d'un SPE : il n'en sort qu'avant son utilisation finale,
+  // c'est-à-dire au démarrage de son Ballast Jetty.
+  function dateEvacuationSPE(e) {
+    return e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+  }
+  // Prochaine évacuation SPE à venir (tous SPE confondus), vue depuis dCur.
+  function prochaineEvacuationSPE(dCur) {
+    let best = null;
+    for (const x of elements) {
+      if (x.ligne !== 6 || x.termine) continue;
+      const evac = dateEvacuationSPE(x);
+      if (evac && evac >= dCur && (!best || evac < best)) best = evac;
+    }
+    return best;
+  }
+  // Un élément normal ne peut passer en outfitting que si celui-ci sera terminé avant
+  // l'évacuation du SPE suivant.
+  function outfittingAutorise(e, dCur) {
+    if (e.ligne !== 5) return true;
+    const evac = prochaineEvacuationSPE(dCur);
+    if (!evac) return true;
+    const outDur = dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne));
+    return addDays(dCur, outDur) <= evac;
+  }
+  // Évacuer un élément normal du Basin C impose d'inonder le bassin : tout SPE présent dans
+  // les zones UB doit avoir franchi son jalon d'étanchéité.
+  function speNonEtancheEnUB(dCur) {
+    if (!speEtancheSem || !premiereUB) return false; // jalon non configuré : contrainte inactive
+    return elements.some(x => x.ligne === 6 && !x.termine && x.statut === 'Outfitting'
+      && x.zoneSPE >= premiereUB && (!x.dateEtanche || dCur < x.dateEtanche));
+  }
+
   function tenterEntreeBasin(e, dCur) {
-    const g = groupeId(e.ligne), part = partenaire(e.ligne);
+    const g = groupeId(e.ligne);
+    const place = (e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2;
+    const dureeHookup = PARAMS.hookupSem * 7;
+
+    // Basin C : les deux places sont indépendantes. Le SPE y stationne longtemps (jusqu'à son
+    // immersion) pendant que les éléments normaux de PL-5 défilent au fur et à mesure — une
+    // entrée synchronisée par paire y serait impossible.
+    if (g === 3) {
+      if (basinOccupee[3][place]) return;
+      basinOccupee[3][place] = true;
+      e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup);
+      e.basinNum = 3; e.basinPlace = place;
+      return;
+    }
+
+    const part = partenaire(e.ligne);
     const idxPart = elements.find(x => x.ligne === part && x.statut === 'AttenteBasin');
-    // Comme pour le Float-up : si la ligne partenaire est épuisée, l'élément entre seul plutôt
-    // que de rester bloqué indéfiniment en attente d'un partenaire qui n'arrivera jamais.
+    // Si la ligne partenaire est épuisée, l'élément entre seul plutôt que de rester bloqué
+    // indéfiniment en attente d'un partenaire qui n'arrivera jamais.
     if (!idxPart && elements.some(x => x.ligne === part && EN_AMONT_BASIN.includes(x.statut))) return;
     if (basinOccupee[g][1] || basinOccupee[g][2]) return;
-    const place1 = (e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2;
-    const place2 = place1 === 1 ? 2 : 1;
-    const dureeHookup = PARAMS.hookupSem * 7;
-    basinOccupee[g][place1] = true;
-    e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place1;
+    const place2 = place === 1 ? 2 : 1;
+    basinOccupee[g][place] = true;
+    e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place;
     if (idxPart) {
       basinOccupee[g][place2] = true;
       idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeHookup); idxPart.basinNum = g; idxPart.basinPlace = place2;
@@ -772,12 +847,12 @@ function runSimulation() {
     switch (e.statut) {
       case 'Beton':
         if (dCur >= e.dateFinBeton) {
-          if (!zoneOutOccupee[ligne]) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+          if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
           else e.statut = 'AttenteOutfitting';
         }
         break;
       case 'AttenteOutfitting':
-        if (!zoneOutOccupee[ligne]) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+        if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
         break;
       case 'Outfitting':
         if (dCur >= e.dateFinOut) { zoneOutOccupee[ligne]=false; e.statut='AttenteFloatUp'; }
@@ -790,6 +865,9 @@ function runSimulation() {
         break;
       case 'Basin':
         if (dCur >= e.dateFinBasin) {
+          // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
+          // que le SPE présent en zone UB soit étanche.
+          if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
           libererBasin(e);
           const joursSeuil = PARAMS.seuilParkingSem * 7;
           if (e.dateImmersion && diffDays(e.dateImmersion, dCur) <= joursSeuil) { e.parkingSaute = true; demarrerBallast(e, dCur); }
@@ -810,6 +888,13 @@ function runSimulation() {
     }
   }
 
+  // Entrée en 1re zone UB : c'est de là que court le jalon d'étanchéité du SPE.
+  function marquerEntreeUB(e, dCur) {
+    e.dateDebutOut = dCur;
+    e.dateEntreeUB = dCur;
+    e.dateEtanche = speEtancheSem ? addDays(dCur, speEtancheSem * 7) : null;
+  }
+
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
     zonesSPE[zoneNum-1].occupee = true;
     zonesSPE[zoneNum-1].idOccupant = e.id;
@@ -817,8 +902,7 @@ function runSimulation() {
     e.zoneSPE = zoneNum;
     e.statut = zonesSPE[zoneNum-1].estBeton ? 'Beton' : 'Outfitting';
     if (zoneNum === 1) e.dateDebutBeton = dCur;
-    const nBeton = zonesSPE.filter(z=>z.estBeton).length;
-    if (zoneNum === nBeton + 1) e.dateDebutOut = dCur;
+    if (zoneNum === premiereUB) marquerEntreeUB(e, dCur);
   }
   function traiterElementSPE(e, dCur, jourCourant) {
     const z = e.zoneSPE;
@@ -827,20 +911,27 @@ function runSimulation() {
       switch (e.statut) {
         case 'FloatUp': if (dCur >= e.dateFinFU) e.statut = 'AttenteBasin'; break;
         case 'AttenteBasin': tenterEntreeBasin(e, dCur); break;
-        case 'Basin': if (dCur >= e.dateFinBasin) { libererBasin(e); demarrerBallast(e, dCur); } break;
+        case 'Basin': {
+          // Un SPE n'est évacué du Basin C qu'avant son utilisation finale : il y stationne
+          // jusqu'au démarrage de son Ballast Jetty, bien au-delà de la fin du hook-up.
+          const evac = dateEvacuationSPE(e);
+          const sortie = evac && evac > e.dateFinBasin ? evac : e.dateFinBasin;
+          if (dCur >= sortie) { libererBasin(e); demarrerBallast(e, dCur); }
+          break;
+        }
         case 'Ballast': if (e.dateImmersion && dCur >= e.dateImmersion) { e.statut='Immerge'; e.termine=true; } break;
       }
       return;
     }
     const zc = zonesSPE[z-1];
-    const jourFin = zc.jourEntree + zc.dureeJours;
+    const jourFin = zc.jourEntree + zc.dureeEff;
     if (jourCourant >= jourFin) {
-      if (z === 7) { zonesSPE[6].occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur; return; }
+      if (z === zonesSPE.length) { zc.occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur; return; }
       if (!zonesSPE[z].occupee) {
         zonesSPE[z-1].occupee = false;
         zonesSPE[z].occupee = true; zonesSPE[z].idOccupant = e.id; zonesSPE[z].jourEntree = jourCourant;
         e.zoneSPE = z + 1;
-        if (!zonesSPE[z].estBeton && zc.estBeton) { e.statut = 'Outfitting'; e.dateDebutOut = dCur; }
+        if (z + 1 === premiereUB) { e.statut = 'Outfitting'; marquerEntreeUB(e, dCur); }
       }
     }
   }
@@ -850,6 +941,17 @@ function runSimulation() {
 
   function verifierFloatUpGroupes(dCur) {
     for (const [lA, lB] of GROUPES) {
+      // PL-5 / SPE : cadences désormais indépendantes (le SPE stationne en Basin C bien après
+      // que les éléments normaux l'aient traversé), un float-up synchronisé bloquerait la ligne.
+      // Les règles spécifiques au Basin C remplacent ce couplage.
+      if (lA === 5) {
+        const dFinC = addDays(dCur, PARAMS.floatUpSem * 7);
+        [lA, lB].forEach(l => {
+          const e = elements.find(x => x.ligne===l && x.statut==='AttenteFloatUp');
+          if (e) { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFinC; }
+        });
+        continue;
+      }
       const eA = elements.find(x => x.ligne===lA && x.statut==='AttenteFloatUp');
       const eB = elements.find(x => x.ligne===lB && x.statut==='AttenteFloatUp');
       const partants = [eA, eB].filter(Boolean);
@@ -943,7 +1045,7 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
       } else {
         const stepIdx = speBetonIdx.indexOf(e.zoneSPE);
         const zc = zonesSPE[e.zoneSPE-1];
-        const localFrac = zc.dureeJours > 0 ? (jourCourant - zc.jourEntree) / zc.dureeJours : 0;
+        const localFrac = zc.dureeEff > 0 ? (jourCourant - zc.jourEntree) / zc.dureeEff : 0;
         progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speBetonIdx.length;
       }
       return {...base, type:'concrete', anchor:'right', x: GEO.x_entry, y, w: len * Math.max(0,Math.min(1,progress))};
@@ -957,7 +1059,7 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
       } else {
         const stepIdx = speOutIdx.indexOf(e.zoneSPE);
         const zc = zonesSPE[e.zoneSPE-1];
-        const localFrac = zc.dureeJours > 0 ? (jourCourant - zc.jourEntree) / zc.dureeJours : 0;
+        const localFrac = zc.dureeEff > 0 ? (jourCourant - zc.jourEntree) / zc.dureeEff : 0;
         progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speOutIdx.length;
       }
       const x = lerp(GEO.x_hall_end, GEO.x_outfit_end, progress);
@@ -1145,11 +1247,17 @@ document.getElementById('btn-template').onclick = () => {
   wsCyc['!cols'] = Array(9).fill({wch: 14});
   XLSX.utils.book_append_sheet(outWb, wsCyc, 'Config_Cycles');
 
-  // --- Config_SPE ---
-  const speAoa = [['No Zone', 'Nom Zone', 'Activite / Phase', 'Duree fixe (semaines)', 'Type (Beton ou Outfitting)']];
-  defaultSPEConfig().forEach((z, i) => speAoa.push([i+1, z.nom, z.activite, z.dureeJours/7, z.estBeton ? 'Beton' : 'Outfitting']));
+  // --- Config_SPE (colonne F = rythme SPE long en UB, + jalon d'étanchéité sous le tableau) ---
+  const speAoa = [['No Zone', 'Nom Zone', 'Activite / Phase', 'Duree fixe (semaines)',
+                    'Type (Beton ou Outfitting)', 'Duree rythme SPE (semaines, zones UB)']];
+  // Valeurs UB volontairement plus longues : à remplacer par vos durées réelles.
+  const dureesUBExemple = {UB1: 12, UB2: 12, UB3: 8};
+  defaultSPEConfig().forEach((z, i) => speAoa.push([i+1, z.nom, z.activite, z.dureeJours/7,
+    z.estBeton ? 'Beton' : 'Outfitting', z.estBeton ? '' : (dureesUBExemple[z.nom] ?? '')]));
+  speAoa.push([]);
+  speAoa.push(['Jalon Etanche (sem apres entree UB1)', 16]);
   const wsSpe = XLSX.utils.aoa_to_sheet(speAoa);
-  wsSpe['!cols'] = Array(5).fill({wch: 16});
+  wsSpe['!cols'] = [{wch:10},{wch:34},{wch:18},{wch:20},{wch:24},{wch:30}];
   XLSX.utils.book_append_sheet(outWb, wsSpe, 'Config_SPE');
 
   // --- Config_Outfitting ---

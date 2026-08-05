@@ -47,7 +47,7 @@ le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
 | `Inputs` | Séquences de production. Colonnes B/D/F/H/J/L = PL-1..PL-5, SPE ; colonne A = ordre. Colonnes **C/E/G/I/K/M = statut as-built** (voir ci-dessous). Cellule `Seq2_Debut` en ligne 1/2 = bascule de séquence outfitting. |
 | `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir. |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
-| `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). |
+| `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = rythme SPE spécifique, bien plus long, appliqué uniquement dans les zones UB (laisser vide = durée standard de la colonne D). Une cellule libellée **`Jalon Etanche (sem apres entree UB1)`**, placée n'importe où dans la feuille avec sa valeur à droite, fixe le moment où le SPE devient étanche. |
 | `Config_Outfitting` | Phases d'outfitting, Séquence 1 et Séquence 2. |
 
 ### Format des statuts as-built (colonnes C/E/G/I/K/M de `Inputs`)
@@ -61,7 +61,7 @@ il est alors déduit comme terminé.
 |---|---|
 | `Beton:N` | En zone béton, au segment N (1 à 9). Lignes PL uniquement. |
 | `Outfitting` | En zone outfitting. Lignes PL uniquement. |
-| `Zone:N` | Ligne SPE uniquement : dans la zone N (1=CPA … 7=UB3). |
+| `Zone:N` | Ligne SPE uniquement : dans la zone N (1=CPA … 7=UB3). Si N est une zone UB, l'entrée en UB1 — et donc le jalon d'étanchéité — est recalée en remontant les durées des zones UB déjà traversées. |
 | `FloatUp` | En cours de float-up. |
 | `Basin` | En Lower Basin (hook-up en cours). |
 | `Parking` ou `Parking:N` | Au parking (place N si connue, sinon première libre). |
@@ -109,11 +109,34 @@ resteraient bloqués indéfiniment. Ces départs solo sont signalés dans le jou
 | Y PL-1 / PL-2 / PL-3 / PL-4 / PL-5 / SPE | 71,71 / 69,29 / 60,66 / 58,38 / 51,83 / 48,23 |
 | Parking (épi -75°) | de [16,31 ; 80,97] à [10,25 ; 47,13] |
 
+## Règles spécifiques au Basin C (paire PL-5 / SPE)
+
+Ce groupe ne fonctionne pas comme les deux autres. Les zones UB1-3 étant dans le
+Basin C, le SPE en construction y séjourne longtemps pendant que les éléments
+normaux de PL-5 défilent.
+
+1. **Rythme SPE long en UB.** Dans les zones UB1/UB2/UB3, le SPE suit un rythme
+   propre, bien plus long que les durées standard (colonne F de `Config_SPE`).
+2. **Jalon d'étanchéité.** Le SPE devient étanche N semaines après son entrée en UB1.
+3. **Le SPE n'est évacué qu'avant son utilisation finale** : il reste en Basin C
+   jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien
+   au-delà de la fin de son hook-up.
+4. **Les éléments normaux sont évacués au fur et à mesure**, sans attendre le SPE.
+5. **Porte outfitting** : un élément normal ne passe en outfitting que si celui-ci
+   sera terminé avant l'évacuation du SPE suivant.
+6. **Porte étanchéité** : évacuer un élément normal impose d'inonder le bassin, donc
+   d'attendre que tout SPE présent en zone UB ait franchi son jalon d'étanchéité.
+
+**Conséquence assumée** : le float-up couplé et l'entrée en bassin par paire, qui
+restent la règle pour PL1+2 et PL3+4, sont **abandonnés pour PL-5 / SPE**. Un SPE
+stationnant des mois en Basin C pendant que les éléments normaux défilent, une
+synchronisation par paire bloquerait la ligne. Les six règles ci-dessus la remplacent.
+Les deux places du Basin C sont donc gérées indépendamment (place 1 = PL-5,
+place 2 = SPE).
+
 ## À venir
 
-- **Contraintes spécifiques à la paire PL-5 / SPE.** Ce groupe obéit à des règles
-  particulières qui restent à définir ; pour l'instant il est traité comme les deux
-  autres paires (float-up couplé, bassin C, sortie synchronisée).
+- Rien de bloquant identifié à ce stade.
 
 ## Limites connues
 
@@ -131,3 +154,9 @@ resteraient bloqués indéfiniment. Ces départs solo sont signalés dans le jou
   partagées (bassins, parking). C'est ce que décrit le cahier des charges, et cela
   suffit à produire un plan de cadence exploitable, mais ce n'est pas une optimisation
   sous contraintes au sens mathématique.
+- **Le solveur ne modélise pas les portes du Basin C.** Quand il choisit un rythme pour
+  PL-5, il ignore que la porte outfitting ou la porte étanchéité pourront retarder
+  l'élément. Ses estimations de délai sont donc optimistes sur cette ligne, ce qui peut
+  provoquer quelques allers-retours de cadence supplémentaires sur PL-5. La simulation,
+  elle, applique bien les portes : les dates affichées et les retards signalés sont
+  justes.
