@@ -422,17 +422,21 @@ function parseWorkbook() {
     log('Onglet "Immersion" introuvable — dates estimées automatiquement.', 'warn');
   } else {
     const imm = XLSX.utils.sheet_to_json(sImm, {defval:null});
-    const map = {};
-    imm.forEach(row => {
+    const map = {}, rang = {};
+    // L'ordre des lignes de l'onglet Immersion fait foi : les éléments doivent être immergés
+    // dans cet ordre, un élément non prêt bloquant tous ceux qui le suivent.
+    imm.forEach((row, i) => {
       const id = String(row['ID Element'] ?? '').trim();
-      if (id) map[id] = excelDate(row['Date Immersion']);
+      if (id) { map[id] = excelDate(row['Date Immersion']); rang[id] = i; }
     });
-    let missing = 0;
+    let missing = 0, sansRang = 0;
     elements.forEach(e => {
       e.dateImmersion = map[e.id] || null;
+      e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
       if (!e.dateImmersion) missing++;
+      if (!isFinite(e.rangImmersion)) sansRang++;
     });
-    log(`Immersion : ${imm.length} dates lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}.`, missing ? 'warn' : undefined);
+    log(`Immersion : ${imm.length} dates lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}${sansRang ? `, ${sansRang} hors séquence d'immersion` : ''}.`, (missing || sansRang) ? 'warn' : undefined);
   }
 
   // --- Config_Cycles ---
@@ -520,17 +524,38 @@ function anchorDate(ligne) {
 
 /* ================================================================
    7bis. PARSEUR DE STATUT AS-BUILT (colonnes C/E/G/I/K/M de Inputs)
-   Format : TYPE[:N][:AAAA-MM-JJ]  — ex: "Beton:5", "Outfitting:2026-07-15",
-   "Zone:6" (SPE), "Parking:3", "Basin", "Ballast", "Done".
+   Tolérant : séparateur deux-points ou espace, accents et casse ignorés,
+   synonymes français acceptés. Ex : "Beton 7", "Beton:5:2026-06-15",
+   "Bassin", "immergé", "UB2", "Parking 3", "Ballast".
    ================================================================ */
+const AS_BUILT_SYNONYMES = {
+  beton:'beton', concrete:'beton',
+  outfitting:'outfitting', outfit:'outfitting', equipement:'outfitting',
+  floatup:'floatup', float:'floatup',
+  bassin:'basin', basin:'basin', hookup:'basin', lowerbasin:'basin',
+  attentebassin:'attentebasin', attentebasin:'attentebasin',
+  parking:'parking', park:'parking', epi:'parking',
+  ballast:'ballast', ballastjetty:'ballast',
+  zone:'zone',
+  done:'done', immerge:'done', immerged:'done', termine:'done', fini:'done', ok:'done',
+};
+
 function parseAsBuiltCode(raw) {
   if (!raw) return null;
-  const parts = String(raw).trim().split(':').map(p => p.trim()).filter(p => p !== '');
+  const norm = String(raw).trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (!norm) return null;
+  const parts = norm.split(/[:;,/\s]+/).filter(Boolean);
   if (!parts.length) return null;
-  const type = parts[0].toLowerCase();
-  let n = null, date = null;
+
+  let type = parts[0], n = null, date = null;
+
+  // Un nom de zone SPE saisi directement (CPA, CP1, UB2…) vaut "Zone:N".
+  const zoneIdx = (speConfig || []).findIndex(z => String(z.nom ?? '').trim().toLowerCase() === type);
+  if (zoneIdx >= 0) { type = 'zone'; n = zoneIdx + 1; }
+  else type = AS_BUILT_SYNONYMES[type] || type;
+
   for (let i = 1; i < parts.length; i++) {
-    if (/^\d+(\.\d+)?$/.test(parts[i])) n = parseFloat(parts[i]);
+    if (/^\d+(\.\d+)?$/.test(parts[i])) { if (n === null) n = parseFloat(parts[i]); }
     else { const d = excelDate(parts[i]); if (d) date = d; }
   }
   return {type, n, date};
@@ -559,7 +584,7 @@ function runSimulation() {
     dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
-    dateBallast:null, dateEntreeUB:null, dateEtanche:null,
+    dateBallast:null, dateFinBallast:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null,
   }));
 
   const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
@@ -759,10 +784,12 @@ function runSimulation() {
     e.dateDebutOut = dCur;
     e.dateFinOut = addDays(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
   }
+  // Une fois ballasté, l'élément est immergé directement : la fin du ballast EST l'immersion.
   function demarrerBallast(e, dCur) {
     e.dateBallast = dCur;
+    e.dateFinBallast = addDays(dCur, PARAMS.ballastSem * 7);
     e.statut = 'Ballast';
-    if (!e.dateImmersion) e.dateImmersion = addDays(dCur, PARAMS.ballastSem * 7);
+    if (!e.dateImmersion) e.dateImmersion = e.dateFinBallast;
   }
   // Statuts d'un élément encore susceptible de rejoindre son partenaire à l'entrée du bassin.
   const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
@@ -867,8 +894,11 @@ function runSimulation() {
           if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
           libererBasin(e);
           const joursSeuil = PARAMS.seuilParkingSem * 7;
-          if (e.dateImmersion && diffDays(e.dateImmersion, dCur) <= joursSeuil) { e.parkingSaute = true; demarrerBallast(e, dCur); }
-          else e.statut = 'AttenteParking';
+          // Immersion proche : on saute le parking — mais seulement si l'ordre l'autorise déjà,
+          // sinon l'élément patiente au parking comme les autres.
+          if (e.dateImmersion && diffDays(e.dateImmersion, dCur) <= joursSeuil && ballastAutorise(e)) {
+            e.parkingSaute = true; demarrerBallast(e, dCur);
+          } else e.statut = 'AttenteParking';
         }
         break;
       case 'AttenteParking':
@@ -876,11 +906,14 @@ function runSimulation() {
         break;
       case 'Parking': {
         const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : dCur;
-        if (dCur >= dateDebutBallast) { libererParking(e); demarrerBallast(e, dCur); }
+        if (dCur >= dateDebutBallast) {
+          if (!ballastAutorise(e)) { bloquesParOrdre.set(e.id, (bloquesParOrdre.get(e.id) || 0) + 1); break; }
+          libererParking(e); demarrerBallast(e, dCur);
+        }
         break;
       }
       case 'Ballast':
-        if (e.dateImmersion && dCur >= e.dateImmersion) { e.statut = 'Immerge'; e.termine = true; }
+        if (dCur >= e.dateFinBallast) immerger(e, dCur);
         break;
     }
   }
@@ -913,10 +946,15 @@ function runSimulation() {
           // jusqu'au démarrage de son Ballast Jetty, bien au-delà de la fin du hook-up.
           const evac = dateEvacuationSPE(e);
           const sortie = evac && evac > e.dateFinBasin ? evac : e.dateFinBasin;
-          if (dCur >= sortie) { libererBasin(e); demarrerBallast(e, dCur); }
+          if (dCur >= sortie) {
+            if (!ballastAutorise(e)) { bloquesParOrdre.set(e.id, (bloquesParOrdre.get(e.id) || 0) + 1); break; }
+            libererBasin(e); demarrerBallast(e, dCur);
+          }
           break;
         }
-        case 'Ballast': if (e.dateImmersion && dCur >= e.dateImmersion) { e.statut='Immerge'; e.termine=true; } break;
+        case 'Ballast':
+          if (dCur >= e.dateFinBallast) immerger(e, dCur);
+          break;
       }
       return;
     }
@@ -962,9 +1000,11 @@ function runSimulation() {
       if (!eA && resteA) continue;   // le partenaire de A va encore arriver : on attend
       if (!eB && resteB) continue;
 
-      const bloque = elements.some(x => (x.ligne===lA || x.ligne===lB) && (x.statut==='Outfitting' || x.statut==='AttenteOutfitting'));
-      if (bloque) continue;
-
+      // Le couplage porte sur la paire elle-même : les deux lignes sortent de l'outfitting
+      // ensemble, le plus rapide attendant le plus lent. L'élément qui vient d'entrer en
+      // outfitting derrière eux appartient au cycle suivant et n'est pas bloquant — l'exiger
+      // rendrait le float-up quasi impossible, la place d'outfitting étant reprise dès qu'elle
+      // se libère.
       const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
       partants.forEach(e => { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFin; });
       if (partants.length === 1) floatUpSolo.push({id: partants[0].id, ligne: LIGNE_NOM[partants[0].ligne], date: new Date(dCur)});
@@ -974,6 +1014,31 @@ function runSimulation() {
   // Comptage des zones beton/outfitting SPE pour le rendu (indices dans la chaîne)
   const speBetonIdx = [], speOutIdx = [];
   zonesSPE.forEach((z,i) => { (z.estBeton ? speBetonIdx : speOutIdx).push(i+1); });
+
+  /* ---- Ordre d'immersion imposé ----
+     Les éléments s'immergent dans l'ordre de l'onglet Immersion : un élément qui n'est pas
+     prêt bloque tous ceux qui le suivent, même s'ils le sont. La porte est posée à l'entrée
+     du Ballast Jetty — seul l'élément en tête de file peut être ballasté — et l'immersion
+     suit directement la fin du ballast. Un seul élément est donc ballasté à la fois. */
+  const fileImmersion = elements.filter(e => isFinite(e.rangImmersion))
+                                .sort((a, b) => a.rangImmersion - b.rangImmersion);
+  let idxImmersion = 0;
+  const avancerFileImmersion = () => {
+    while (idxImmersion < fileImmersion.length && fileImmersion[idxImmersion].termine) idxImmersion++;
+  };
+  avancerFileImmersion(); // saute les éléments déjà immergés au titre de l'as-built
+
+  const bloquesParOrdre = new Map(); // id -> jours d'attente imposés par l'ordre seul
+
+  function ballastAutorise(e) {
+    if (!isFinite(e.rangImmersion)) return true;
+    avancerFileImmersion();
+    return fileImmersion[idxImmersion] === e;
+  }
+  function immerger(e, dCur) {
+    e.statut = 'Immerge'; e.termine = true; e.dateImmersionReelle = new Date(dCur);
+    avancerFileImmersion();
+  }
 
   let jourCourant = 0;
   for (; jourCourant <= joursMax; jourCourant++) {
@@ -1007,17 +1072,21 @@ function runSimulation() {
   dateKeys = Object.keys(simTimeline).sort();
   lastChangements = changements;
   lastRisques = risques;
-  // KPI de faisabilité : un élément rate sa cible si son Ballast Jetty démarre après sa date
-  // d'immersion contractuelle (il ne peut alors plus être immergé à temps).
+  // KPI de faisabilité : écart entre la date d'immersion contractuelle et la date réellement
+  // atteinte. Un élément encore en cours est daté par son démarrage de Ballast Jetty, qui est
+  // le plus tôt où il pourrait s'immerger.
   lastRetards = elements
-    .filter(e => e.dateBallast && e.dateImmersion && e.dateBallast > e.dateImmersion)
-    .map(e => ({id: e.id, ligne: LIGNE_NOM[e.ligne], cible: e.dateImmersion, reel: e.dateBallast,
-                retardJours: Math.round(diffDays(e.dateBallast, e.dateImmersion))}))
+    .map(e => ({e, reel: e.dateImmersionReelle || e.dateBallast}))
+    .filter(x => x.reel && x.e.dateImmersion && x.reel > x.e.dateImmersion)
+    .map(({e, reel}) => ({id: e.id, ligne: LIGNE_NOM[e.ligne], cible: e.dateImmersion, reel,
+                retardJours: Math.round(diffDays(reel, e.dateImmersion)),
+                bloqueOrdre: bloquesParOrdre.has(e.id)}))
     .sort((a,b) => b.retardJours - a.retardJours);
   const nbRisk = changements.filter(c=>c.atRisk).length + risques.length;
   const nonTermines = elements.filter(e=>!e.termine).length;
   log(`Solveur terminé sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés. ${changements.length} changement(s) de rythme planifié(s)${nbRisk ? `, ${nbRisk} alerte(s) de délai` : ''}.`, nbRisk ? 'warn' : undefined);
   if (lastRetards.length) log(`⚠ ${lastRetards.length} élément(s) ratent leur date d'immersion cible (retard max ${lastRetards[0].retardJours} j sur ${lastRetards[0].id}).`, 'err');
+  if (bloquesParOrdre.size) log(`${bloquesParOrdre.size} élément(s) prêts mais retenus par l'ordre d'immersion (attente max ${Math.max(...bloquesParOrdre.values())} j).`, 'warn');
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
   renderChangeTable(changements);

@@ -57,6 +57,10 @@ même ligne. Un élément sans statut est considéré comme non démarré (le so
 lancera quand la ligne se libère), **sauf** si sa date d'immersion est déjà passée :
 il est alors déduit comme terminé.
 
+La lecture est tolérante : séparateur deux-points **ou espace**, accents et casse
+ignorés, synonymes français acceptés. `Beton 7`, `Beton:7`, `Bassin`, `immergé` et
+`UB2` sont tous compris.
+
 | Code | Signification |
 |---|---|
 | `Beton:N` | En zone béton, au segment N (1 à 9). Lignes PL uniquement. |
@@ -66,7 +70,7 @@ il est alors déduit comme terminé.
 | `Basin` | En Lower Basin (hook-up en cours). |
 | `Parking` ou `Parking:N` | Au parking (place N si connue, sinon première libre). |
 | `Ballast` | Au Ballast Jetty. |
-| `Done` | Déjà immergé. |
+| `Done` | Déjà immergé (synonymes : `immerge`, `termine`, `fini`). |
 
 Suffixe de date optionnel pour préciser le début réel de la phase :
 `Beton:5:2026-06-15`. Sans date, la phase est réputée avoir commencé à la date de
@@ -91,8 +95,21 @@ comme non démarré.
 `Parking (pool de 6 places, sauté si l'immersion arrive dans moins de N semaines)` →
 `Ballast Jetty` → `Immersion`.
 
+**Ordre d'immersion imposé.** Les éléments s'immergent dans l'ordre des lignes de
+l'onglet `Immersion`. Un élément qui n'est pas prêt bloque tous ceux qui le suivent,
+même s'ils le sont. La porte est posée à l'entrée du **Ballast Jetty** : seul
+l'élément en tête de file peut être ballasté, et l'immersion suit directement la fin
+du ballast. Un seul élément est donc ballasté à la fois. Les éléments prêts mais
+retenus par un prédécesseur sont comptés et signalés dans le journal.
+
 La ligne SPE suit une chaîne de 7 zones bloquantes avant de rejoindre le float-up
 avec PL-5.
+
+**Couplage du float-up** : pour PL1+2 et PL3+4, les deux lignes sortent de l'outfitting
+ensemble, le plus rapide attendant le plus lent. L'élément qui vient d'entrer en
+outfitting derrière la paire appartient au cycle suivant et n'est pas bloquant —
+l'exiger rendrait le float-up quasi impossible, la place d'outfitting étant reprise
+dès qu'elle se libère.
 
 **Float-up et entrée en bassin sans partenaire** : les files des deux lignes d'un
 groupe n'ont pas la même longueur (PL-5 compte 15 éléments, SPE 10). Quand la ligne
@@ -139,6 +156,9 @@ place 2 = SPE).
 
 ## À venir
 
+- **Optimisation de la séquence de production.** La séquence de l'onglet `Inputs` est
+  prise telle quelle : le solveur choisit les cadences, pas l'ordre des éléments sur
+  les lignes. La faire optimiser par le solveur est une évolution possible.
 - **Évacuation anticipée d'un SPE.** Si un SPE doit quitter le Basin C avant son immersion,
   deux éléments non étanches peuvent se retrouver simultanément dans les zones UB. Ce cas
   reste exceptionnel et n'est pas modélisé ; la structure par zone de la colonne F le
