@@ -121,6 +121,20 @@ La séquence retenue est celle que l'on peut recopier dans `Inputs` : la simuler
 exactement ce que donnerait le même ordre saisi dans le classeur. Elle est exportée telle
 quelle dans l'onglet `Sequence_Solveur`.
 
+## Règles du modèle, visibles et modifiables
+
+Tout ce qui était figé dans le code est regroupé dans l'objet `REGLES` et exposé à l'étape 6
+de l'interface, sous son libellé métier : segments béton par élément, segment de fin
+d'outfitting, pente d'inertie (variation autorisée et période), déphasages du hall B et de
+PL-5 et cadence à partir de laquelle ils deviennent contraignants, seuils d'étanchéité normal
+et critique, places de parking et délai d'ouverture de la réserve, et la liste des rythmes
+autorisés. Les valeurs saisies s'appliquent au lancement suivant ; un bouton rétablit les
+valeurs de référence.
+
+C'est la première étape de l'interface entièrement paramétrable : les règles sont sorties du
+code. Restent à y remonter l'état as-built, aujourd'hui saisi dans les colonnes de `Inputs`,
+et la capacité des bassins.
+
 ## Structure du classeur
 
 | Onglet | Rôle |

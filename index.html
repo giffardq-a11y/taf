@@ -192,6 +192,14 @@
     <button class="sub-btn" id="btn-export-wb" disabled>💾 Exporter le classeur (Config_Cycles + rapport)</button>
     <button class="sub-btn" id="btn-template">📥 Télécharger un classeur modèle vide</button>
 
+    <h4>6 — Règles du modèle</h4>
+    <div style="font-size:10.5px; color:var(--text-dim); line-height:1.5; margin-bottom:6px;">
+      Les règles du cahier des charges, modifiables pour explorer une variante. Elles
+      s'appliquent au prochain lancement du solveur.
+    </div>
+    <div id="regles-panneau"></div>
+    <button class="sub-btn" id="btn-regles-defaut">↺ Rétablir les règles de référence</button>
+
     <h4>Statistiques</h4>
     <div id="stats"><div class="stat-row">En attente de simulation…</div></div>
 
@@ -293,15 +301,37 @@ function lenOf(l){ return l===6 ? GEO.len_spe : GEO.len_std; }
 
 // --- Contraintes du solveur de rythme (cf. dossier de référence, section 3) ---
 // Rythmes discrets autorisés (semaines / segment béton), du plus lent (économique) au plus rapide.
-const RYTHMES = [4, 3.5, 3, 2.5, 2, 1.5, 1];
+/* ================================================================
+   1bis. REGLES DU MODELE — tout ce qui était figé dans le code
+   Regroupé ici pour être lisible d'un coup d'œil et modifiable depuis l'interface.
+   `REGLES.defaut` garde les valeurs de référence, pour pouvoir y revenir.
+   ================================================================ */
+const REGLES = {
+  segments: 9,              // segments béton d'un élément
+  segmentsOutfitting: 7,    // l'outfitting s'achève au 7e segment du suivant
+  rythmes: [4, 3.5, 3, 2.5, 2, 1.5, 1],   // semaines par segment, du plus lent au plus rapide
+  penteSem: 1,              // variation de cadence autorisée…
+  pentePeriodeMois: 4,      // …par tranche de tant de mois
+  staggerHallB: 3,          // segments de déphasage du hall B sur le hall A
+  staggerPL5: 7,            // idem pour PL-5, en préférence seulement
+  staggerCadenceDure: 1,    // cadence à partir de laquelle le déphasage devient contraignant
+  etancheSem: 12,           // fermeture provisoire d'un SPE, au plus tôt, après la sortie de CP3
+  etancheCritiqueSem: 8,    // seuil critique, sur autorisation
+  parkingPlaces: 5,         // places de parking sans limite de durée
+  parkingReserveJours: 30,  // la 6e place ne s'ouvre que pour un départ dans ce délai
+  basins: 3, basinPlaces: 2,
+};
+REGLES.defaut = JSON.parse(JSON.stringify(REGLES));
+function penteJours() { return REGLES.pentePeriodeMois * 30.44; }
+
+const RYTHMES = REGLES.rythmes;
 // Inertie de ligne : la cadence ne peut varier que de 1 semaine par tranche de 4 mois
 // écoulée depuis le dernier changement effectivement appliqué sur la ligne.
-const SLOPE_SEM_PAR_PERIODE = 1;
-const SLOPE_PERIODE_JOURS = 4 * 30.44;
+
 
 // Parking : 5 places de stockage sans limite, plus une 6e réservée au déblocage ponctuel,
 // dont l'occupation ne doit pas dépasser un mois.
-const PARKING_RESERVE_JOURS = 30;
+
 
 /* --- Staggering entre halls ---------------------------------------------------------
    Le hall A (PL-1/PL-2) et le hall B (PL-3/PL-4) partagent les mêmes moyens : ils ne
@@ -314,9 +344,7 @@ const PARKING_RESERVE_JOURS = 30;
 const STAGGER = {
   actif: true,             // piloté par l'interface
   hallA: [1, 2],           // lignes de référence : c'est sur leur départ que la phase se mesure
-  cibleSegments: {3: 3, 4: 3, 5: 7},
   bloquant: {3: true, 4: true, 5: false},
-  cadenceDure: 1,          // cadence (sem/segment) à partir de laquelle la contrainte devient dure
   // Le pas de simulation est le jour et les cibles tombent sur des demi-journées (3 × R × 7,
   // R étant un multiple de 0,5 semaine) : une demi-journée de tolérance vise le segment exact.
   tolJours: 0.5,
@@ -327,8 +355,7 @@ const STAGGER = {
    budget de temps, et le voisinage exploré est ciblé plutôt qu'énuméré. */
 // Étanchéité provisoire d'un SPE : délai minimal après la sortie de CP3. Le seuil normal est
 // de 12 semaines ; 8 reste faisable mais met le planning en tension.
-const SEUIL_ETANCHE_SEM = 12;
-const SEUIL_ETANCHE_CRITIQUE_SEM = 8;
+
 
 const OPTIM = {
   reaffecterLignes: true,  // l'optimiseur choisit aussi sur quelle ligne produire (interface)
@@ -752,10 +779,10 @@ function parseWorkbook(dateRefArg) {
 // que les 9 du béton, le battement de 2 segments absorbant les deux transferts (béton vers
 // outfitting, puis outfitting vers bassin). Les durées de Config_Outfitting ne servent
 // plus qu'à nommer les phases.
-const SEGMENTS_OUTFITTING = 7;
+
 
 function dureeOutfittingJoursForR(ligne, dStart, R) {
-  return SEGMENTS_OUTFITTING * R * 7;
+  return REGLES.segmentsOutfitting * R * 7;
 }
 function anchorRhythm(ligne) {
   return (cyclesConfig[ligne] && typeof cyclesConfig[ligne].durees[0] === 'number') ? cyclesConfig[ligne].durees[0] : 1;
@@ -831,7 +858,7 @@ function lireParamsUI() {
     ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
     autoriserRalentissement: !!(document.getElementById('p-ralentir') || {}).checked,
-    etancheCritiqueSem: champ('p-etanche-critique', SEUIL_ETANCHE_CRITIQUE_SEM),
+    etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
   };
 }
@@ -931,7 +958,7 @@ function runSimulation(paramsArg) {
         const n = Math.min(9, Math.max(1, code.n || 1));
         e.rythme = anchorR;
         e.dateDebutBeton = code.date || addDays(REF, -n * anchorR * 7);
-        e.dateFinBeton = addDays(e.dateDebutBeton, anchorR * 7 * 9);
+        e.dateFinBeton = addDays(e.dateDebutBeton, anchorR * 7 * REGLES.segments);
         e.statut = 'Beton';
         zoneBetonOccupee[ligne] = true;
         if (!dernierDebutBeton[ligne] || e.dateDebutBeton > dernierDebutBeton[ligne]) {
@@ -1017,16 +1044,16 @@ function runSimulation(paramsArg) {
   // jusqu'à l'immersion. Le Parking est exclu : il n'ajoute pas de délai, il absorbe au contraire
   // la marge éventuelle avant la date d'immersion.
   function pipelineJours(ligne, dConcreteStart, R) {
-    const dConcreteEnd = addDays(dConcreteStart, R * 7 * 9);
+    const dConcreteEnd = addDays(dConcreteStart, R * 7 * REGLES.segments);
     const outDur = dureeOutfittingJoursForR(ligne, dConcreteEnd, R);
-    return (R * 7 * 9) + outDur + (PARAMS.floatUpSem * 7) + (PARAMS.hookupSem * 7) + (PARAMS.ballastSem * 7);
+    return (R * 7 * REGLES.segments) + outDur + (PARAMS.floatUpSem * 7) + (PARAMS.hookupSem * 7) + (PARAMS.ballastSem * 7);
   }
 
   // Cadence de la ligne (takt) au rythme R : intervalle entre deux lancements successifs de béton.
   // La zone béton n'est libérée que quand la zone outfitting l'est aussi, donc c'est la plus longue
   // des deux phases qui impose le rythme d'écoulement de la ligne.
   function taktJours(ligne, dRef, R) {
-    return Math.max(R * 7 * 9, dureeOutfittingJoursForR(ligne, dRef, R));
+    return Math.max(R * 7 * REGLES.segments, dureeOutfittingJoursForR(ligne, dRef, R));
   }
 
   // Coeur du solveur — backward scheduling sur TOUTE la file restante de la ligne.
@@ -1056,7 +1083,7 @@ function runSimulation(paramsArg) {
   function chooseRhythm(ligne, dConcreteStart, elemCourant) {
     const state = lastRhythmState[ligne];
     const gapDays = Math.max(0, diffDays(dConcreteStart, state.changeDate));
-    const slopeMax = (SLOPE_SEM_PAR_PERIODE * gapDays) / SLOPE_PERIODE_JOURS;
+    const slopeMax = (REGLES.penteSem * gapDays) / penteJours();
 
     // Les deux lignes d'une paire partagent la même cadence : leurs éléments doivent sortir
     // de l'outfitting ensemble, donc accélérer une ligne sans l'autre créerait un blocage au
@@ -1065,7 +1092,7 @@ function runSimulation(paramsArg) {
     const jumelle = partenaire(ligne);
     const lignesPaire = (jumelle >= 1 && jumelle <= 5) ? [ligne, jumelle] : [ligne];
     const slopeMaxPaire = lignesPaire.reduce((m, l) => Math.min(m,
-      (SLOPE_SEM_PAR_PERIODE * Math.max(0, diffDays(dConcreteStart, lastRhythmState[l].changeDate))) / SLOPE_PERIODE_JOURS), slopeMax);
+      (REGLES.penteSem * Math.max(0, diffDays(dConcreteStart, lastRhythmState[l].changeDate))) / penteJours()), slopeMax);
 
     const tenable = (R) => lignesPaire.every(l =>
       fileTenable(l, dConcreteStart, R, l === ligne ? elemCourant : null));
@@ -1135,7 +1162,9 @@ function runSimulation(paramsArg) {
   // null quand le déphasage ne s'applique pas (désactivé, ligne du hall A, hall A pas démarré).
   function attenteStagger(ligne, dCur) {
     if (!STAGGER.actif) return null;
-    const cibleSeg = STAGGER.cibleSegments[ligne];
+    // Le déphasage visé vient des règles : 3 segments pour le hall B, 7 pour PL-5.
+    const cibleSeg = (ligne === 3 || ligne === 4) ? REGLES.staggerHallB
+                   : (ligne === 5 ? REGLES.staggerPL5 : 0);
     if (!cibleSeg) return null;
     const ancre = ancreHallA();
     if (!ancre) return null;
@@ -1155,7 +1184,7 @@ function runSimulation(paramsArg) {
       return null;
     }
     const RA = lastRhythmState[STAGGER.hallA[0]].rhythm;
-    const takt = RA * 7 * 9;
+    const takt = RA * 7 * REGLES.segments;
     const phase = ((diffDays(dCur, ancre) % takt) + takt) % takt;
     let attente = (cibleSeg * RA * 7) - phase;
     if (attente < 0) attente += takt;   // la cible de ce cycle est passée : viser le suivant
@@ -1180,8 +1209,8 @@ function runSimulation(paramsArg) {
     // fois prise se conserve d'elle-même. Écourter cette attente reviendrait à la reproduire à
     // chaque cycle sans jamais rattraper la phase.
     const dure = STAGGER.bloquant[ligne]
-      && lastRhythmState[ligne].rhythm <= STAGGER.cadenceDure + 1e-9
-      && lastRhythmState[STAGGER.hallA[0]].rhythm <= STAGGER.cadenceDure + 1e-9;
+      && lastRhythmState[ligne].rhythm <= REGLES.staggerCadenceDure + 1e-9
+      && lastRhythmState[STAGGER.hallA[0]].rhythm <= REGLES.staggerCadenceDure + 1e-9;
     if (dure) { staggerAttentes[ligne]++; return false; }
 
     // Simple préférence : on ne patiente que si l'attente est gratuite, c'est-à-dire si toute
@@ -1201,7 +1230,7 @@ function runSimulation(paramsArg) {
     e.dateDebutBeton = dCur;
     const {rhythm, atRisk} = chooseRhythm(e.ligne, dCur, e);
     e.rythme = rhythm; e.atRisk = atRisk;
-    e.dateFinBeton = addDays(dCur, rhythm * 7 * 9);
+    e.dateFinBeton = addDays(dCur, rhythm * 7 * REGLES.segments);
   }
   // Élément immédiatement suivant sur la même ligne, au sens de la séquence de production.
   function suivantSurLigne(e) {
@@ -1218,7 +1247,7 @@ function runSimulation(paramsArg) {
   function finOutfittingAtteinte(e, dCur) {
     const suiv = suivantSurLigne(e);
     if (suiv && suiv.dateDebutBeton) {
-      const seg7 = addDays(suiv.dateDebutBeton, SEGMENTS_OUTFITTING * (suiv.rythme || anchorRhythm(suiv.ligne)) * 7);
+      const seg7 = addDays(suiv.dateDebutBeton, REGLES.segmentsOutfitting * (suiv.rythme || anchorRhythm(suiv.ligne)) * 7);
       return dCur >= seg7;
     }
     if (suiv) return false;            // le suivant n'est pas encore lancé : on patiente
@@ -1282,7 +1311,7 @@ function runSimulation(paramsArg) {
       if (fermeturesProvisoires.has(x.id) || !x.dateEntreeUB) continue;
       const semaines = diffDays(dCur, x.dateEntreeUB) / 7;
       fermeturesProvisoires.set(x.id, {id: x.id, date: new Date(dCur), semaines: Math.round(semaines),
-        critique: semaines < (speEtancheSem || SEUIL_ETANCHE_SEM) - 1e-9, declencheur});
+        critique: semaines < (speEtancheSem || REGLES.etancheSem) - 1e-9, declencheur});
     }
   }
 
@@ -1358,14 +1387,15 @@ function runSimulation(paramsArg) {
   // déblocage : on ne l'ouvre que si les autres sont pleines, et seulement si l'élément en
   // repart dans le mois — au-delà, il vaut mieux le laisser attendre en amont.
   function tenterEntreeParking(e, dCur) {
-    for (let p = 1; p <= 5; p++) {
+    const reserve = REGLES.parkingPlaces + 1;
+    for (let p = 1; p <= REGLES.parkingPlaces; p++) {
       if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
     }
-    if (parkingOccupee[6]) return;
+    if (parkingOccupee[reserve]) return;
     const sortie = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
-    if (!sortie || diffDays(sortie, dCur) > PARKING_RESERVE_JOURS) return;
-    parkingOccupee[6] = true;
-    e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = 6; e.parkingReserve = true;
+    if (!sortie || diffDays(sortie, dCur) > REGLES.parkingReserveJours) return;
+    parkingOccupee[reserve] = true;
+    e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = reserve; e.parkingReserve = true;
     parkingReserveUsages.push({id: e.id, ligne: LIGNE_NOM[e.ligne], date: new Date(dCur),
                                jours: Math.round(diffDays(sortie, dCur))});
   }
@@ -1483,16 +1513,16 @@ function runSimulation(paramsArg) {
      1. Le **clamping** du planning P6 est la fermeture définitive. S'il tombe assez tôt, rien
         d'autre n'est nécessaire.
      2. Sinon le SPE est **fermé provisoirement** pour permettre l'inondation, puis rouvert
-        pour finir l'aménagement. Possible au plus tôt SEUIL_ETANCHE_SEM semaines après la
+        pour finir l'aménagement. Possible au plus tôt REGLES.etancheSem semaines après la
         sortie de CP3 — l'avancement des travaux compte, pas la zone où ils se font : ils
         peuvent commencer en UB1 et s'achever en UB2.
-     3. En dessous, jusqu'à SEUIL_ETANCHE_CRITIQUE_SEM, la fermeture reste faisable mais met le
+     3. En dessous, jusqu'à REGLES.etancheCritiqueSem, la fermeture reste faisable mais met le
         planning en tension : elle n'est employée que si l'utilisateur l'autorise, et chaque
         recours est signalé. */
   function seuilEtancheSem() {
-    const normal = speEtancheSem || SEUIL_ETANCHE_SEM;
+    const normal = speEtancheSem || REGLES.etancheSem;
     if (!PARAMS.autoriserEtancheCritique) return normal;
-    return Math.min(normal, PARAMS.etancheCritiqueSem || SEUIL_ETANCHE_CRITIQUE_SEM);
+    return Math.min(normal, PARAMS.etancheCritiqueSem || REGLES.etancheCritiqueSem);
   }
   function dateEtancheDe(e, dEntreeUB) {
     const provisoire = addDays(dEntreeUB, seuilEtancheSem() * 7);
@@ -1751,7 +1781,7 @@ function runSimulation(paramsArg) {
     log(`Étanchéité SPE : ${fermetures.length} fermeture(s) provisoire(s) à programmer avant le clamping — ${fermetures.slice(0,5).map(f=>`${f.id} le ${fmt(f.date)} (${f.semaines} sem après CP3)`).join(', ')}${fermetures.length>5?'…':''}.`);
   }
   if (critiques.length) {
-    log(`⚠ Planning critique : ${critiques.length} fermeture(s) sous le seuil de ${speEtancheSem || SEUIL_ETANCHE_SEM} semaines — ${critiques.map(f=>`${f.id} à ${f.semaines} sem`).join(', ')}.`, 'err');
+    log(`⚠ Planning critique : ${critiques.length} fermeture(s) sous le seuil de ${speEtancheSem || REGLES.etancheSem} semaines — ${critiques.map(f=>`${f.id} à ${f.semaines} sem`).join(', ')}.`, 'err');
   }
   if (!PARAMS.silencieux && document.getElementById('change-table')) renderChangeTable(changements);
   if (!PARAMS.silencieux && document.getElementById('stats')) renderStats();
@@ -2036,7 +2066,7 @@ function optimiserSequence(paramsArg, options) {
       const takts = [...new Set([anchorRhythm(1), Math.min(...RYTHMES)])];
       takts.forEach(R => candidats.push({
         nom: `répartition sur les 5 lignes (takt ${Math.round(R * 9)} sem)`,
-        seq: affectationEquilibree(params.dateRef, R * 7 * 9)}));
+        seq: affectationEquilibree(params.dateRef, R * 7 * REGLES.segments)}));
     }
 
     const kpiInitial = evaluerSequence(seqInitiale, params); evaluations++;
@@ -2101,8 +2131,8 @@ function analyserEtancheite(paramsArg, options) {
     const critiques = (lastKPI.detailFermetures || []).filter(f => f.critique);
     if (comparerKPI(kpiCrit, kpiRef) >= 0) return {gain: false, kpiRef, dureeMs: Date.now() - t0};
     return {gain: true, kpiRef, kpiRetenu: kpiCrit, critiques,
-            seuilNormal: speEtancheSem || SEUIL_ETANCHE_SEM,
-            seuilCritique: params.etancheCritiqueSem || SEUIL_ETANCHE_CRITIQUE_SEM,
+            seuilNormal: speEtancheSem || REGLES.etancheSem,
+            seuilCritique: params.etancheCritiqueSem || REGLES.etancheCritiqueSem,
             dureeMs: Date.now() - t0};
   } finally {
     journalSilencieux = false;
@@ -2410,6 +2440,63 @@ function checkReady() {
   document.getElementById('btn-comparer').disabled = !xlsxOk;
 }
 
+/* ---- Règles du modèle : les rendre visibles et modifiables ----
+   Ce qui était figé dans le code est désormais dans REGLES ; ce panneau en est le miroir.
+   Chaque règle porte son libellé métier, pas son nom de variable. */
+const REGLES_CHAMPS = [
+  ['segments', 'Segments béton par élément', 1, 1],
+  ['segmentsOutfitting', 'Fin d\'outfitting au segment n° du suivant', 1, 1],
+  ['penteSem', 'Variation de cadence autorisée (sem)', 0.5, 0],
+  ['pentePeriodeMois', '…par tranche de (mois)', 1, 1],
+  ['staggerHallB', 'Déphasage hall B (segments)', 1, 0],
+  ['staggerPL5', 'Déphasage PL-5 (segments, préférence)', 1, 0],
+  ['staggerCadenceDure', 'Déphasage dur à partir de (sem/segment)', 0.5, 0],
+  ['etancheSem', 'Étanchéité provisoire après CP3 (sem)', 1, 1],
+  ['etancheCritiqueSem', 'Seuil critique d\'étanchéité (sem)', 1, 1],
+  ['parkingPlaces', 'Places de parking (hors réserve)', 1, 0],
+  ['parkingReserveJours', 'Réserve de parking : départ sous (j)', 1, 0],
+];
+
+function rendreReglesPanneau() {
+  const box = document.getElementById('regles-panneau');
+  if (!box) return;
+  box.innerHTML = REGLES_CHAMPS.map(([cle, libelle, pas, mini]) =>
+    `<label class="field">${libelle} <input type="number" data-regle="${cle}" value="${REGLES[cle]}" step="${pas}" min="${mini}"></label>`
+  ).join('') +
+    `<label class="field">Rythmes autorisés (sem/segment) <input type="text" data-regle="rythmes" value="${REGLES.rythmes.join(' / ')}" style="width:130px"></label>`;
+  box.querySelectorAll('input[data-regle]').forEach(inp => { inp.onchange = () => appliquerReglesUI(); });
+}
+
+// Les règles saisies deviennent celles du solveur. Une valeur illisible est ignorée plutôt
+// que d'arrêter le calcul : le champ reprend alors la valeur en vigueur.
+function appliquerReglesUI() {
+  const box = document.getElementById('regles-panneau');
+  if (!box) return;
+  box.querySelectorAll('input[data-regle]').forEach(inp => {
+    const cle = inp.dataset.regle;
+    if (cle === 'rythmes') {
+      const liste = inp.value.split(/[^\d.,]+/).map(v => parseFloat(v.replace(',', '.')))
+        .filter(v => !isNaN(v) && v > 0).sort((a, b) => b - a);
+      if (liste.length) { REGLES.rythmes = liste; RYTHMES.length = 0; RYTHMES.push(...liste); }
+      inp.value = REGLES.rythmes.join(' / ');
+      return;
+    }
+    const v = parseFloat(inp.value);
+    if (!isNaN(v) && v >= 0) REGLES[cle] = v; else inp.value = REGLES[cle];
+  });
+}
+
+document.getElementById('btn-regles-defaut').onclick = () => {
+  Object.keys(REGLES.defaut).forEach(k => {
+    if (k === 'defaut') return;
+    REGLES[k] = Array.isArray(REGLES.defaut[k]) ? REGLES.defaut[k].slice() : REGLES.defaut[k];
+  });
+  RYTHMES.length = 0; RYTHMES.push(...REGLES.rythmes);
+  rendreReglesPanneau();
+  log('Règles du modèle rétablies aux valeurs de référence.');
+};
+rendreReglesPanneau();
+
 /* ---- Séquence de production : choix de la variante, staggering, optimiseur ---- */
 
 // Le classeur peut empiler plusieurs séquences dans Inputs : chaque retour du compteur
@@ -2443,6 +2530,7 @@ document.getElementById('p-sequence').onchange = (ev) => {
 
 // Les paramètres de la simulation lancée depuis l'interface.
 function paramsUI() {
+  appliquerReglesUI();
   STAGGER.actif = document.getElementById('p-stagger').checked;
   OPTIM.reaffecterLignes = document.getElementById('p-reaffecter').checked;
   return lireParamsUI();

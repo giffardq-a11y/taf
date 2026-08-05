@@ -264,7 +264,18 @@ gain minimal qui l'annule, mesure des paliers intermédiaires, et ouvre une boî
 où l'utilisateur choisit le niveau d'accélération — ou le refuse. La page de rapport porte le
 même champ et signale le gain possible dans son journal.
 
-### 6. Interface entièrement paramétrable — à faire, second temps
+### 6. Interface entièrement paramétrable — commencée
+
+**Fait** : les règles du modèle sont sorties du code. Elles vivaient en constantes
+(`RYTHMES`, pente d'inertie, segments, déphasages, seuils d'étanchéité, parking) ; elles sont
+maintenant dans un objet `REGLES` unique, exposé à l'étape 6 de l'interface avec un libellé
+métier par règle, et un bouton de retour aux valeurs de référence. Modifier une règle change
+le calcul : porter la pente d'inertie de 4 à 2 mois fait passer de 4 à 9 retards.
+
+**Reste** : l'état as-built à définir à l'écran plutôt que dans les colonnes de `Inputs`, les
+icônes par élément portant leur statut, et la capacité des bassins (3 × 2, encore en dur).
+
+### 6bis. Interface — spécification d'origine
 
 Demandé par l'utilisateur : une interface HTML où l'**état actuel se définit à l'écran** au
 lieu d'être saisi dans le classeur (colonnes as-built de `Inputs`), avec des **icônes par
