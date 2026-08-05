@@ -235,6 +235,10 @@ const RYTHMES = [4, 3.5, 3, 2.5, 2, 1.5, 1];
 const SLOPE_SEM_PAR_PERIODE = 1;
 const SLOPE_PERIODE_JOURS = 4 * 30.44;
 
+// Parking : 5 places de stockage sans limite, plus une 6e réservée au déblocage ponctuel,
+// dont l'occupation ne doit pas dépasser un mois.
+const PARKING_RESERVE_JOURS = 30;
+
 /* ================================================================
    2. CONFIGURATION PAR DEFAUT (reprise des valeurs par défaut de la macro VBA)
    ================================================================ */
@@ -377,8 +381,10 @@ function parseWorkbook(dateRefArg) {
   if (seqCol >= 0 && rowsIn[1] && rowsIn[1][seqCol]) {
     dateSeq2Debut = excelDate(rowsIn[1][seqCol]) || addDays(dateRef, 365);
   } else {
-    dateSeq2Debut = addDays(dateRef, 365);
-    log('Seq2_Debut non trouvé — bascule Sequence 2 par défaut à +365j.', 'warn');
+    // Les deux séquences d'outfitting ont la même durée totale : la date de bascule ne
+    // change que le libellé des phases, jamais le planning. Non renseignée, on reste en
+    // Séquence 1 sur tout l'horizon.
+    dateSeq2Debut = new Date(8640000000000000);
   }
 
   // --- Immersion ---
@@ -558,7 +564,7 @@ function runSimulation(paramsArg) {
     dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
-    dateBallast:null, dateFinBallast:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null,
+    dateBallast:null, dateFinBallast:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false,
   }));
 
   const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
@@ -576,6 +582,7 @@ function runSimulation(paramsArg) {
   const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
+  const parkingReserveUsages = []; // recours à la 6e place de parking (réserve de déblocage)
 
   simTimeline = {};
   let joursMax = 365 * 6;
@@ -870,10 +877,20 @@ function runSimulation(paramsArg) {
     }
   }
   function libererBasin(e) { basinOccupee[e.basinNum][e.basinPlace] = false; }
+  // Les places 1 à 5 accueillent un élément sans limite de durée. La 6e est une réserve de
+  // déblocage : on ne l'ouvre que si les autres sont pleines, et seulement si l'élément en
+  // repart dans le mois — au-delà, il vaut mieux le laisser attendre en amont.
   function tenterEntreeParking(e, dCur) {
-    for (let p = 1; p <= 6; p++) {
+    for (let p = 1; p <= 5; p++) {
       if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
     }
+    if (parkingOccupee[6]) return;
+    const sortie = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+    if (!sortie || diffDays(sortie, dCur) > PARKING_RESERVE_JOURS) return;
+    parkingOccupee[6] = true;
+    e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = 6; e.parkingReserve = true;
+    parkingReserveUsages.push({id: e.id, ligne: LIGNE_NOM[e.ligne], date: new Date(dCur),
+                               jours: Math.round(diffDays(sortie, dCur))});
   }
   function libererParking(e) { parkingOccupee[e.parkingNum] = false; }
 
@@ -1101,6 +1118,7 @@ function runSimulation(paramsArg) {
   log(`Solveur terminé sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés. ${changements.length} changement(s) de rythme planifié(s)${nbRisk ? `, ${nbRisk} alerte(s) de délai` : ''}.`, nbRisk ? 'warn' : undefined);
   if (lastRetards.length) log(`⚠ ${lastRetards.length} élément(s) ratent leur date d'immersion cible (retard max ${lastRetards[0].retardJours} j sur ${lastRetards[0].id}).`, 'err');
   if (bloquesParOrdre.size) log(`${bloquesParOrdre.size} élément(s) prêts mais retenus par l'ordre d'immersion (attente max ${Math.max(...bloquesParOrdre.values())} j).`, 'warn');
+  if (parkingReserveUsages.length) log(`6e place de parking (réserve) utilisée ${parkingReserveUsages.length} fois : ${parkingReserveUsages.slice(0,5).map(u=>u.id).join(', ')}${parkingReserveUsages.length>5?'…':''}.`, 'warn');
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
   if (document.getElementById('change-table')) renderChangeTable(changements);

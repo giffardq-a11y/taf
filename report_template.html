@@ -149,6 +149,13 @@
     color: var(--accent); width: 84px; text-align: right; font-size: 13px; }
   #plan { display: block; width: 100%; min-width: 560px; height: auto; background: var(--surface-2);
     border: 1px solid var(--line-soft); }
+  .g-wrap { position: relative; }
+  .g-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent);
+    pointer-events: none; z-index: 3; }
+  .g-cursor::after { content: attr(data-date); position: absolute; top: -2px; left: 4px;
+    font-family: var(--mono); font-size: 10px; color: var(--accent); background: var(--surface);
+    padding: 0 3px; white-space: nowrap; }
+  #gantt { cursor: crosshair; }
   .plan-caveat { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-3); max-width: 74ch; }
 
   /* ---- tables ---- */
@@ -242,8 +249,8 @@
           <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</small>
         </div>
         <div class="drop" id="drop-plan" role="button" tabindex="0">
-          Charger un plan de fond (optionnel)
-          <small>JPG ou PNG, placé sous le schéma de mouvement</small>
+          Remplacer le plan de fond
+          <small>JPG ou PNG cadré sur le plan général complet</small>
         </div>
       </div>
       <div class="loader-row">
@@ -308,8 +315,8 @@
            aria-label="Plan schématique du site de production avec la position des éléments"></svg></div>
       <div class="legend" id="plan-legend" style="margin-left:0"></div>
       <p class="plan-caveat">Schéma reconstruit d'après les coordonnées relatives du dossier de référence
-        (lignes PL-1 à PL-5 et SPE, bassins, parking en épi à −75°). Chargez une image de plan ci-dessus
-        pour la placer en fond et superposer le mouvement au plan d'installation réel.</p>
+        (lignes PL-1 à PL-5 et SPE, bassins, parking en épi à −75°), superposé au plan d'installation
+        générale. Cliquez sur l'écoulement de production plus bas pour y déplacer la date.</p>
     </div>
   </section>
 
@@ -357,7 +364,7 @@
         reprennent l'avancement réel saisi dans le classeur.</p>
     </div>
     <div class="panel">
-      <div class="scroll"><div style="min-width:640px" id="gantt"></div></div>
+      <div class="scroll"><div class="g-wrap" style="min-width:640px"><div id="gantt"></div><div class="g-cursor" id="g-cursor" hidden></div></div></div>
       <div class="legend" id="g-legend"></div>
     </div>
   </section>
@@ -679,9 +686,17 @@
   slider.max = nbJours - 1;
 
   const dateOut = document.getElementById('plan-date');
+  const curseur = document.getElementById('g-cursor');
   function dessinerPlan(j) {
     const ms = P0 + j * day;
-    dateOut.textContent = fr(new Date(ms).toISOString().slice(0, 10));
+    const iso = new Date(ms).toISOString().slice(0, 10);
+    dateOut.textContent = fr(iso);
+    // Le trait vertical de l'écoulement de production suit la même date que le plan.
+    if (ms >= T0 && ms <= T1) {
+      curseur.hidden = false;
+      curseur.style.left = pc(ms) + '%';
+      curseur.dataset.date = fr(iso);
+    } else curseur.hidden = true;
     couche.textContent = '';
     let n = 0;
     D.elements.forEach(e => {
@@ -715,6 +730,18 @@
   slider.value = 0;
   dessinerPlan(0);
   planRedessiner = dessinerPlan;
+
+  const gWrap = document.querySelector('.g-wrap');
+  if (gWrap && !gWrap.dataset.lie) {
+    gWrap.dataset.lie = '1';
+    gWrap.addEventListener('click', ev => {
+      const r = gWrap.getBoundingClientRect();
+      const ms = T0 + ((ev.clientX - r.left) / r.width) * (T1 - T0);
+      const j = Math.max(0, Math.min(+slider.max, Math.round((ms - P0) / day)));
+      slider.value = j; planRedessiner(j);
+      gWrap.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+    });
+  }
 
   const btn = document.getElementById('plan-play');
   const vitesse = document.getElementById('plan-speed');
@@ -815,6 +842,9 @@ function rendreEnTete(nomFichier, dateRef) {
    ================================================================ */
 const $ = id => document.getElementById(id);
 let planURL = null;
+// Fond de plan livré avec la page : image détourée du plan d'installation, cadrée sur la
+// même fenêtre que le schéma (x 4→64 %, y 42→84 % du plan général).
+const PLAN_LIVRE = /*__PLAN__*/ null;
 
 // Date de référence par défaut : aujourd'hui.
 $('p-dateref').value = new Date().toISOString().slice(0, 10);
@@ -927,18 +957,22 @@ function afficherJournal(entrees) {
 
 function appliquerFondPlan() {
   const svg = $('plan');
-  if (!svg || !planURL) return;
+  if (!svg) return;
+  // Une image chargée par l'utilisateur est supposée couvrir le plan général entier ;
+  // le fond livré, lui, est déjà cadré sur la fenêtre du schéma.
+  const src = planURL ? {href: planURL, x: 0, y: 0, w: 100, h: 100} : PLAN_LIVRE;
+  if (!src) return;
   let img = svg.querySelector('image.fond');
   if (!img) {
     img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     img.setAttribute('class', 'fond');
-    img.setAttribute('x', 0); img.setAttribute('y', 0);
-    img.setAttribute('width', 100); img.setAttribute('height', 100);
     img.setAttribute('preserveAspectRatio', 'none');
-    img.setAttribute('opacity', 0.45);
+    img.setAttribute('opacity', 0.5);
     svg.prepend(img);
   }
-  img.setAttribute('href', planURL);
+  img.setAttribute('x', src.x); img.setAttribute('y', src.y);
+  img.setAttribute('width', src.w); img.setAttribute('height', src.h);
+  img.setAttribute('href', src.href);
 }
 
 })();

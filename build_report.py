@@ -12,6 +12,7 @@ SOLVEUR-CORE-DEBUT / SOLVEUR-CORE-FIN de `index.html`, qui reste la seule source
 """
 
 import argparse
+import base64
 import pathlib
 import re
 import sys
@@ -73,6 +74,11 @@ def main() -> None:
     ap.add_argument(
         "--gabarit", default="report_template.html", help="gabarit de la page"
     )
+    ap.add_argument(
+        "--plan",
+        default="vendor_plan.png",
+        help="image de fond du plan, cadrée sur x 4→64 %% / y 42→84 %% du plan général",
+    )
     args = ap.parse_args()
 
     index = (RACINE / "index.html").read_text(encoding="utf-8")
@@ -81,17 +87,33 @@ def main() -> None:
     noyau = extraire_noyau(index)
     xlsx = echapper_controles(charger_xlsx(args.xlsx))
 
+    plan = "null"
+    chemin_plan = RACINE / args.plan
+    if chemin_plan.is_file():
+        b64 = base64.b64encode(chemin_plan.read_bytes()).decode("ascii")
+        mime = "image/png" if chemin_plan.suffix.lower() == ".png" else "image/jpeg"
+        plan = (
+            '{href: "data:%s;base64,%s", x: 4, y: 42, w: 60, h: 42}' % (mime, b64)
+        )
+    else:
+        print(f"Pas de fond de plan ({chemin_plan}) — schéma seul.", file=sys.stderr)
+
     for jeton in ("/*__XLSX__*/", "/*__SOLVEUR__*/"):
         if jeton not in gabarit:
             sys.exit(f"Jeton {jeton} absent du gabarit {args.gabarit}.")
 
-    page = gabarit.replace("/*__XLSX__*/", xlsx).replace("/*__SOLVEUR__*/", noyau)
+    page = (
+        gabarit.replace("/*__XLSX__*/", xlsx)
+        .replace("/*__SOLVEUR__*/", noyau)
+        .replace("/*__PLAN__*/ null", plan)
+    )
 
     sortie = RACINE / args.out
     sortie.write_text(page, encoding="utf-8")
     print(
         f"{sortie} écrit — {len(page) / 1024:.0f} Ko "
-        f"(solveur {len(noyau) / 1024:.0f} Ko, SheetJS {len(xlsx) / 1024:.0f} Ko)"
+        f"(solveur {len(noyau) / 1024:.0f} Ko, SheetJS {len(xlsx) / 1024:.0f} Ko, "
+        f"plan {len(plan) / 1024:.0f} Ko)"
     )
 
 
