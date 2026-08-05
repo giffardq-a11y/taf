@@ -47,7 +47,7 @@ le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
 | `Inputs` | Séquences de production. Colonnes B/D/F/H/J/L = PL-1..PL-5, SPE ; colonne A = ordre. Colonnes **C/E/G/I/K/M = statut as-built** (voir ci-dessous). Cellule `Seq2_Debut` en ligne 1/2 = bascule de séquence outfitting. |
 | `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir. |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
-| `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = rythme SPE spécifique, bien plus long, appliqué uniquement dans les zones UB (laisser vide = durée standard de la colonne D). Une cellule libellée **`Jalon Etanche (sem apres entree UB1)`**, placée n'importe où dans la feuille avec sa valeur à droite, fixe le moment où le SPE devient étanche. |
+| `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = jalon d'étanchéité, en semaines après l'entrée en UB1, saisi sur chaque zone UB. **Colonne G** (optionnelle) = rythme SPE long, en semaines, remplaçant la durée standard de la colonne D dans les zones UB. |
 | `Config_Outfitting` | Phases d'outfitting, Séquence 1 et Séquence 2. |
 
 ### Format des statuts as-built (colonnes C/E/G/I/K/M de `Inputs`)
@@ -115,9 +115,12 @@ Ce groupe ne fonctionne pas comme les deux autres. Les zones UB1-3 étant dans l
 Basin C, le SPE en construction y séjourne longtemps pendant que les éléments
 normaux de PL-5 défilent.
 
-1. **Rythme SPE long en UB.** Dans les zones UB1/UB2/UB3, le SPE suit un rythme
-   propre, bien plus long que les durées standard (colonne F de `Config_SPE`).
-2. **Jalon d'étanchéité.** Le SPE devient étanche N semaines après son entrée en UB1.
+1. **Jalon d'étanchéité** (colonne F de `Config_SPE`). Le SPE devient étanche N semaines
+   après son entrée en UB1. La valeur est saisie **sur chaque zone UB** — non pas parce
+   qu'elle diffère d'une zone à l'autre en régime normal, mais pour pouvoir suivre
+   indépendamment plusieurs SPE présents simultanément dans les UB.
+2. **Rythme SPE long en UB** (colonne G, optionnelle). Dans les zones UB1/UB2/UB3, le SPE
+   peut suivre un rythme propre, bien plus long que les durées standard de la colonne D.
 3. **Le SPE n'est évacué qu'avant son utilisation finale** : il reste en Basin C
    jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien
    au-delà de la fin de son hook-up.
@@ -136,7 +139,10 @@ place 2 = SPE).
 
 ## À venir
 
-- Rien de bloquant identifié à ce stade.
+- **Évacuation anticipée d'un SPE.** Si un SPE doit quitter le Basin C avant son immersion,
+  deux éléments non étanches peuvent se retrouver simultanément dans les zones UB. Ce cas
+  reste exceptionnel et n'est pas modélisé ; la structure par zone de la colonne F le
+  permettra une fois la règle spécifiée.
 
 ## Limites connues
 

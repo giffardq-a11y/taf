@@ -246,13 +246,13 @@ function defaultSPEConfig() {
   // dureeSPEJours : rythme SPE spécifique, bien plus long, appliqué uniquement dans les zones
   // UB (outfitting). null = pas configuré, la durée standard s'applique.
   return [
-    {nom:'CPA', activite:'Rebars', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
-    {nom:'CP1', activite:'Phase 1', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
-    {nom:'CP2', activite:'Walls', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
-    {nom:'CP3', activite:'Phase 4b', dureeJours:5*7, estBeton:true, dureeSPEJours:null},
-    {nom:'UB1', activite:'Bulkhead', dureeJours:5*7, estBeton:false, dureeSPEJours:null},
-    {nom:'UB2', activite:'TE System', dureeJours:5*7, estBeton:false, dureeSPEJours:null},
-    {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false, dureeSPEJours:null},
+    {nom:'CPA', activite:'Rebars', dureeJours:5*7, estBeton:true, etancheSem:null, dureeSPEJours:null},
+    {nom:'CP1', activite:'Phase 1', dureeJours:5*7, estBeton:true, etancheSem:null, dureeSPEJours:null},
+    {nom:'CP2', activite:'Walls', dureeJours:5*7, estBeton:true, etancheSem:null, dureeSPEJours:null},
+    {nom:'CP3', activite:'Phase 4b', dureeJours:5*7, estBeton:true, etancheSem:null, dureeSPEJours:null},
+    {nom:'UB1', activite:'Bulkhead', dureeJours:5*7, estBeton:false, etancheSem:null, dureeSPEJours:null},
+    {nom:'UB2', activite:'TE System', dureeJours:5*7, estBeton:false, etancheSem:null, dureeSPEJours:null},
+    {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false, etancheSem:null, dureeSPEJours:null},
   ];
 }
 function defaultOutfittingConfig() {
@@ -467,23 +467,20 @@ function parseWorkbook() {
         activite: String(row[2] ?? '').trim(),
         dureeJours: (typeof row[3] === 'number' ? row[3] : 5) * 7,
         estBeton: String(row[4] ?? '').trim().toLowerCase() === 'beton',
-        dureeSPEJours: (typeof row[5] === 'number' && row[5] > 0) ? row[5] * 7 : null,
+        // Colonne F : jalon d'étanchéité, en semaines après l'entrée en UB1. Il est saisi par zone
+        // pour pouvoir suivre indépendamment plusieurs SPE présents en même temps dans les UB.
+        etancheSem: (typeof row[5] === 'number' && row[5] > 0) ? row[5] : null,
+        // Colonne G (optionnelle) : rythme SPE long, en semaines, remplaçant la durée standard en UB.
+        dureeSPEJours: (typeof row[6] === 'number' && row[6] > 0) ? row[6] * 7 : null,
       });
     }
-    // Jalon d'étanchéité : cellule libellée quelque part dans la feuille, valeur à sa droite.
-    for (const row of rowsSPE) {
-      if (!row) continue;
-      const c = row.findIndex(v => /jalon\s*etanche/i.test(String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')));
-      if (c >= 0) {
-        const v = row.slice(c + 1).find(x => typeof x === 'number');
-        if (typeof v === 'number' && v > 0) speEtancheSem = v;
-        break;
-      }
-    }
+    const jalons = speConfig.filter(z => !z.estBeton && z.etancheSem).map(z => z.etancheSem);
+    speEtancheSem = jalons.length ? Math.min(...jalons) : null;
     const nbLong = speConfig.filter(z => z.dureeSPEJours).length;
-    log(`Config_SPE chargé${nbLong ? ` — rythme SPE long sur ${nbLong} zone(s)` : ''}${speEtancheSem ? `, jalon étanche à ${speEtancheSem} sem après entrée UB1` : ''}.`);
-    if (!nbLong) log('Rythme SPE spécifique non renseigné (colonne F de Config_SPE) — durées standard appliquées en UB.', 'warn');
-    if (!speEtancheSem) log('Jalon étanche non renseigné dans Config_SPE — la contrainte d\'étanchéité SPE est inactive.', 'warn');
+    const uniforme = jalons.length && jalons.every(v => v === jalons[0]);
+    log(`Config_SPE chargé${jalons.length ? ` — jalon étanche ${uniforme ? `à ${jalons[0]} sem` : `de ${Math.min(...jalons)} à ${Math.max(...jalons)} sem`} après entrée UB1` : ''}${nbLong ? `, rythme SPE long sur ${nbLong} zone(s)` : ''}.`);
+    if (!jalons.length) log('Jalon étanche non renseigné (colonne F de Config_SPE) — la contrainte d\'étanchéité SPE est inactive.', 'warn');
+    if (!nbLong) log('Rythme SPE long non renseigné (colonne G de Config_SPE) — durées standard appliquées en UB.', 'warn');
   } else {
     speConfig = defaultSPEConfig();
     log('Config_SPE absent — valeurs par défaut appliquées (CPA..CP3 béton, UB1..UB3 outfitting).', 'warn');
@@ -1247,17 +1244,14 @@ document.getElementById('btn-template').onclick = () => {
   wsCyc['!cols'] = Array(9).fill({wch: 14});
   XLSX.utils.book_append_sheet(outWb, wsCyc, 'Config_Cycles');
 
-  // --- Config_SPE (colonne F = rythme SPE long en UB, + jalon d'étanchéité sous le tableau) ---
+  // --- Config_SPE : F = jalon d'étanchéité (sem après entrée UB1), G = rythme SPE long ---
   const speAoa = [['No Zone', 'Nom Zone', 'Activite / Phase', 'Duree fixe (semaines)',
-                    'Type (Beton ou Outfitting)', 'Duree rythme SPE (semaines, zones UB)']];
-  // Valeurs UB volontairement plus longues : à remplacer par vos durées réelles.
-  const dureesUBExemple = {UB1: 12, UB2: 12, UB3: 8};
+                    'Type (Beton ou Outfitting)', 'Jalon etancheite (sem apres entree UB1)',
+                    'Duree rythme SPE (semaines, zones UB)']];
   defaultSPEConfig().forEach((z, i) => speAoa.push([i+1, z.nom, z.activite, z.dureeJours/7,
-    z.estBeton ? 'Beton' : 'Outfitting', z.estBeton ? '' : (dureesUBExemple[z.nom] ?? '')]));
-  speAoa.push([]);
-  speAoa.push(['Jalon Etanche (sem apres entree UB1)', 16]);
+    z.estBeton ? 'Beton' : 'Outfitting', z.estBeton ? '' : 12, '']));
   const wsSpe = XLSX.utils.aoa_to_sheet(speAoa);
-  wsSpe['!cols'] = [{wch:10},{wch:34},{wch:18},{wch:20},{wch:24},{wch:30}];
+  wsSpe['!cols'] = [{wch:10},{wch:14},{wch:18},{wch:20},{wch:24},{wch:32},{wch:30}];
   XLSX.utils.book_append_sheet(outWb, wsSpe, 'Config_SPE');
 
   // --- Config_Outfitting ---
