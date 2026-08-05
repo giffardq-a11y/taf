@@ -114,6 +114,20 @@
   .change-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
   .change-table th { background: var(--panel2); text-align: left; padding: 3px 5px; color: var(--text-dim); font-weight: normal;}
   .change-table td { border-bottom: 1px solid var(--border); padding: 3px 5px; }
+  dialog#dlg-etanche {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    max-width: 560px; padding: 22px 24px; font-size: 13px; line-height: 1.5;
+  }
+  dialog#dlg-etanche::backdrop { background: rgba(0,0,0,.55); }
+  dialog#dlg-etanche h3 { margin: 0 0 10px; font-size: 15px; color: var(--accent); }
+  dialog#dlg-etanche p { margin: 0 0 12px; color: var(--text); }
+  dialog#dlg-etanche .dlg-note { color: var(--text-dim); font-size: 11.5px; margin-top: 12px; }
+  dialog#dlg-etanche menu { display: flex; gap: 10px; justify-content: flex-end; margin: 18px 0 0; padding: 0; }
+  dialog#dlg-etanche menu button { width: auto; margin: 0; padding: 8px 16px; }
+  #dlg-etanche-dates { max-height: 132px; overflow-y: auto; margin-top: 10px;
+    font-family: monospace; font-size: 11px; color: var(--text-dim); }
+  #dlg-etanche-dates div { padding: 2px 0; }
+  #dlg-etanche-dates b { color: var(--accent); font-weight: normal; }
 </style>
 </head>
 <body>
@@ -150,6 +164,7 @@
     <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
+    <label class="field">Étanchéité SPE — gain (sem) <input type="number" id="p-reduc-etanche" value="0" min="0" step="1"></label>
 
     <h4>5 — Séquence de production</h4>
     <label class="field">Séquence du classeur <select id="p-sequence"><option value="0">Séquence 1</option></select></label>
@@ -202,6 +217,25 @@
     </div>
   </div>
 </div>
+
+<dialog id="dlg-etanche">
+  <form method="dialog">
+    <h3>Étanchéité SPE : accélérer le clamping ?</h3>
+    <p id="dlg-etanche-texte"></p>
+    <table class="change-table" id="dlg-etanche-kpi">
+      <thead><tr><th></th><th>Étanchéité avancée de</th><th>En retard</th><th>Retard max</th><th>Retard cumulé</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="dlg-etanche-dates"></div>
+    <p class="dlg-note">La contrainte reste stricte : un SPE non étanche interdit toujours
+      d'inonder le Basin C. Seule la durée pour atteindre l'étanchéité est raccourcie, ce qui
+      suppose d'accélérer le clamping des éléments listés.</p>
+    <menu>
+      <button value="non" class="sub-btn">Conserver le jalon actuel</button>
+      <button value="oui" class="main-btn" id="dlg-etanche-ok">Appliquer le gain retenu</button>
+    </menu>
+  </form>
+</dialog>
 
 <div id="controls">
   <button id="play-btn">▶</button>
@@ -747,6 +781,7 @@ function lireParamsUI() {
     hookupSem: champ('p-hookup', 0.5),
     ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
+    reductionEtancheSem: champ('p-reduc-etanche', 0),
   };
 }
 
@@ -817,7 +852,10 @@ function runSimulation(paramsArg) {
       for (let k = premiereUB; k < n; k++) recul += zonesSPE[k-1].dureeEff;
       e.dateEntreeUB = addDays(date || REF, -recul);
       e.dateDebutOut = e.dateEntreeUB;
-      e.dateEtanche = speEtancheSem ? addDays(e.dateEntreeUB, speEtancheSem * 7) : null;
+      // Même règle que pour un SPE entré en UB pendant la simulation : la date de clamping du
+      // planning P6 prime sur le jalon théorique, et le gain d'étanchéité s'y applique.
+      // Recalculer le jalon ici court-circuitait les deux.
+      e.dateEtanche = dateEtancheDe(e, e.dateEntreeUB);
     }
   }
 
@@ -1364,9 +1402,17 @@ function runSimulation(paramsArg) {
 
   // Étanchéité d'un SPE : la date réelle issue des activités de clamping fait foi ;
   // à défaut, le jalon théorique compté depuis l'entrée en UB1.
+  // La contrainte d'étanchéité reste stricte : un SPE non étanche ferme le bassin. C'est la
+  // durée pour l'atteindre qui se négocie — en accélérant le clamping. La réduction s'applique
+  // à la date effective, qu'elle vienne du planning P6 ou du jalon théorique, et ne peut pas
+  // remonter avant l'entrée en UB1 : on ne devient pas étanche avant d'y être entré.
   function dateEtancheDe(e, dEntreeUB) {
-    if (e.dateEtancheP6) return e.dateEtancheP6;
-    return speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null;
+    const base = e.dateEtancheP6 || (speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null);
+    if (!base) return null;
+    const reduc = PARAMS.reductionEtancheSem || 0;
+    if (!reduc) return base;
+    const avancee = addDays(base, -reduc * 7);
+    return avancee < dEntreeUB ? new Date(dEntreeUB.getTime()) : avancee;
   }
 
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
@@ -1923,6 +1969,70 @@ function optimiserSequence(paramsArg, options) {
   }
 }
 
+/* ---- Réduction du jalon d'étanchéité ----
+   La contrainte est stricte — un SPE non étanche interdit d'inonder le Basin C, donc d'en
+   évacuer un élément normal. Mais la durée pour atteindre l'étanchéité, elle, peut être
+   raccourcie en accélérant le clamping. Reste à savoir de combien, et ce que ça rapporte :
+   c'est un arbitrage qui appartient à l'utilisateur, pas au solveur. */
+function analyserEtancheite(paramsArg, options) {
+  const params = paramsArg || lireParamsUI();
+  const base = {...params, silencieux: true, sansTimeline: true};
+  const t0 = Date.now();
+  let essais = 0;
+  const evaluer = (r) => { essais++; return runSimulation({...base, reductionEtancheSem: r}); };
+  const datesEtanche = () => new Map(elements.filter(e => e.ligne === 6 && e.dateEtanche)
+    .map(e => [e.id, new Date(e.dateEtanche)]));
+
+  try {
+    const kpiRef = evaluer(0);
+    const avant = datesEtanche();
+    // Plafond utile déduit des données : au-delà de l'écart le plus grand entre l'entrée en UB
+    // et l'étanchéité, tous les SPE seraient étanches en entrant et la porte ne jouerait plus.
+    // Le fixer à l'avance passerait à côté d'un planning où l'écart se compte en mois.
+    const ecartMax = elements.filter(e => e.ligne === 6 && e.dateEtanche && e.dateEntreeUB)
+      .reduce((m, e) => Math.max(m, diffDays(e.dateEtanche, e.dateEntreeUB)), 0);
+    const maxSem = (options && options.maxSem) || Math.ceil(ecartMax / 7) + 1;
+    if (maxSem <= 0) return {gain: false, kpiRef, essais, dureeMs: Date.now() - t0};
+    const kpiMax = evaluer(maxSem);
+    // Le gain est nul : la porte d'étanchéité ne coûte rien sur ce plan, rien à proposer.
+    if (comparerKPI(kpiMax, kpiRef) >= 0) {
+      return {gain: false, kpiRef, essais, dureeMs: Date.now() - t0};
+    }
+
+    // Avancer l'étanchéité ne peut qu'ouvrir la porte plus tôt : le résultat est monotone,
+    // on cherche donc par dichotomie la plus petite réduction qui atteint le meilleur plan.
+    let bas = 0, haut = maxSem;
+    while (haut - bas > 1) {
+      const milieu = Math.round((bas + haut) / 2);
+      if (comparerKPI(evaluer(milieu), kpiMax) <= 0) haut = milieu; else bas = milieu;
+    }
+    const kpiRetenu = evaluer(haut);
+    const apres = datesEtanche();
+    const decales = [];
+    avant.forEach((d, id) => {
+      const n = apres.get(id);
+      // Un SPE déjà étanche en entrant en UB n'est pas concerné : sa date est ramenée à son
+      // entrée, ce qui ne demande d'accélérer quoi que ce soit.
+      const jours = n ? Math.round(diffDays(d, n)) : 0;
+      if (jours > 0) decales.push({id, avant: d, apres: n, jours});
+    });
+
+    // Le gain maximal peut demander une accélération hors de portée. On mesure donc aussi des
+    // paliers intermédiaires : c'est à l'utilisateur d'arbitrer entre ce qu'il peut tenir sur
+    // le chantier et ce que ça rapporte au planning.
+    const niveaux = [...new Set([Math.round(haut / 4), Math.round(haut / 2), Math.round(3 * haut / 4)]
+      .filter(r => r > 0 && r < haut))];
+    const paliers = [{reduction: 0, kpi: kpiRef}]
+      .concat(niveaux.map(r => ({reduction: r, kpi: evaluer(r)})))
+      .concat([{reduction: haut, kpi: kpiRetenu}]);
+
+    return {gain: true, reduction: haut, kpiRef, kpiRetenu, decales, paliers,
+            essais, dureeMs: Date.now() - t0};
+  } finally {
+    journalSilencieux = false;
+  }
+}
+
 // Séquence automatique : le classeur peut empiler plusieurs séquences, et rien ne dit que
 // la meilleure une fois optimisée soit celle qui paraît la meilleure telle quelle — une
 // variante peut sembler bonne parce que ses éléments bloqués ne comptent pas comme retards.
@@ -2241,6 +2351,7 @@ document.getElementById('btn-run').onclick = () => {
         appliquerSequence(sequenceOrigine);
       }
       afficherSimulation(params);
+      proposerReductionEtancheite(params);
     } catch (err) {
       log('Erreur simulation : ' + err.message, 'err');
       console.error(err);
@@ -2249,6 +2360,62 @@ document.getElementById('btn-run').onclick = () => {
     btn.disabled = false;
   }, 30);
 };
+
+/* ---- Étanchéité SPE : proposer d'avancer le clamping quand il coûte des retards ----
+   Le solveur ne décide pas seul de raccourcir un jalon de chantier : il chiffre ce que la
+   porte d'étanchéité coûte, propose le gain minimal qui l'annule, et laisse trancher. */
+function proposerReductionEtancheite(params) {
+  const dlg = document.getElementById('dlg-etanche');
+  if (!dlg || !dlg.showModal) return;
+  // Déjà un gain saisi : l'utilisateur a tranché, on ne le relance pas à chaque calcul.
+  if ((params.reductionEtancheSem || 0) > 0) return;
+
+  const res = analyserEtancheite(params);
+  if (!res.gain) {
+    log('Étanchéité SPE : la porte du Basin C ne coûte aucun retard sur ce plan — rien à avancer.');
+    afficherSimulation(params);   // les essais d'analyse ont consommé la timeline
+    return;
+  }
+  const a = res.kpiRef, b = res.kpiRetenu;
+  log(`Étanchéité SPE : avancer l'étanchéité de ${res.reduction} semaine(s) ferait passer les retards de ` +
+      `${a.nbRetards} à ${b.nbRetards} (cumul ${a.retardTotal} → ${b.retardTotal} j). Décision demandée.`, 'warn');
+
+  document.getElementById('dlg-etanche-texte').textContent =
+    `Tant qu'un SPE présent en zone UB n'est pas étanche, le Basin C ne peut pas être inondé et `
+    + `aucun élément normal n'en sort. Cette porte coûte ${res.kpiRef.retardTotal - res.kpiRetenu.retardTotal} `
+    + `jours de retard cumulé. L'annuler entièrement demanderait d'atteindre l'étanchéité `
+    + `${res.reduction} semaine(s) plus tôt qu'aujourd'hui — choisissez ce que le chantier peut tenir.`;
+
+  document.querySelector('#dlg-etanche-kpi tbody').innerHTML = res.paliers.map((p, i) => {
+    const k = p.kpi, gagne = k.retardTotal < res.kpiRef.retardTotal;
+    const coche = i === res.paliers.length - 1 ? ' checked' : '';
+    return `<tr><td><input type="radio" name="dlg-reduc" value="${p.reduction}"${coche}></td>` +
+      `<td>${p.reduction === 0 ? 'aucune (actuel)' : p.reduction + ' sem'}</td>` +
+      `<td${gagne ? ' style="color:var(--ok)"' : ''}>${k.nbRetards}</td><td>${k.retardMax} j</td>` +
+      `<td${gagne ? ' style="color:var(--ok);font-weight:bold"' : ''}>${k.retardTotal} j</td></tr>`;
+  }).join('');
+
+  const dates = document.getElementById('dlg-etanche-dates');
+  dates.innerHTML = res.decales.length
+    ? `<div>Au gain maximal, clamping à avancer :</div>` + res.decales
+        .map(d => `<div>${d.id} — étanche le ${fmt(d.avant)} → <b>${fmt(d.apres)}</b> (${d.jours} j plus tôt)</div>`).join('')
+    : '';
+
+  dlg.returnValue = '';
+  dlg.showModal();
+  dlg.onclose = () => {
+    if (dlg.returnValue !== 'oui') {
+      log('Étanchéité SPE : jalon conservé — le plan affiché reste celui du calcul.');
+      afficherSimulation(params);   // l'analyse a consommé la timeline : on la rétablit
+      return;
+    }
+    const choisi = dlg.querySelector('input[name="dlg-reduc"]:checked');
+    const r = choisi ? parseFloat(choisi.value) : res.reduction;
+    document.getElementById('p-reduc-etanche').value = r;
+    log(`Étanchéité SPE : étanchéité avancée de ${r} semaine(s) — le plan est recalculé.`);
+    afficherSimulation(paramsUI());
+  };
+}
 
 /* ---- Comparatif séquence du classeur / séquence optimisée ---- */
 document.getElementById('btn-comparer').onclick = () => {

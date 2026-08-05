@@ -172,6 +172,21 @@ coordonnées du dossier de référence, superposé au plan d'installation géné
 La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
 ub1, ub2, ub3 — chacune à son emplacement propre.
 
+## Étanchéité SPE : contrainte stricte, durée négociable
+
+Un SPE non étanche interdit d'inonder le Basin C, donc d'en évacuer un élément normal. La
+contrainte ne se lève pas — mais la **durée pour atteindre l'étanchéité** se raccourcit, en
+accélérant le clamping. Le champ *Étanchéité SPE — gain (sem)* avance d'autant la date
+d'étanchéité de chaque SPE, quelle que soit son origine (planning P6 ou jalon théorique),
+sans jamais remonter avant l'entrée en UB1 : on ne devient pas étanche avant d'y être entré.
+
+Le solveur ne décide pas seul de raccourcir un jalon de chantier. Après chaque calcul, il
+chiffre ce que la porte coûte, cherche par dichotomie le gain minimal qui l'annule, mesure
+des paliers intermédiaires, et **ouvre une boîte de dialogue** : le tableau donne, pour chaque
+niveau d'accélération, les retards obtenus, et la liste des SPE dont le clamping serait à
+avancer. À l'utilisateur d'arbitrer entre ce que le chantier peut tenir et ce que ça rapporte.
+Refuser laisse le plan tel quel ; accepter renseigne le champ et relance le calcul.
+
 ## Séquence automatique
 
 Le menu de séquence propose, en plus des variantes du classeur, une entrée **« Automatique —

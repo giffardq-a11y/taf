@@ -86,6 +86,24 @@ Trois enseignements :
    (1 semaine de variation par 4 mois), partir de 3 coûte 8 mois avant d'atteindre 1. Corriger
    cette seule saisie fait passer le cumul de 1999 à 1218 jours.
 
+**Le planning est tenable — mesuré.** Avec la séquence automatique et l'étanchéité avancée
+de 42 semaines : **5 éléments en retard, 1 jour au maximum, 5 jours de cumul**, aucun bloqué.
+C'est bien ce que le planning P6 laissait attendre. Il fallait pour cela trois choses, aucune
+n'étant l'ordre de production : corriger la mesure des retards, laisser le solveur choisir la
+séquence et les lignes, et avancer l'étanchéité.
+
+Sur ce dernier point, les paliers intermédiaires ne rapportent rien : 11, 21 ou 32 semaines
+d'avance laissent les 19 retards inchangés, et seul le palier de 42 semaines fait basculer à 5.
+La porte est fermée par le SPE présent en UB à l'instant considéré ; tant qu'il reste un SPE
+non étanche, avancer les autres ne change rien. C'est un tout ou rien, et la boîte de dialogue
+le montre.
+
+**Écart à examiner** : les activités de clamping du planning P6 placent l'étanchéité **8 à 15
+mois** après l'entrée en UB1, là où `Config_SPE` déclare un jalon de 12 semaines. Le parseur
+retient la dernière fin de clamping concernant chaque SPE ; si ces activités couvrent autre
+chose que l'étanchéité proprement dite, c'est cette lecture qu'il faut revoir plutôt que le
+chantier qu'il faut accélérer.
+
 **Faut-il itérer entre séquence et cadence, essayer toutes les combinaisons ?** Non, et pas
 par manque de moyens : l'espace des affectations seul vaut 5^79. Surtout, la mesure ci-dessus
 montre que la séquence n'est pas la contrainte active — les retards viennent de trois règles
@@ -162,13 +180,27 @@ jeton par élément dans l'ordre de production. Le bouton *Classeur / Optimisée
 les jetons d'une séquence à l'autre, ceux qui bougent s'allumant à l'accent. Le mouvement
 se lit d'un coup d'œil, sans comparer deux tableaux.
 
-### 5. Coupe des éléments immergés — à faire
+### 5. Étanchéité SPE négociable — fait
+
+La contrainte reste stricte ; c'est la durée pour l'atteindre qui devient un paramètre. Après
+chaque calcul, le solveur chiffre ce que la porte du Basin C coûte, cherche par dichotomie le
+gain minimal qui l'annule, mesure des paliers intermédiaires, et ouvre une boîte de dialogue
+où l'utilisateur choisit le niveau d'accélération — ou le refuse. La page de rapport porte le
+même champ et signale le gain possible dans son journal.
+
+### 6. Coupe des éléments immergés — à faire
 
 Inchangé : l'utilisateur fournira un PDF de coupe avec le positionnement des éléments. À
 remplir au fil des immersions, comme le plan d'installation l'est déjà pour le mouvement en
 surface.
 
 ## Défauts corrigés au passage
+
+**Un SPE placé par son statut as-built ignorait sa date de clamping P6.** `placerEnZoneSPE`
+recalculait le jalon théorique au lieu de passer par `dateEtancheDe`, court-circuitant à la
+fois la règle documentée (« la date P6 prime sur le jalon de la colonne F ») et le gain
+d'étanchéité. Sur ce classeur, `SPE-08` était réputé étanche le 28/10/2026 au lieu du
+06/05/2026.
 
 **53 des 85 « retards » n'existaient pas.** Les dates cibles du planning P6 portent une heure
 — 17:00, 20:00, 22:00, 09:00 selon l'élément — alors que le moteur avance d'un jour entier et
