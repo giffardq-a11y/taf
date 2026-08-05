@@ -36,8 +36,25 @@ Réponse élément par élément, sur le meilleur plan obtenu (4 retards, 29 j d
 
 Autrement dit : **les deux retards descendent d'une seule incohérence du planning P6 sur
 `SPE-06`**. Aucun ne vient de la séquence de production, et aucun ne se corrige en la
-changeant. À vérifier côté chantier : la durée d'UB3 pour `SPE-06`, ou celles de float-up et
-hook-up.
+changeant.
+
+**D'où viennent les 21 jours** : de `Config_SPE`, ligne 7 — zone UB3 « Commissioning »,
+durée fixe 3 semaines. Le solveur y recourt faute de mieux : la section `FI3` du planning ne
+contient de groupe que pour **2 SPE sur 10** (`SPE-05` et `SPE-10`). Pour les huit autres,
+dont `SPE-06`, le planning date l'entrée en FI3 mais pas la sortie. Le calcul est donc :
+entrée FI3 le 18/09/2028 + 21 j (`Config_SPE`) = sortie le 09/10, + 7 j de float-up
++ 3,5 j de hook-up = immersion au 21/10, contre une cible au 16/10.
+
+Deux façons de lever le doute, l'une ou l'autre suffit : compléter la section `FI3` du
+planning pour les huit SPE qui n'y figurent pas, ou confirmer que 3 semaines est bien la
+durée de commissioning.
+
+**Question de correspondance des zones.** Le planning nomme trois zones d'aménagement :
+`FI1 - Fit Out in Outfitting Buffer Area`, `FI2 - Fit Out in Upper Basin 1`,
+`FI3 - Fit Out in Upper Basin 2` — soit **deux Upper Basin et une aire tampon**, quand
+`Config_SPE` déclare UB1, UB2, UB3. Le solveur fait aujourd'hui correspondre FI1 à UB1, donc
+il considère un SPE en aire tampon comme présent dans le bassin, ce qui ferme la porte
+d'inondation. Si l'aire tampon est hors du Basin C, c'est une contrainte de trop. À trancher.
 
 Les retards d'arrondi ont disparu avec la durée de ballast lue au planning : elle vaut 4 ou
 5 jours selon l'élément, non 7, et les cibles espacées de 6 ou 7 jours ne se télescopent plus.

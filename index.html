@@ -636,8 +636,11 @@ function parseWorkbook(dateRefArg) {
     const passagesP6 = {};   // id -> {numéro de zone -> date d'entrée}
     {
       const indentation = t => t.length - t.replace(/^\s+/, '').length;
+      // Le planning nomme ses groupes de plusieurs façons selon la zone : « S04 - SPE04 »,
+      // « SP09 », « SPE 08 ». Les trois désignent le même élément. Le « P » facultatif est ce
+      // qui manquait : sans lui, la zone FI1 — neuf groupes nommés « SP0x » — n'était pas lue.
       const idSPE = t => {
-        const m = String(t).match(/S(?:PE)?[\s.\-]*0*(\d+)/i);
+        const m = String(t).match(/S(?:PE?)?[\s.\-]*0*(\d+)/i);
         return m ? 'SPE-' + String(parseInt(m[1], 10)).padStart(2, '0') : null;
       };
       let zoneCourante = null;
