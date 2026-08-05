@@ -164,7 +164,9 @@
     <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
-    <label class="field">Étanchéité SPE — gain (sem) <input type="number" id="p-reduc-etanche" value="0" min="0" step="1"></label>
+    <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+    <label class="check"><input type="checkbox" id="p-etanche-critique-ok">
+      <span><b>Autoriser le seuil critique</b> — fermer un SPE dès 8 semaines après CP3 au lieu de 12, quand le planning l'exige. Chaque recours est signalé.</span></label>
 
     <h4>5 — Séquence de production</h4>
     <label class="field">Séquence du classeur <select id="p-sequence"><option value="0">Séquence 1</option></select></label>
@@ -220,7 +222,7 @@
 
 <dialog id="dlg-etanche">
   <form method="dialog">
-    <h3>Étanchéité SPE : accélérer le clamping ?</h3>
+    <h3>Étanchéité SPE : descendre au seuil critique ?</h3>
     <p id="dlg-etanche-texte"></p>
     <table class="change-table" id="dlg-etanche-kpi">
       <thead><tr><th></th><th>Étanchéité avancée de</th><th>En retard</th><th>Retard max</th><th>Retard cumulé</th></tr></thead>
@@ -228,11 +230,11 @@
     </table>
     <div id="dlg-etanche-dates"></div>
     <p class="dlg-note">La contrainte reste stricte : un SPE non étanche interdit toujours
-      d'inonder le Basin C. Seule la durée pour atteindre l'étanchéité est raccourcie, ce qui
-      suppose d'accélérer le clamping des éléments listés.</p>
+      d'inonder le Basin C. Seul le délai minimal avant fermeture provisoire est raccourci —
+      les travaux d'étanchéité restent à faire, mais sur un cycle plus court.</p>
     <menu>
       <button value="non" class="sub-btn">Conserver le jalon actuel</button>
-      <button value="oui" class="main-btn" id="dlg-etanche-ok">Appliquer le gain retenu</button>
+      <button value="oui" class="main-btn" id="dlg-etanche-ok">Autoriser le seuil critique</button>
     </menu>
   </form>
 </dialog>
@@ -321,6 +323,11 @@ const STAGGER = {
 /* --- Optimiseur de séquence ---------------------------------------------------------
    Chaque séquence candidate coûte une simulation complète : la recherche est bornée par un
    budget de temps, et le voisinage exploré est ciblé plutôt qu'énuméré. */
+// Étanchéité provisoire d'un SPE : délai minimal après la sortie de CP3. Le seuil normal est
+// de 12 semaines ; 8 reste faisable mais met le planning en tension.
+const SEUIL_ETANCHE_SEM = 12;
+const SEUIL_ETANCHE_CRITIQUE_SEM = 8;
+
 const OPTIM = {
   reaffecterLignes: true,  // l'optimiseur choisit aussi sur quelle ligne produire (interface)
   budgetMs: 8000,
@@ -781,7 +788,8 @@ function lireParamsUI() {
     hookupSem: champ('p-hookup', 0.5),
     ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
-    reductionEtancheSem: champ('p-reduc-etanche', 0),
+    etancheCritiqueSem: champ('p-etanche-critique', SEUIL_ETANCHE_CRITIQUE_SEM),
+    autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
   };
 }
 
@@ -1211,6 +1219,21 @@ function runSimulation(paramsArg) {
   // les zones UB doit avoir franchi son jalon d'étanchéité.
   // Sans jalon d'étanchéité renseigné, la contrainte n'existe pas : un SPE sans date connue
   // ne doit pas fermer la porte pour toujours — il n'y a rien à attendre.
+  // Fermer provisoirement un SPE est une opération à programmer : on note laquelle, quand, et
+  // pour quel élément. Sans cette trace, le plan demanderait des fermetures sans le dire.
+  const fermeturesProvisoires = new Map();
+  function noterFermeturesProvisoires(dCur, declencheur) {
+    if (!premiereUB) return;
+    for (const x of elements) {
+      if (x.ligne !== 6 || x.termine || x.statut !== 'Outfitting' || x.zoneSPE < premiereUB) continue;
+      if (x.dateEtancheP6 && dCur >= x.dateEtancheP6) continue;   // déjà fermé définitivement
+      if (fermeturesProvisoires.has(x.id) || !x.dateEntreeUB) continue;
+      const semaines = diffDays(dCur, x.dateEntreeUB) / 7;
+      fermeturesProvisoires.set(x.id, {id: x.id, date: new Date(dCur), semaines: Math.round(semaines),
+        critique: semaines < (speEtancheSem || SEUIL_ETANCHE_SEM) - 1e-9, declencheur});
+    }
+  }
+
   function speNonEtancheEnUB(dCur) {
     if (!premiereUB) return false;
     return elements.some(x => x.ligne === 6 && !x.termine && x.statut === 'Outfitting'
@@ -1227,6 +1250,7 @@ function runSimulation(paramsArg) {
     if (!reclamant) return;
     // Sortir du Basin C impose de l'inonder : tout SPE encore en zone UB doit être étanche.
     if (speNonEtancheEnUB(dCur)) return;
+    noterFermeturesProvisoires(dCur, e.id);
     const place = stockageSPEOccupe.indexOf(false);
     if (place < 0) return;
     libererBasin(e);
@@ -1330,6 +1354,7 @@ function runSimulation(paramsArg) {
         // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
         // que le SPE présent en zone UB soit étanche.
         if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
+        if (ligne === 5) noterFermeturesProvisoires(dCur, e.id);
         if (sortieBasinBloquee(e, dCur)) break;
 
         // Départ direct au Ballast Jetty dès que sa date est atteinte et que l'ordre l'autorise :
@@ -1402,20 +1427,25 @@ function runSimulation(paramsArg) {
 
   // Étanchéité d'un SPE : la date réelle issue des activités de clamping fait foi ;
   // à défaut, le jalon théorique compté depuis l'entrée en UB1.
-  // Ce qui commande l'inondation du Basin C est l'étanchéité **provisoire** : un SPE passe par
-  // une phase d'étanchéité provisoire pour permettre le float-up, puis il est rouvert pour
-  // finir les travaux intérieurs, et peut être refermé à la demande. Le délai minimal pour
-  // l'atteindre court depuis l'entrée en UB1 — c'est le jalon de la colonne F de Config_SPE.
-  // Les activités de clamping du planning P6 datent, elles, la fin des travaux intérieurs,
-  // bien plus tard : les prendre pour l'étanchéité qui commande le bassin le fermait des mois
-  // durant. Elles restent lues, à titre d'information.
+  /* ---- Étanchéité d'un SPE : trois niveaux, dans cet ordre ----
+     1. Le **clamping** du planning P6 est la fermeture définitive. S'il tombe assez tôt, rien
+        d'autre n'est nécessaire.
+     2. Sinon le SPE est **fermé provisoirement** pour permettre l'inondation, puis rouvert
+        pour finir l'aménagement. Possible au plus tôt SEUIL_ETANCHE_SEM semaines après la
+        sortie de CP3 — l'avancement des travaux compte, pas la zone où ils se font : ils
+        peuvent commencer en UB1 et s'achever en UB2.
+     3. En dessous, jusqu'à SEUIL_ETANCHE_CRITIQUE_SEM, la fermeture reste faisable mais met le
+        planning en tension : elle n'est employée que si l'utilisateur l'autorise, et chaque
+        recours est signalé. */
+  function seuilEtancheSem() {
+    const normal = speEtancheSem || SEUIL_ETANCHE_SEM;
+    if (!PARAMS.autoriserEtancheCritique) return normal;
+    return Math.min(normal, PARAMS.etancheCritiqueSem || SEUIL_ETANCHE_CRITIQUE_SEM);
+  }
   function dateEtancheDe(e, dEntreeUB) {
-    const base = speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null;
-    if (!base) return null;
-    const reduc = PARAMS.reductionEtancheSem || 0;
-    if (!reduc) return base;
-    const avancee = addDays(base, -reduc * 7);
-    return avancee < dEntreeUB ? new Date(dEntreeUB.getTime()) : avancee;
+    const provisoire = addDays(dEntreeUB, seuilEtancheSem() * 7);
+    // Le clamping ne sert que s'il précède : au-delà, on ferme provisoirement en l'attendant.
+    return (e.dateEtancheP6 && e.dateEtancheP6 < provisoire) ? e.dateEtancheP6 : provisoire;
   }
 
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
@@ -1646,6 +1676,14 @@ function runSimulation(paramsArg) {
   if (STAGGER.actif && (joursStagger || staggerNonTenus.length)) {
     log(`Staggering entre halls : ${joursStagger} jour(s) de décalage appliqués au départ des lignes${staggerNonTenus.length ? `, ${staggerNonTenus.length} départ(s) pris hors phase` : ''}.`);
   }
+  const fermetures = [...fermeturesProvisoires.values()];
+  const critiques = fermetures.filter(f => f.critique);
+  if (fermetures.length) {
+    log(`Étanchéité SPE : ${fermetures.length} fermeture(s) provisoire(s) à programmer avant le clamping — ${fermetures.slice(0,5).map(f=>`${f.id} le ${fmt(f.date)} (${f.semaines} sem après CP3)`).join(', ')}${fermetures.length>5?'…':''}.`);
+  }
+  if (critiques.length) {
+    log(`⚠ Planning critique : ${critiques.length} fermeture(s) sous le seuil de ${speEtancheSem || SEUIL_ETANCHE_SEM} semaines — ${critiques.map(f=>`${f.id} à ${f.semaines} sem`).join(', ')}.`, 'err');
+  }
   if (!PARAMS.silencieux && document.getElementById('change-table')) renderChangeTable(changements);
   if (!PARAMS.silencieux && document.getElementById('stats')) renderStats();
   journalSilencieux = false;
@@ -1666,6 +1704,9 @@ function runSimulation(paramsArg) {
     retardTotal: lastRetards.reduce((s, r) => s + r.retardJours, 0),
     nbChangements: changements.length,
     joursStagger,
+    fermeturesProvisoires: fermeturesProvisoires.size,
+    fermeturesCritiques: [...fermeturesProvisoires.values()].filter(f => f.critique).length,
+    detailFermetures: [...fermeturesProvisoires.values()],
     finProjet: finReelle,
   };
   return lastKPI;
@@ -1978,6 +2019,24 @@ function optimiserSequence(paramsArg, options) {
    raccourcie en accélérant le clamping. Reste à savoir de combien, et ce que ça rapporte :
    c'est un arbitrage qui appartient à l'utilisateur, pas au solveur. */
 function analyserEtancheite(paramsArg, options) {
+  const params = paramsArg || lireParamsUI();
+  const base = {...params, silencieux: true, sansTimeline: true};
+  const t0 = Date.now();
+  try {
+    const kpiRef = runSimulation({...base, autoriserEtancheCritique: false});
+    const kpiCrit = runSimulation({...base, autoriserEtancheCritique: true});
+    const critiques = (lastKPI.detailFermetures || []).filter(f => f.critique);
+    if (comparerKPI(kpiCrit, kpiRef) >= 0) return {gain: false, kpiRef, dureeMs: Date.now() - t0};
+    return {gain: true, kpiRef, kpiRetenu: kpiCrit, critiques,
+            seuilNormal: speEtancheSem || SEUIL_ETANCHE_SEM,
+            seuilCritique: params.etancheCritiqueSem || SEUIL_ETANCHE_CRITIQUE_SEM,
+            dureeMs: Date.now() - t0};
+  } finally {
+    journalSilencieux = false;
+  }
+}
+
+function analyserEtancheiteAncien(paramsArg, options) {
   const params = paramsArg || lireParamsUI();
   const base = {...params, silencieux: true, sansTimeline: true};
   const t0 = Date.now();
@@ -2370,8 +2429,8 @@ document.getElementById('btn-run').onclick = () => {
 function proposerReductionEtancheite(params) {
   const dlg = document.getElementById('dlg-etanche');
   if (!dlg || !dlg.showModal) return;
-  // Déjà un gain saisi : l'utilisateur a tranché, on ne le relance pas à chaque calcul.
-  if ((params.reductionEtancheSem || 0) > 0) return;
+  // L'utilisateur a déjà tranché : on ne le relance pas à chaque calcul.
+  if (params.autoriserEtancheCritique) return;
 
   const res = analyserEtancheite(params);
   if (!res.gain) {
@@ -2380,42 +2439,39 @@ function proposerReductionEtancheite(params) {
     return;
   }
   const a = res.kpiRef, b = res.kpiRetenu;
-  log(`Étanchéité SPE : avancer l'étanchéité de ${res.reduction} semaine(s) ferait passer les retards de ` +
-      `${a.nbRetards} à ${b.nbRetards} (cumul ${a.retardTotal} → ${b.retardTotal} j). Décision demandée.`, 'warn');
+  log(`Étanchéité SPE : descendre le seuil de fermeture provisoire à ${res.seuilCritique} semaines ferait passer ` +
+      `les retards de ${a.nbRetards} à ${b.nbRetards} (cumul ${a.retardTotal} → ${b.retardTotal} j). Décision demandée.`, 'warn');
 
   document.getElementById('dlg-etanche-texte').textContent =
-    `Tant qu'un SPE présent en zone UB n'est pas étanche, le Basin C ne peut pas être inondé et `
-    + `aucun élément normal n'en sort. Cette porte coûte ${res.kpiRef.retardTotal - res.kpiRetenu.retardTotal} `
-    + `jours de retard cumulé. L'annuler entièrement demanderait d'atteindre l'étanchéité `
-    + `${res.reduction} semaine(s) plus tôt qu'aujourd'hui — choisissez ce que le chantier peut tenir.`;
+    `Le clamping ferme définitivement le SPE ; quand il tombe trop tard, une fermeture provisoire `
+    + `le remplace, possible ${res.seuilNormal} semaines après la sortie de CP3. Descendre à `
+    + `${res.seuilCritique} semaines ferait gagner ${a.retardTotal - b.retardTotal} jours de retard `
+    + `cumulé, mais met le planning en tension sur les ${res.critiques.length} fermeture(s) listées.`;
 
-  document.querySelector('#dlg-etanche-kpi tbody').innerHTML = res.paliers.map((p, i) => {
-    const k = p.kpi, gagne = k.retardTotal < res.kpiRef.retardTotal;
-    const coche = i === res.paliers.length - 1 ? ' checked' : '';
-    return `<tr><td><input type="radio" name="dlg-reduc" value="${p.reduction}"${coche}></td>` +
-      `<td>${p.reduction === 0 ? 'aucune (actuel)' : p.reduction + ' sem'}</td>` +
-      `<td${gagne ? ' style="color:var(--ok)"' : ''}>${k.nbRetards}</td><td>${k.retardMax} j</td>` +
-      `<td${gagne ? ' style="color:var(--ok);font-weight:bold"' : ''}>${k.retardTotal} j</td></tr>`;
+  const lignes = [['Éléments en retard', 'nbRetards', ''], ['Retard maximum', 'retardMax', ' j'],
+                  ['Retard cumulé', 'retardTotal', ' j'], ['Fermetures provisoires', 'fermeturesProvisoires', '']];
+  document.querySelector('#dlg-etanche-kpi tbody').innerHTML = lignes.map(([nom, cle, u]) => {
+    const mieux = b[cle] < a[cle];
+    return `<tr><td>${nom}</td><td>${res.seuilNormal} sem : ${a[cle]}${u}</td>` +
+      `<td${mieux ? ' style="color:var(--ok);font-weight:bold"' : ''}>${res.seuilCritique} sem : ${b[cle]}${u}</td></tr>`;
   }).join('');
 
   const dates = document.getElementById('dlg-etanche-dates');
-  dates.innerHTML = res.decales.length
-    ? `<div>Au gain maximal, clamping à avancer :</div>` + res.decales
-        .map(d => `<div>${d.id} — étanche le ${fmt(d.avant)} → <b>${fmt(d.apres)}</b> (${d.jours} j plus tôt)</div>`).join('')
+  dates.innerHTML = res.critiques.length
+    ? `<div>Fermetures sous le seuil normal :</div>` + res.critiques
+        .map(f => `<div>${f.id} — <b>${f.semaines} sem</b> après CP3, le ${fmt(f.date)} (pour ${f.declencheur})</div>`).join('')
     : '';
 
   dlg.returnValue = '';
   dlg.showModal();
   dlg.onclose = () => {
     if (dlg.returnValue !== 'oui') {
-      log('Étanchéité SPE : jalon conservé — le plan affiché reste celui du calcul.');
+      log(`Étanchéité SPE : seuil de ${res.seuilNormal} semaines conservé — le plan affiché reste celui du calcul.`);
       afficherSimulation(params);   // l'analyse a consommé la timeline : on la rétablit
       return;
     }
-    const choisi = dlg.querySelector('input[name="dlg-reduc"]:checked');
-    const r = choisi ? parseFloat(choisi.value) : res.reduction;
-    document.getElementById('p-reduc-etanche').value = r;
-    log(`Étanchéité SPE : étanchéité avancée de ${r} semaine(s) — le plan est recalculé.`);
+    document.getElementById('p-etanche-critique-ok').checked = true;
+    log(`⚠ Étanchéité SPE : seuil critique de ${res.seuilCritique} semaines autorisé — planning en tension, plan recalculé.`, 'warn');
     afficherSimulation(paramsUI());
   };
 }

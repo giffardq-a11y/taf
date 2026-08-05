@@ -98,12 +98,21 @@ La porte est fermée par le SPE présent en UB à l'instant considéré ; tant q
 non étanche, avancer les autres ne change rien. C'est un tout ou rien, et la boîte de dialogue
 le montre.
 
-**Règle corrigée** : ce qui commande l'inondation du Basin C est l'étanchéité **provisoire**,
-atteinte 8 à 12 semaines après l'entrée en UB1 — pas la fin des travaux intérieurs que datent
-les activités de clamping P6, huit à quinze mois plus tard. Un SPE passe par une étanchéité
-provisoire pour permettre le float-up, est rouvert pour finir l'aménagement, et peut être
-refermé à la demande : une fois le jalon franchi il ne bloque plus jamais. Le clamping P6
-n'est plus qu'une information au journal.
+**Règle corrigée, en cascade** (précisée par l'utilisateur) : le clamping P6 *est* l'étanchéité
+— la fermeture définitive. Quand il tombe trop tard pour le planning, une **fermeture
+provisoire** le remplace, possible au plus tôt 12 semaines après la **sortie de CP3**, et
+descendable à 8 semaines au prix d'un planning critique. La position du SPE dans la chaîne UB
+n'entre pas en compte : les travaux peuvent commencer en UB1 et s'achever en UB2. Une fois le
+seuil franchi, le SPE ne bloque plus jamais — il est rouvert puis refermé à la demande.
+
+| Seuil de fermeture provisoire | Séquence classeur | Séquence optimisée |
+|---|---|---|
+| 12 semaines (normal) | 32 retards, 133 j max, 1885 j | 18 retards, 133 j max, 774 j |
+| 8 semaines (critique, sur autorisation) | 29 retards, 105 j max, 1508 j | **15 retards, 105 j max, 397 j** |
+
+Sur le classeur de référence, une seule fermeture provisoire est nécessaire — `SPE-04`, pour
+laisser sortir `STE-70` — à 12 semaines après CP3 le 03/07/2027, ou à 8 semaines le 05/06/2027
+si le seuil critique est autorisé.
 
 **Question ouverte, chiffrée** : le classeur laisse la colonne G de `Config_SPE` vide, donc
 chaque zone UB dure 5 semaines. Un SPE entre alors en UB1 tous les 35 jours alors qu'il lui

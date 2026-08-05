@@ -172,20 +172,31 @@ coordonnées du dossier de référence, superposé au plan d'installation géné
 La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
 ub1, ub2, ub3 — chacune à son emplacement propre.
 
-## Étanchéité SPE : contrainte stricte, durée négociable
+## Étanchéité SPE : trois niveaux en cascade
 
 Un SPE non étanche interdit d'inonder le Basin C, donc d'en évacuer un élément normal. La
-contrainte ne se lève pas — mais la **durée pour atteindre l'étanchéité** se raccourcit, en
-accélérant le clamping. Le champ *Étanchéité SPE — gain (sem)* avance d'autant la date
-d'étanchéité de chaque SPE, quelle que soit son origine (planning P6 ou jalon théorique),
-sans jamais remonter avant l'entrée en UB1 : on ne devient pas étanche avant d'y être entré.
+contrainte ne se lève jamais. Ce qui se négocie, c'est **comment** l'étanchéité est obtenue,
+dans cet ordre :
 
-Le solveur ne décide pas seul de raccourcir un jalon de chantier. Après chaque calcul, il
-chiffre ce que la porte coûte, cherche par dichotomie le gain minimal qui l'annule, mesure
-des paliers intermédiaires, et **ouvre une boîte de dialogue** : le tableau donne, pour chaque
-niveau d'accélération, les retards obtenus, et la liste des SPE dont le clamping serait à
-avancer. À l'utilisateur d'arbitrer entre ce que le chantier peut tenir et ce que ça rapporte.
-Refuser laisse le plan tel quel ; accepter renseigne le champ et relance le calcul.
+1. **Clamping** — la fermeture définitive, datée par les activités du planning P6 lues dans
+   l'onglet `Immersion`. S'il tombe assez tôt, rien d'autre n'est nécessaire.
+2. **Fermeture provisoire à 12 semaines** — quand le clamping tombe trop tard, le SPE est
+   fermé provisoirement pour permettre l'inondation, puis rouvert pour finir l'aménagement, et
+   refermable à la demande. Possible au plus tôt 12 semaines après la **sortie de CP3**
+   (colonne F de `Config_SPE`). C'est l'avancement des travaux qui compte, pas la zone où ils
+   se font : ils peuvent commencer en UB1 et s'achever en UB2.
+3. **Seuil critique à 8 semaines** — faisable, mais le planning passe en tension. Ce niveau
+   n'est employé que si l'utilisateur l'autorise, et **chaque recours est signalé** dans le
+   journal et le rapport.
+
+Le solveur ne descend pas seul au niveau 3. Après chaque calcul, il mesure ce que le seuil
+critique rapporterait et **ouvre une boîte de dialogue** : retards obtenus de part et d'autre,
+et liste des fermetures concernées avec leur date, leur ancienneté après CP3 et l'élément
+qu'elles débloquent. Refuser laisse le plan tel quel ; accepter coche l'autorisation et
+relance le calcul.
+
+Les fermetures provisoires nécessaires sont listées dans tous les cas : ce sont des opérations
+à programmer, le plan ne peut pas les demander sans le dire.
 
 ## Séquence automatique
 

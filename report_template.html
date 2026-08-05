@@ -292,8 +292,10 @@
         <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
         <label class="champ">Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
         <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
-        <label class="champ" title="Nombre de semaines dont l'étanchéité des SPE est atteinte plus tôt qu'au planning">
-          Étanchéité SPE — gain (sem) <input type="number" id="p-reduc-etanche" value="0" min="0" step="1"></label>
+        <label class="champ" title="Délai minimal après la sortie de CP3 avant fermeture provisoire, quand le planning l'exige">
+          Seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+        <label class="champ bascule" title="Autoriser la fermeture provisoire d'un SPE dès le seuil critique au lieu du seuil normal">
+          <input type="checkbox" id="p-etanche-critique-ok"> Autoriser le seuil critique</label>
         <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
           Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
         <label class="champ bascule" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
@@ -1188,7 +1190,8 @@ function calculer(nomFichier) {
         hookupSem: nb($('p-hookup').value) || 0.5,
         ballastSem: nb($('p-ballast').value) || 1,
         placesStockageSPE: nb($('p-stockagespe').value) || 0,
-        reductionEtancheSem: nb($('p-reduc-etanche').value) || 0,
+        etancheCritiqueSem: nb($('p-etanche-critique').value) || 8,
+        autoriserEtancheCritique: $('p-etanche-critique-ok').checked,
       };
       STAGGER.actif = $('p-stagger').checked;
       OPTIM.reaffecterLignes = $('p-reaffecter').checked;
@@ -1199,13 +1202,13 @@ function calculer(nomFichier) {
       else optim = $('p-optimiser').checked ? optimiserSequence(params) : null;
       // Sans gain saisi, on chiffre ce que la porte d'étanchéité du Basin C coûte : la page
       // est un livrable, elle doit dire ce qui reste à gagner et à quel prix.
-      if (!params.reductionEtancheSem) {
+      if (!params.autoriserEtancheCritique) {
         const et = analyserEtancheite(params);
         if (et.gain) {
-          log(`Étanchéité SPE : la porte du Basin C coûte ${et.kpiRef.retardTotal - et.kpiRetenu.retardTotal} `
-            + `jours de retard cumulé. L'annuler demanderait d'atteindre l'étanchéité ${et.reduction} semaine(s) `
-            + `plus tôt (retards ${et.kpiRef.nbRetards} → ${et.kpiRetenu.nbRetards}, max ${et.kpiRef.retardMax} → ${et.kpiRetenu.retardMax} j). `
-            + `Saisir ce gain dans « Étanchéité SPE » pour l'appliquer.`, 'warn');
+          log(`Étanchéité SPE : fermer provisoirement dès ${et.seuilCritique} semaines après CP3, au lieu de `
+            + `${et.seuilNormal}, ferait gagner ${et.kpiRef.retardTotal - et.kpiRetenu.retardTotal} jours de retard cumulé `
+            + `(retards ${et.kpiRef.nbRetards} → ${et.kpiRetenu.nbRetards}, max ${et.kpiRef.retardMax} → ${et.kpiRetenu.retardMax} j), `
+            + `sur ${et.critiques.length} fermeture(s) en planning critique. Cocher « Autoriser le seuil critique » pour l'appliquer.`, 'warn');
         }
       }
       runSimulation(params);
