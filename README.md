@@ -41,6 +41,12 @@ limite de la pente. Remonter puis redescendre coûterait deux réinstallations, 
 mesure avec l'économie d'un cycle plus lent, et le moindre retard qui en découlerait se
 paierait en pénalités.
 
+Une case de l'interface autorise malgré tout un relâchement unique par paire, en fin de
+programme. Elle est décochée par défaut, et la mesure explique pourquoi : le test de
+faisabilité du solveur ignore l'aval (bassins, parking, ordre d'immersion), donc il juge
+parfois tenable un rythme plus lent qui ne l'est pas. Sur le classeur de référence, l'autoriser
+coûte 8 retards, 1032 jours de retard cumulé et 4 changements de cadence supplémentaires.
+
 Ce second point est essentiel : ralentir un élément repousse mécaniquement tous ceux
 qui attendent derrière lui. Regarder toute la file évite au solveur d'osciller
 (accélérer / ralentir / réaccélérer) et divise par ~4 le nombre de changements de

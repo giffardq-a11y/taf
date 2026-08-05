@@ -8,9 +8,31 @@ ce document ne couvre que ce qui reste à faire et les décisions en attente.
 Date de référence 05/08/2026, cadence de départ 3 semaines/segment (confirmée), staggering
 actif, ligne SPE sur planning P6, séquence automatique :
 
-**8 éléments en retard sur 89, 12 jours au maximum, 34 jours de retard cumulé, aucun bloqué,
-aucune fermeture provisoire de SPE nécessaire.** Sept SPE sur dix tiennent leur date à la
-journée ; `SPE-06` glisse de 12 jours, `SPE-03` et `SPE-04` un peu plus.
+**4 éléments en retard sur 89, 12 jours au maximum, 29 jours de retard cumulé, aucun bloqué,
+aucune fermeture provisoire de SPE nécessaire.** Répartition retenue par le solveur :
+18/17/16/18/10 sur les lignes PL, contre 17/17/17/17/11 au classeur.
+
+Deux réglages y ont conduit, tous deux mesurés :
+
+- **la cadence n'est plus relâchée** (voir ci-dessous) : 22 → 14 retards à séquence égale ;
+- **l'optimiseur choisit le nombre d'éléments par ligne**, pas seulement leur ordre.
+
+## Les retards qui restent, un par un
+
+Question posée : pourquoi reste-t-il des retards alors que l'application choisit la séquence ?
+Réponse élément par élément, sur le meilleur plan obtenu (4 retards, 29 j de cumul) :
+
+| Élément | Retard | Cause |
+|---|---|---|
+| `SPE-06` | 12 j | Le planning P6 le fait entrer en FI3 le 18/09/2028 pour une immersion cible au 16/10 — 28 jours. Il en faut 21 (durée UB3 de `Config_SPE`) plus 17,5 de float-up, hook-up et ballast, soit 38,5. **Le planning se contredit de 10 jours.** |
+| `STE-43` | 10 j | Suit `SPE-06` dans l'ordre d'immersion, à 9 jours d'écart de cible : il hérite du retard. |
+| `STE-11` | 6 j | Suit `STE-43`, même mécanisme. |
+| `STE-65` | 1 j | Sa cible tombe exactement 7 jours après celle de l'élément précédent, or le ballast dure 7 jours et un seul élément est ballasté à la fois. Le pas d'un jour de la simulation fait le reste. |
+
+Autrement dit : **trois des quatre retards descendent d'une seule incohérence du planning P6 sur
+`SPE-06`**, et le quatrième d'une cible espacée d'exactement une durée de ballast. Aucun ne
+vient de la séquence de production, et aucun ne se corrige en la changeant. À vérifier côté
+chantier : la durée d'UB3 pour `SPE-06`, ou celles de float-up / hook-up / ballast.
 
 ## Où en est le modèle
 
@@ -97,6 +119,21 @@ Deux enseignements :
    réglage à changer. Ce coût est structurel et se paie en début de programme.
 
 Le staggering, lui, ne coûte rien : il *réduit* les retards (1145 j contre 1509 sans lui).
+
+**Le relâchement de cadence coûte cher.** Le solveur atteignait la cadence d'1 semaine/segment
+le 30/05/2027, puis **remontait volontairement à 1,5** en février 2028 : c'est l'exception
+« relâcher une fois en fin de programme », censée être économique. Mais le test de faisabilité
+du solveur de cadence ignore l'aval — bassins, parking, ordre d'immersion — et conclut qu'un
+rythme plus lent tient alors qu'il ne tient pas. Mesure, à séquence du classeur :
+
+| | Retards | Retard max | Retard cumulé | Changements de cadence |
+|---|---|---|---|---|
+| Relâchement autorisé | 22 | 104 j | 1145 j | 18 |
+| **Relâchement interdit** | **14** | **19 j** | **113 j** | **14** |
+
+Il coûte donc des retards *et* des changements de cadence supplémentaires. La règle première
+du `README` — « une cadence atteinte n'est jamais relâchée » — est désormais le comportement
+par défaut ; l'exception reste accessible par une case de l'interface.
 
 **Le planning est tenable — mesuré.** Avec la séquence automatique et l'étanchéité avancée
 de 42 semaines : **5 éléments en retard, 1 jour au maximum, 5 jours de cumul**, aucun bloqué.

@@ -165,6 +165,8 @@
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+    <label class="check"><input type="checkbox" id="p-ralentir">
+      <span><b>Autoriser un relâchement de cadence</b> — une fois par paire, en fin de programme. Économique sur le papier, mais le solveur juge la faisabilité sans modéliser l'aval : sur le classeur de référence, cela coûte des retards.</span></label>
     <label class="check"><input type="checkbox" id="p-etanche-critique-ok">
       <span><b>Autoriser le seuil critique</b> — fermer un SPE dès 8 semaines après CP3 au lieu de 12, quand le planning l'exige. Chaque recours est signalé.</span></label>
 
@@ -332,7 +334,7 @@ const OPTIM = {
   reaffecterLignes: true,  // l'optimiseur choisit aussi sur quelle ligne produire (interface)
   budgetMs: 8000,
   fenetre: 4,              // amplitude d'un déplacement à l'intérieur d'une ligne
-  ciblesParElement: 2,     // lignes d'accueil essayées pour un élément déplacé
+  ciblesParElement: 5,     // lignes d'accueil essayées pour un élément déplacé (toutes les PL)
 };
 
 /* ================================================================
@@ -828,6 +830,7 @@ function lireParamsUI() {
     hookupSem: champ('p-hookup', 0.5),
     ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
+    autoriserRalentissement: !!(document.getElementById('p-ralentir') || {}).checked,
     etancheCritiqueSem: champ('p-etanche-critique', SEUIL_ETANCHE_CRITIQUE_SEM),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
   };
@@ -1071,7 +1074,16 @@ function runSimulation(paramsArg) {
     // lignes ne relâchent qu'une fois — en fin de programme, pour ne pas arrêter la
     // production trop brutalement : chaque réinstallation coûte, et tout retard qui en
     // découlerait se paierait en pénalités.
-    const ralentirPermis = (ligne === 5) || (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1;
+    // Relâcher la cadence en fin de programme est une économie — mais le test de faisabilité
+    // ignore l'aval (bassins, parking, ordre d'immersion) : il conclut parfois qu'un rythme
+    // plus lent tient alors qu'il ne tient pas. L'utilisateur peut donc l'interdire.
+    // Une cadence atteinte n'est jamais relâchée. L'exception « une fois en fin de programme »
+    // se paie : le test de faisabilité ignore l'aval (bassins, parking, ordre d'immersion) et
+    // conclut parfois qu'un rythme plus lent tient alors qu'il ne tient pas. Sur le classeur de
+    // référence, l'autoriser coûte 8 retards et 1032 jours de cumul de plus, pour 4 changements
+    // de cadence en plus. Elle reste accessible depuis l'interface.
+    const ralentirPermis = PARAMS.autoriserRalentissement
+      && ((ligne === 5) || (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1);
     const slopeOk = RYTHMES.filter(R => (ralentirPermis || R <= state.rhythm + 1e-9)
       && Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9);
     let chosen = slopeOk.find(tenable) ?? null;
@@ -1980,9 +1992,13 @@ function diagnosticSimulation() {
 // — bloqués ou en retard — vers les lignes les moins chargées.
 function* mouvementsLignes(seq, dateRef, diag) {
   const parId = new Map(elements.map(e => [e.id, e]));
-  const accueil = LIGNES_PL.slice().sort((a, b) => diag.charge[a] - diag.charge[b])
-                           .slice(0, OPTIM.ciblesParElement);
-  for (const id of diag.aRegler) {
+  const parCharge = LIGNES_PL.slice().sort((a, b) => diag.charge[a] - diag.charge[b]);
+  const accueil = parCharge.slice(0, OPTIM.ciblesParElement);
+  // Aux éléments qui posent problème s'ajoutent ceux de la ligne la plus chargée : c'est ainsi
+  // que le nombre d'éléments par ligne se rééquilibre, et pas seulement la place de quelques-uns.
+  const plusChargee = parCharge[parCharge.length - 1];
+  const candidats = [...new Set(diag.aRegler.concat(seq[plusChargee] || []))];
+  for (const id of candidats) {
     const e = parId.get(id);
     if (!e || ligneFigee(e) || elementEngage(e, dateRef)) continue;
     const source = LIGNES_PL.find(l => (seq[l] || []).includes(id));
