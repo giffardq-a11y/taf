@@ -3,6 +3,15 @@
 Note de reprise. Les règles métier et leur justification sont dans `README.md` ;
 ce document ne couvre que ce qui reste à faire et les décisions en attente.
 
+## Résultat courant, sur `target_schedule_programme.xlsm`
+
+Date de référence 05/08/2026, cadence de départ 3 semaines/segment (confirmée), staggering
+actif, ligne SPE sur planning P6, séquence automatique :
+
+**8 éléments en retard sur 89, 12 jours au maximum, 34 jours de retard cumulé, aucun bloqué,
+aucune fermeture provisoire de SPE nécessaire.** Sept SPE sur dix tiennent leur date à la
+journée ; `SPE-06` glisse de 12 jours, `SPE-03` et `SPE-04` un peu plus.
+
 ## Où en est le modèle
 
 Toutes les règles arrêtées sont implémentées et vérifiées sur le classeur réel :
@@ -81,11 +90,11 @@ Deux enseignements :
    de production qui pèche : la réordonner ne change pas la cause. C'est une donnée d'entrée
    P6, non modifiable, et le programme ne la modifie pas : la ligne ci-dessus est un
    diagnostic, pas une proposition.
-2. **L'ancre de cadence mérite une vérification.** `Config_Cycles` déclare 3 semaines/segment
-   comme cadence actuelle. Avec la pente d'inertie (1 semaine de variation par 4 mois), partir
-   de 3 coûte 8 mois avant d'atteindre 1 — et la ramener à 1 divise le retard maximum par
-   deux (104 → 65 j). Question ouverte, à confirmer par le chantier : quelle est la cadence
-   réellement en vigueur au 05/08/2026 ?
+2. **L'ancre de cadence est bien de 3 semaines/segment** — confirmé par l'utilisateur, c'est
+   la valeur de `Config_Cycles` et le solveur l'utilise déjà. La ligne « ancre à 1 sem » du
+   tableau n'est donc qu'un point de comparaison : elle chiffre ce que coûte la montée en
+   cadence (8 mois pour passer de 3 à 1 semaine, à raison d'1 semaine par 4 mois), non un
+   réglage à changer. Ce coût est structurel et se paie en début de programme.
 
 Le staggering, lui, ne coûte rien : il *réduit* les retards (1145 j contre 1509 sans lui).
 
@@ -238,9 +247,8 @@ surface.
 
 `Recap_Dates` est le résultat de l'ancienne macro, pas une donnée d'entrée : il n'a plus lieu
 d'être et le solveur ne le lit pas. J'en avais tiré à tort que la cadence réelle était d'une
-semaine par segment (7 jours entre chaque segment béton) contre les 3 semaines déclarées dans
-`Config_Cycles` — c'était lire le résultat d'un calcul, pas le chantier. La question de la
-cadence de départ reste posée, mais elle ne se tranche pas là.
+semaine par segment contre les 3 semaines déclarées dans `Config_Cycles` — c'était lire le
+résultat d'un calcul, pas le chantier. La cadence de 3 semaines est confirmée.
 
 ## Défauts corrigés au passage
 
