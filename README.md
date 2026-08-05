@@ -120,7 +120,7 @@ quelle dans l'onglet `Sequence_Solveur`.
 | Onglet | Rôle |
 |---|---|
 | `Inputs` | Séquences de production. Colonnes B/D/F/H/J/L = PL-1..PL-5, SPE ; colonne A = ordre. Colonnes **C/E/G/I/K/M = statut as-built** (voir ci-dessous). Cellule `Seq2_Debut` en ligne 1/2 = bascule de séquence outfitting. |
-| `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir. |
+| `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir, et **l'ordre d'immersion**, qui est une donnée d'entrée P6 que le programme ne modifie jamais. Les colonnes `Activity Name` / `Start` / `Finish` portent le planning P6 détaillé : dates d'immersion, activités de clamping, et **passages de zone de la ligne SPE** (voir ci-dessous). |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
 | `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = jalon d'étanchéité, en semaines après l'entrée en UB1, saisi sur chaque zone UB. **Colonne G** (optionnelle) = rythme SPE long, en semaines, remplaçant la durée standard de la colonne D dans les zones UB. |
 | `Config_Outfitting` | Sans effet sur le calendrier : la durée d'outfitting est dérivée de la production (voir ci-dessous). L'onglet ne fournit plus que les noms des phases. |
@@ -171,6 +171,19 @@ La page affiche le mouvement des éléments sur un schéma reconstruit d'après 
 coordonnées du dossier de référence, superposé au plan d'installation générale.
 La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
 ub1, ub2, ub3 — chacune à son emplacement propre.
+
+## La ligne SPE suit le planning P6
+
+Le planning P6 collé dans l'onglet `Immersion` est hiérarchique : un niveau par zone
+(`CPA`, `CP1`, `CP2`, `CP3`, puis `FI1`, `FI2`, `FI3` — les trois Upper Basin), et sous
+chaque zone, un groupe par SPE dont l'activité de *skidding* date sa sortie. Le solveur en
+tire les **dates de passage de zone de chaque SPE** : la ligne SPE est donc une donnée
+d'entrée, comme l'ordre d'immersion, et non un résultat estimé par des durées fixes.
+
+Les durées de `Config_SPE` (colonne D, et colonne G pour le rythme long en UB) ne servent
+plus que de repli, pour un SPE dont le planning ne donne pas les passages.
+
+La **sortie de CP3** ainsi datée est la référence du jalon d'étanchéité provisoire.
 
 ## Étanchéité SPE : trois niveaux en cascade
 

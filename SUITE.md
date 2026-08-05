@@ -105,14 +105,20 @@ descendable à 8 semaines au prix d'un planning critique. La position du SPE dan
 n'entre pas en compte : les travaux peuvent commencer en UB1 et s'achever en UB2. Une fois le
 seuil franchi, le SPE ne bloque plus jamais — il est rouvert puis refermé à la demande.
 
-| Seuil de fermeture provisoire | Séquence classeur | Séquence optimisée |
-|---|---|---|
-| 12 semaines (normal) | 32 retards, 133 j max, 1885 j | 18 retards, 133 j max, 774 j |
-| 8 semaines (critique, sur autorisation) | 29 retards, 105 j max, 1508 j | **15 retards, 105 j max, 397 j** |
+**La ligne SPE suit désormais le planning P6**, qui date chaque passage de zone (activités de
+skidding sous les niveaux CPA / CP1 / CP2 / CP3 / FI1 / FI2 / FI3). Elle n'est plus estimée
+par les durées fixes de `Config_SPE`, qui ne servent que de repli. C'est ce qui manquait :
 
-Sur le classeur de référence, une seule fermeture provisoire est nécessaire — `SPE-04`, pour
-laisser sortir `STE-70` — à 12 semaines après CP3 le 03/07/2027, ou à 8 semaines le 05/06/2027
-si le seuil critique est autorisé.
+| | Retards | Retard max | Retard cumulé |
+|---|---|---|---|
+| SPE estimée à 5 sem/zone, séquence classeur | 32 | 133 j | 1885 j |
+| SPE estimée, séquence optimisée | 18 | 133 j | 774 j |
+| **SPE sur planning P6, séquence classeur** | 22 | 104 j | 1145 j |
+| **SPE sur planning P6, séquence optimisée** | **8** | **12 j** | **34 j** |
+
+Et **aucune fermeture provisoire n'est nécessaire** : les dates de clamping tombent assez tôt,
+le niveau 1 de la cascade suffit partout. Les sept premiers SPE tiennent leur date exactement ;
+seuls `SPE-06` (+12 j), `SPE-03` et `SPE-04` glissent.
 
 **Question ouverte, chiffrée** : le classeur laisse la colonne G de `Config_SPE` vide, donc
 chaque zone UB dure 5 semaines. Un SPE entre alors en UB1 tous les 35 jours alors qu'il lui

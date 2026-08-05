@@ -599,15 +599,55 @@ function parseWorkbook(dateRefArg) {
       const id = 'SPE-' + String(parseInt(m[1], 10)).padStart(2, '0');
       if (!etancheP6[id] || fin > etancheP6[id]) etancheP6[id] = fin;
     });
+    // --- Passage de zone de la ligne SPE, lu dans le planning P6 ---
+    // Le planning est hiérarchique : niveau 4 = la zone (CPA, CP1, CP2, CP3, FI1..FI3),
+    // niveau 6 = le SPE dans cette zone, dont l'activité de skidding date sa sortie. L'entrée
+    // dans la zone suivante est donc la fin du skidding de la zone courante.
+    const ZONES_P6 = {CPA: 1, CP1: 2, CP2: 3, CP3: 4, FI1: 5, FI2: 6, FI3: 7};
+    const passagesP6 = {};   // id -> {numéro de zone -> date d'entrée}
+    {
+      const indentation = t => t.length - t.replace(/^\s+/, '').length;
+      const idSPE = t => {
+        const m = String(t).match(/S(?:PE)?[\s.\-]*0*(\d+)/i);
+        return m ? 'SPE-' + String(parseInt(m[1], 10)).padStart(2, '0') : null;
+      };
+      let zoneCourante = null;
+      imm.forEach(row => {
+        const brut = row['Activity Name'];
+        if (typeof brut !== 'string' || !brut.trim()) return;
+        const niveau = indentation(brut);
+        if (niveau <= 4) {
+          const cle = brut.trim().split(/[\s-]/)[0].toUpperCase();
+          zoneCourante = ZONES_P6[cle] || null;
+          return;
+        }
+        if (niveau !== 6 || !zoneCourante) return;
+        const id = idSPE(brut.trim());
+        const fin = excelDate(row['Finish']), debut = excelDate(row['Start']);
+        if (!id) return;
+        passagesP6[id] = passagesP6[id] || {};
+        // Entrée dans la zone courante : donnée par le groupe lui-même s'il s'agit de la
+        // première ; sinon c'est la fin du skidding de la zone précédente qui fait foi.
+        if (debut && !passagesP6[id][zoneCourante]) passagesP6[id][zoneCourante] = debut;
+        if (fin) passagesP6[id][zoneCourante + 1] = fin;
+      });
+    }
+    const nbAvecPassages = Object.keys(passagesP6).filter(id => Object.keys(passagesP6[id]).length >= 3).length;
+    if (nbAvecPassages) {
+      log(`Planning P6 : passages de zone lus pour ${nbAvecPassages} SPE — la ligne SPE suit le planning, elle n'est plus estimée par des durées fixes.`);
+    }
+
     const nbEtanche = Object.keys(etancheP6).length;
     if (nbEtanche) {
       const dates = Object.values(etancheP6).sort((a, b) => a - b);
-      log(`Clamping P6 : ${nbEtanche} SPE datés (de ${fmt(dates[0])} à ${fmt(dates[dates.length-1])}) — fin des travaux intérieurs, sans effet sur la porte du Basin C, qui suit l'étanchéité provisoire.`);
+      log(`Clamping P6 : ${nbEtanche} SPE datés (de ${fmt(dates[0])} à ${fmt(dates[dates.length-1])}) — fermeture définitive. Une fermeture provisoire ne prend le relais que lorsqu'elle tombe trop tard.`);
     }
 
     let missing = 0, sansRang = 0;
     elements.forEach(e => {
       e.dateEtancheP6 = etancheP6[e.id] || null;
+      e.zonesP6 = (e.ligne === 6 && passagesP6[e.id] && Object.keys(passagesP6[e.id]).length >= 3)
+        ? passagesP6[e.id] : null;
       e.dateImmersion = map[e.id] || null;
       e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
       if (!e.dateImmersion) missing++;
@@ -1448,6 +1488,19 @@ function runSimulation(paramsArg) {
     return (e.dateEtancheP6 && e.dateEtancheP6 < provisoire) ? e.dateEtancheP6 : provisoire;
   }
 
+  // Date d'entrée dans une zone donnée par le planning P6, quand il la fournit.
+  function entreeZoneP6(e, zoneNum) {
+    return (e.zonesP6 && e.zonesP6[zoneNum]) ? e.zonesP6[zoneNum] : null;
+  }
+  // La ligne SPE suit le planning P6 : il date chaque passage de zone. À défaut, on retombe
+  // sur les durées fixes de Config_SPE.
+  function zoneSPETerminee(e, z, dCur, jourCourant) {
+    const suivante = entreeZoneP6(e, z + 1);
+    if (suivante) return dCur >= suivante;
+    const zc = zonesSPE[z - 1];
+    return jourCourant >= zc.jourEntree + zc.dureeEff;
+  }
+
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
     zonesSPE[zoneNum-1].occupee = true;
     zonesSPE[zoneNum-1].idOccupant = e.id;
@@ -1499,8 +1552,7 @@ function runSimulation(paramsArg) {
     const z = e.zoneSPE;
     if (z === 0) return;
     const zc = zonesSPE[z-1];
-    const jourFin = zc.jourEntree + zc.dureeEff;
-    if (jourCourant >= jourFin) {
+    if (zoneSPETerminee(e, z, dCur, jourCourant)) {
       if (z === zonesSPE.length) { zc.occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur; return; }
       if (!zonesSPE[z].occupee) {
         zonesSPE[z-1].occupee = false;
@@ -1623,7 +1675,12 @@ function runSimulation(paramsArg) {
         if (e && departAutoriseParStagger(e, dCur)) demarrerBetonPL(e, dCur);
       }
     }
-    if (!zonesSPE[0].occupee) { const e = prochainEnAttente(6); if (e) demarrerZoneSPE(e, 1, dCur, jourCourant); }
+    if (!zonesSPE[0].occupee) {
+      const e = prochainEnAttente(6);
+      // Un SPE dont le planning P6 date l'entrée en CPA ne démarre pas avant.
+      const entree = e ? entreeZoneP6(e, 1) : null;
+      if (e && (!entree || dCur >= entree)) demarrerZoneSPE(e, 1, dCur, jourCourant);
+    }
 
     for (const e of elements) {
       if (e.termine) continue;
