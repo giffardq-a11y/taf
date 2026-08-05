@@ -215,7 +215,17 @@
     font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
   .champ input { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
     border-radius: 3px; padding: 5px 7px; font-family: var(--mono); font-size: 13px; width: 130px; }
-  .champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .champ input:focus-visible, .champ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .champ select { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px 7px; font-family: var(--mono); font-size: 13px; }
+  .champ.bascule { flex-direction: row; align-items: center; gap: 7px; text-transform: none;
+    letter-spacing: 0; font-size: 12px; color: var(--ink-2); font-family: var(--sans); cursor: pointer; }
+  .champ.bascule input { width: auto; }
+  .moves { display: flex; flex-wrap: wrap; gap: 7px; }
+  .move { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line);
+    background: var(--surface-2); padding: 3px 9px; white-space: nowrap; }
+  .move b { color: var(--accent); font-weight: 600; }
+  .seq-vide { margin: 0; font-size: 13px; color: var(--ink-3); }
   #relancer { padding: 9px 18px; background: var(--accent); color: var(--surface); border: none;
     border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 13px; font-family: var(--sans); }
   #relancer:disabled { background: var(--line); color: var(--ink-3); cursor: not-allowed; }
@@ -254,6 +264,7 @@
         </div>
       </div>
       <div class="loader-row">
+        <label class="champ">Séquence du classeur <select id="p-sequence"><option value="0">Séquence 1</option></select></label>
         <label class="champ">Date de référence <input type="date" id="p-dateref"></label>
         <label class="champ">Seuil parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
         <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
@@ -261,10 +272,12 @@
         <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
         <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
           Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
-        <label class="champ" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
-          Staggering entre halls <input type="checkbox" id="p-stagger" checked></label>
-        <label class="champ" title="Remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards">
-          Optimiser la séquence <input type="checkbox" id="p-optimiser"></label>
+        <label class="champ bascule" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
+          <input type="checkbox" id="p-stagger" checked> Staggering entre halls</label>
+        <label class="champ bascule" title="Remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards">
+          <input type="checkbox" id="p-optimiser"> Optimiser la séquence</label>
+        <label class="champ bascule" title="L'optimiseur choisit aussi sur quelle ligne PL produire chaque élément">
+          <input type="checkbox" id="p-reaffecter" checked> dont l'affectation aux lignes</label>
         <button id="relancer" type="button" disabled>Relancer le calcul</button>
       </div>
     </div>
@@ -276,6 +289,23 @@
   <section>
     <div class="s-head"><h2 class="s-title">Vue d'ensemble</h2></div>
     <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section id="s-sequence" hidden>
+    <div class="s-head">
+      <h2 class="s-title">Séquence de production</h2>
+      <p class="s-note" id="seq-note"></p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-sequence">
+        <thead><tr>
+          <th>Indicateur</th><th class="num">Séquence du classeur</th>
+          <th class="num">Séquence optimisée</th><th class="num">Écart</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="panel" id="seq-moves"></div>
   </section>
 
   <section>
@@ -402,6 +432,7 @@
     document.getElementById('verdict').hidden = false;
     rendreEnTete(nomFichier, dateRef);
     afficherJournal(lastJournal);
+    rendreSequence();
 
   "use strict";
 
@@ -413,13 +444,15 @@
 
   /* ---------- KPI ---------- */
   const nLate = D.retards.length, nTot = D.elements.length;
+  const nBloques = D.elements.filter(e => !e.fini).length;
   const worst = D.retards[0] || {retardJours: 0, id: '—'};
   const kpis = [
     ['Éléments en retard', `${nLate}`, `sur ${nTot} · ${Math.round(nLate/nTot*100)} %`, nLate ? 'is-crit' : 'is-ok'],
     ['Retard maximum', nLate ? `${worst.retardJours} j` : '—', nLate ? worst.id : 'toutes les dates tenues', nLate ? 'is-crit' : 'is-ok'],
     ['Changements de cadence', `${D.changements.length}`, 'sur 5 lignes, en 3 ans et demi', ''],
     ['Fin de production', fr(D.elements.map(e => e.im).filter(Boolean).sort().pop()), 'dernière immersion planifiée', ''],
-    ['Éléments bloqués', '0', 'aucun deadlock dans le flux', 'is-ok'],
+    ['Éléments bloqués', `${nBloques}`, nBloques ? 'jamais immergés sur l\'horizon' : 'aucun blocage dans le flux',
+      nBloques ? 'is-crit' : 'is-ok'],
   ];
   ['kpis','tl-axis','tl-rows','tl-legend','gantt','g-legend','plan-legend'].forEach(id => {
     const n = document.getElementById(id); if (n) n.textContent = '';
@@ -794,6 +827,79 @@
 
   }
 
+/* ---- séquence de production : ce que le résolveur a changé, et ce que ça vaut ---- */
+function rendreSequence() {
+  const sq = D.sequence;
+  const sec = document.getElementById('s-sequence');
+  const note = document.getElementById('seq-note');
+  const tb = document.querySelector('#t-sequence tbody');
+  const moves = document.getElementById('seq-moves');
+  tb.textContent = ''; moves.textContent = '';
+
+  const charge = Object.entries(sq.parLigne).map(([l, n]) => `${l} ${n}`).join(' · ');
+  if (!sq.optimise) {
+    sec.hidden = false;
+    note.textContent = `Séquence ${sq.variante} du classeur sur ${sq.nbVariantes}, prise telle quelle. `
+      + `Cochez « Optimiser la séquence » pour la confronter à celle que le solveur propose. `
+      + `Répartition actuelle : ${charge}.`;
+    document.querySelector('#t-sequence').closest('.panel').hidden = true;
+    moves.hidden = true;
+    return;
+  }
+  sec.hidden = false;
+  document.querySelector('#t-sequence').closest('.panel').hidden = false;
+  moves.hidden = false;
+
+  note.textContent = `Séquence ${sq.variante} du classeur sur ${sq.nbVariantes}, confrontée à celle du solveur : `
+    + `chaque ligne remise dans l'ordre d'immersion`
+    + (sq.reaffecte ? `, et le choix de la ligne de production rouvert. ` : `, à lignes figées. `)
+    + `${sq.evaluations} séquences évaluées en ${(sq.dureeMs / 1000).toFixed(1)} s. `
+    + `Répartition retenue : ${charge}.`;
+
+  // Moins vaut mieux sur chacun de ces indicateurs : l'écart se lit dans le même sens partout.
+  const lignes = [
+    ['Inversions séquence / immersion', 'inversions', ''],
+    ['Éléments bloqués', 'nonImmerges', ''],
+    ['Éléments en retard', 'nbRetards', ''],
+    ['Retard maximum', 'retardMax', ' j'],
+    ['Retard cumulé', 'retardTotal', ' j'],
+    ['Changements de cadence', 'nbChangements', ''],
+  ];
+  lignes.forEach(([nom, cle, unite]) => {
+    const av = sq.avant[cle], ap = sq.apres[cle], d = ap - av;
+    const tr = document.createElement('tr');
+    tr.append(el('td', '', nom), el('td', 'num', av + unite), el('td', 'num', ap + unite));
+    const tdEcart = el('td', 'num');
+    if (d !== 0) {
+      const pill = el('span', 'pill ' + (d < 0 ? 'down' : 'up'),
+        (d < 0 ? '−' : '+') + Math.abs(d) + unite);
+      tdEcart.append(pill);
+    } else {
+      tdEcart.textContent = '=';
+    }
+    tr.append(tdEcart);
+    tb.append(tr);
+  });
+
+  if (!sq.deplacements.length) {
+    moves.append(el('p', 'seq-vide', sq.reaffecte
+      ? 'Aucun élément ne change de ligne : la répartition du classeur tient.'
+      : 'Affectation aux lignes non rouverte — seul l\'ordre de production a été revu.'));
+    return;
+  }
+  const n = sq.deplacements.length;
+  moves.append(el('p', 'seq-vide',
+    n > 1 ? `${n} éléments changent de ligne de production :`
+          : `Un seul élément change de ligne de production :`));
+  const box = el('div', 'moves');
+  sq.deplacements.forEach(d => {
+    const chip = el('span', 'move');
+    chip.append(document.createTextNode(d.id + ' '), el('b', '', d.de + ' → ' + d.vers));
+    box.append(chip);
+  });
+  moves.append(box);
+}
+
 /* ---- en-tête, verdict et pied de page, écrits d'après le résultat ---- */
 function rendreEnTete(nomFichier, dateRef) {
   const n = D.retards.length, tot = D.elements.length;
@@ -913,6 +1019,26 @@ $('file-xlsx').addEventListener('change', e => {
 
 $('relancer').addEventListener('click', () => calculer($('drop-xlsx').textContent.trim()));
 
+// Le classeur peut empiler plusieurs séquences dans Inputs : chaque retour du compteur à 1
+// ouvre une variante. Le menu les expose une fois le fichier lu.
+function remplirMenuSequences() {
+  const sel = $('p-sequence');
+  const n = Math.max(1, sequencesInputs.length);
+  if (sel.options.length === n && sel.dataset.rempli === String(n)) return;
+  const choix = Math.min(sequenceChoisie, n - 1);
+  sel.textContent = '';
+  for (let i = 0; i < n; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `Séquence ${i + 1}`;
+    sel.append(o);
+  }
+  sel.value = choix;
+  sel.disabled = n < 2;
+  sel.dataset.rempli = String(n);
+}
+
+let optim = null;   // résultat du résolveur de séquence, quand il a tourné
+
 function calculer(nomFichier) {
   const btn = $('relancer');
   const avant = btn.textContent;
@@ -920,8 +1046,10 @@ function calculer(nomFichier) {
   setTimeout(() => {
     try {
       const dateRef = new Date($('p-dateref').value);
+      sequenceChoisie = parseInt($('p-sequence').value) || 0;
       parseWorkbook($('p-dateref').value);
       if (!elements.length) { afficherJournal(lastJournal); return; }
+      remplirMenuSequences();
       const nb = parseFloat;
       const params = {
         dateRef,
@@ -932,9 +1060,10 @@ function calculer(nomFichier) {
         placesStockageSPE: nb($('p-stockagespe').value) || 0,
       };
       STAGGER.actif = $('p-stagger').checked;
+      OPTIM.reaffecterLignes = $('p-reaffecter').checked;
       // L'optimiseur enchaîne des simulations d'essai avant de retenir une séquence ; la
       // simulation affichée est ensuite rejouée sur celle-ci.
-      if ($('p-optimiser').checked) optimiserSequence(params);
+      optim = $('p-optimiser').checked ? optimiserSequence(params) : null;
       runSimulation(params);
       construireD();
       toutRendre(nomFichier, dateRef);
@@ -958,7 +1087,7 @@ function construireD() {
       oD: iso(e.dateDebutOut), oF: iso(e.dateFinOut),
       fu: iso(e.dateDebutFU), ba: iso(e.dateDebutBasin), pk: iso(e.dateDebutParking),
       bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),
-      im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche),
+      im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
       pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
     })),
     changements: lastChangements.map(c => ({
@@ -970,6 +1099,19 @@ function construireD() {
       id: r.id, ligne: r.ligne, cible: iso(r.cible), reel: iso(r.reel), retardJours: r.retardJours,
     })),
     ancre: Object.fromEntries([1,2,3,4,5].map(l => [LIGNE_NOM[l], anchorRhythm(l)])),
+    sequence: {
+      variante: sequenceChoisie + 1,
+      nbVariantes: Math.max(1, sequencesInputs.length),
+      optimise: !!optim,
+      reaffecte: optim ? OPTIM.reaffecterLignes : false,
+      avant: optim ? optim.kpiInitial : null,
+      apres: optim ? optim.kpiRetenu : null,
+      deplacements: optim ? optim.deplacements.map(d => ({id: d.id, de: LIGNE_NOM[d.de], vers: LIGNE_NOM[d.vers]})) : [],
+      evaluations: optim ? optim.evaluations : 0,
+      dureeMs: optim ? optim.dureeMs : 0,
+      parLigne: Object.fromEntries([1,2,3,4,5,6].map(l =>
+        [LIGNE_NOM[l], elements.filter(e => e.ligne === l).length])),
+    },
   };
 }
 
