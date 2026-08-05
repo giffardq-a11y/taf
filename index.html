@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lolland Master Planner — Visualisation Production</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d10; --panel: #14181c; --panel2: #1b2126; --border: #2a3238;
+    --accent: #00d2ff; --ok: #05c46b; --warn: #ffb02e; --late: #ff3f34;
+    --concrete: #7c8b99; --concrete-wait: #b08d57; --outfit: #00b8d9;
+    --outfit-wait: #ffb02e; --floatup: #8e7cff; --basin: #5b8def; --basin-wait: #3a4a63;
+    --parking: #3f7ea6; --ballast: #ff8a3d; --text: #e8edf0; --text-dim: #8b98a3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif; margin: 0; background: var(--bg);
+    color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    background: var(--panel); padding: 10px 20px; display: flex; justify-content: space-between;
+    align-items: center; border-bottom: 2px solid var(--accent); flex-shrink: 0;
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .5px; }
+  header h1 span { color: var(--accent); }
+  #date-display { font-family: 'Consolas', monospace; color: var(--accent); font-size: 16px; font-weight: bold; }
+  #main-layout { display: flex; flex-grow: 1; overflow: hidden; min-height: 0; }
+  #sidebar {
+    width: 380px; background: var(--panel); border-right: 1px solid var(--border);
+    padding: 14px; overflow-y: auto; flex-shrink: 0;
+  }
+  #sidebar h4 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); border-bottom: 1px solid var(--border); padding-bottom: 4px;}
+  #sidebar h4:first-of-type { margin-top: 0; }
+  .drop-zone {
+    border: 1px dashed var(--border); padding: 12px; text-align: center; cursor: pointer;
+    color: var(--accent); background: rgba(0,210,255,0.04); margin-bottom: 8px; border-radius: 6px;
+    font-size: 12px; transition: all .15s;
+  }
+  .drop-zone:hover { border-color: var(--accent); background: rgba(0,210,255,0.08); }
+  .drop-zone.loaded { border-color: var(--ok); color: var(--ok); }
+  input[type=file] { display: none; }
+  #log {
+    background: #000; color: #6cff9a; font-family: 'Consolas', monospace; font-size: 10.5px;
+    padding: 8px; height: 110px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px;
+  }
+  #log div.err { color: var(--late); }
+  #log div.warn { color: var(--warn); }
+  label.field { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin: 4px 0; color: var(--text-dim); }
+  input[type=date], input[type=number] {
+    background: #0d1114; color: var(--accent); border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 6px; width: 130px; font-family: 'Consolas', monospace; font-size: 12px;
+  }
+  button.main-btn {
+    width: 100%; padding: 11px; background: var(--ok); color: #04170d; border: none; cursor: pointer;
+    font-weight: bold; border-radius: 6px; margin-top: 8px; font-size: 13px; letter-spacing: .3px;
+  }
+  button.main-btn:disabled { background: #2a3238; color: #56626b; cursor: not-allowed; }
+  button.sub-btn {
+    width: 100%; padding: 8px; background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    cursor: pointer; border-radius: 5px; font-size: 11.5px; margin-top: 6px;
+  }
+  button.sub-btn:hover { border-color: var(--accent); }
+  .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: var(--text-dim); }
+  .stat-row b { color: var(--text); }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; margin: 3px 0; color: var(--text-dim); }
+  .legend-swatch { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  #map-container {
+    position: relative; flex-grow: 1; background: #05070a; overflow: auto; display: flex;
+    justify-content: center; align-items: flex-start; padding: 16px;
+  }
+  #map-wrapper { position: relative; display: inline-block; }
+  #plan-img { display: block; max-width: none; height: 82vh; opacity: 0.55; border: 1px solid var(--border); user-select: none; }
+  #placeholder {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 13px; text-align: center; padding: 40px; flex-direction: column; gap: 10px;
+  }
+  #production-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .segment {
+    position: absolute; color: #06121a; font-size: 8px; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; overflow: hidden; white-space: nowrap; border-radius: 1px; z-index: 10;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.25);
+  }
+  .segment.concrete { background: var(--concrete); }
+  .segment.concrete-wait { background: var(--concrete-wait); }
+  .segment.outfitting { background: var(--outfit); }
+  .segment.outfitting-wait { background: var(--outfit-wait); }
+  .segment.floatup { background: var(--floatup); color: #fff; }
+  .segment.basin { background: var(--basin); color: #fff; }
+  .segment.basin-wait { background: var(--basin-wait); color: #fff; opacity: .85; }
+  .segment.parking { background: var(--parking); color: #fff; }
+  .segment.ballast { background: var(--ballast); }
+  .segment.late { animation: pulse-late 1s infinite; box-shadow: 0 0 0 2px var(--late); }
+  @keyframes pulse-late { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+  .segment.wait-state::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, rgba(0,0,0,0.15) 0 3px, transparent 3px 6px);
+  }
+  #controls {
+    background: var(--panel); color: var(--text); padding: 10px 20px; display: flex; gap: 16px;
+    align-items: center; border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  #timeline { flex-grow: 1; accent-color: var(--accent); }
+  #play-btn {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--accent); width: 34px; height: 34px;
+    border-radius: 50%; cursor: pointer; font-size: 13px; flex-shrink: 0;
+  }
+  #current-date-val { width: 100px; text-align: right; font-weight: bold; font-family: monospace; color: var(--accent); }
+  select#speed { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 4px; }
+  .change-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
+  .change-table th { background: var(--panel2); text-align: left; padding: 3px 5px; color: var(--text-dim); font-weight: normal;}
+  .change-table td { border-bottom: 1px solid var(--border); padding: 3px 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FEHMARNBELT · LOLLAND <span>Master Planner</span></h1>
+  <div id="date-display">Prêt</div>
+</header>
+
+<div id="main-layout">
+  <div id="sidebar">
+    <h4>1 — Plan du site</h4>
+    <div class="drop-zone" id="drop-img">🗺️ Charger l'image du plan (JPG/PNG)</div>
+    <input type="file" id="file-img" accept="image/*">
+
+    <h4>2 — Données Excel</h4>
+    <div class="drop-zone" id="drop-xlsx">📁 Charger le classeur (.xlsx)<br><span style="font-size:10px;opacity:.7">Onglets : Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</span></div>
+    <input type="file" id="file-xlsx" accept=".xlsx,.xls">
+    <div id="log">En attente de fichiers…</div>
+
+    <h4>3 — Paramètres</h4>
+    <label class="field">Date début simulation <input type="date" id="p-datedebut" value="2026-07-01"></label>
+    <label class="field">Seuil saut Parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
+    <label class="field">Durée Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
+    <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
+    <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
+
+    <button class="main-btn" id="btn-run" disabled>🚀 LANCER LA SIMULATION</button>
+    <button class="sub-btn" id="btn-template">📥 Télécharger un classeur modèle vide</button>
+
+    <h4>Statistiques</h4>
+    <div id="stats"><div class="stat-row">En attente de simulation…</div></div>
+
+    <h4>Légende</h4>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--concrete)"></div>Béton (croissance)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--concrete-wait)"></div>Béton — en attente (zone occupée)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--outfit)"></div>Outfitting</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--outfit-wait)"></div>Outfitting — en attente partenaire</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--floatup)"></div>Float-up (couplé)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--basin)"></div>Lower Basin (Hook-up)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--parking)"></div>Parking (épi -75°)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--ballast)"></div>Ballast Jetty</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--late);box-shadow:none"></div>Retard vs. date d'immersion</div>
+
+    <h4>Changements de cadence détectés</h4>
+    <div style="max-height: 150px; overflow-y: auto;">
+      <table class="change-table" id="change-table"><thead><tr><th>Ligne</th><th>Date</th><th>Rythme (sem/seg)</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div id="map-container">
+    <div id="map-wrapper">
+      <img src="" id="plan-img" style="display:none;">
+      <div id="placeholder">📌 Chargez d'abord le plan du site (étape 1), puis le classeur Excel (étape 2), puis lancez la simulation.</div>
+      <div id="production-layer"></div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="play-btn">▶</button>
+  <input type="range" id="timeline" min="0" max="100" value="0" disabled>
+  <select id="speed">
+    <option value="1">x1 (1 j/tick)</option>
+    <option value="3" selected>x3</option>
+    <option value="7">x7 (1 sem/tick)</option>
+    <option value="14">x14</option>
+  </select>
+  <div id="current-date-val">—</div>
+</div>
+
+<script>
+'use strict';
+
+/* ================================================================
+   1. GEOMETRIE DU SITE — coordonnées relatives (%) "pixel perfect"
+   ================================================================ */
+const GEO = {
+  x_entry: 58.40,      // point d'entrée (Est) — la coulée béton grandit depuis ce point
+  x_hall_end: 50.98,   // sortie de halle = début zone outfitting
+  x_outfit_end: 42.68, // fin de zone outfitting = point de float-up
+  x_basin: 37.01,       // Lower Basin (Ouest)
+  y_lines: { 1: 71.71, 2: 69.29, 3: 60.66, 4: 58.38, 5: 51.83, 6: 48.23 }, // PL-1..PL-5, 6=SPE
+  len_std: 7.42,
+  len_spe: 1.66,
+  thickness: 2.21,
+  parking: { start: {x: 16.31, y: 80.97}, end: {x: 10.25, y: 47.13}, rot: -75, slots: 6 },
+};
+// Point du Ballast Jetty : non fourni par le cahier des charges — estimé par extrapolation
+// de l'axe du parking au-delà de son extrémité Ouest. A recalibrer si vous avez la vraie position.
+GEO.ballast = {
+  x: GEO.parking.end.x + 0.3 * (GEO.parking.end.x - GEO.parking.start.x),
+  y: GEO.parking.end.y + 0.3 * (GEO.parking.end.y - GEO.parking.start.y),
+};
+
+const LIGNE_NOM = {1:'PL-1', 2:'PL-2', 3:'PL-3', 4:'PL-4', 5:'PL-5', 6:'SPE'};
+const GROUPES = [[1,2],[3,4],[5,6]];
+function groupeId(l){ return l<=2?1:(l<=4?2:3); }
+function partenaire(l){ return ({1:2,2:1,3:4,4:3,5:6,6:5})[l]; }
+function lenOf(l){ return l===6 ? GEO.len_spe : GEO.len_std; }
+
+/* ================================================================
+   2. CONFIGURATION PAR DEFAUT (reprise des valeurs par défaut de la macro VBA)
+   ================================================================ */
+function defaultCyclesConfig(dateDebut) {
+  const cfg = {};
+  for (let pl=1; pl<=5; pl++) {
+    cfg[pl] = {
+      seuils: [dateDebut, addDays(dateDebut,180), addDays(dateDebut,360), addDays(dateDebut,540)],
+      durees: [0.9, 0.85, 0.8, 0.75]
+    };
+  }
+  return cfg;
+}
+function defaultSPEConfig() {
+  return [
+    {nom:'CPA', activite:'Rebars', dureeJours:5*7, estBeton:true},
+    {nom:'CP1', activite:'Phase 1', dureeJours:5*7, estBeton:true},
+    {nom:'CP2', activite:'Walls', dureeJours:5*7, estBeton:true},
+    {nom:'CP3', activite:'Phase 4b', dureeJours:5*7, estBeton:true},
+    {nom:'UB1', activite:'Bulkhead', dureeJours:5*7, estBeton:false},
+    {nom:'UB2', activite:'TE System', dureeJours:5*7, estBeton:false},
+    {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false},
+  ];
+}
+function defaultOutfittingConfig() {
+  return {
+    seq1: [['Electricite',2],['Peinture',1.5],['Plomberie',1],['Menuiserie',1.5],['Isolation',0.5],['CVC',1]].map(p=>({nom:p[0],duree:p[1]})),
+    seq2: [['Peinture',1.5],['Electricite',2],['Plomberie',1],['Menuiserie',1.5],['CVC',1],['Isolation',0.5]].map(p=>({nom:p[0],duree:p[1]})),
+  };
+}
+
+/* ================================================================
+   3. UTILITAIRES DATE
+   ================================================================ */
+function addDays(d, n) { const r = new Date(d.getTime()); r.setDate(r.getDate() + Math.round(n)); return r; }
+function diffDays(a, b) { return (a.getTime() - b.getTime()) / 86400000; }
+function fmt(d) { return d ? d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'; }
+function excelDate(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(Math.round((v - 25569) * 86400000));
+  if (typeof v === 'string' && v.trim()) { const d = new Date(v); if (!isNaN(d)) return d; }
+  return null;
+}
+
+/* ================================================================
+   4. ETAT GLOBAL
+   ================================================================ */
+let wb = null;              // classeur XLSX chargé
+let elements = [];           // liste des éléments (production)
+let cyclesConfig = null;
+let speConfig = null;
+let outfittingConfig = null;
+let dateSeq2Debut = null;
+let PARAMS = {};
+let simTimeline = {};        // { 'YYYY-MM-DD': [renderItem, ...] }
+let dateKeys = [];
+let logEl = document.getElementById('log');
+
+function log(msg, cls) {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+/* ================================================================
+   5. CHARGEMENT IMAGE DE FOND
+   ================================================================ */
+const dropImg = document.getElementById('drop-img');
+const fileImg = document.getElementById('file-img');
+dropImg.onclick = () => fileImg.click();
+fileImg.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = document.getElementById('plan-img');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('placeholder').style.display = 'none';
+  dropImg.classList.add('loaded');
+  dropImg.textContent = '✅ ' + f.name;
+  checkReady();
+};
+
+/* ================================================================
+   6. CHARGEMENT EXCEL
+   ================================================================ */
+const dropXlsx = document.getElementById('drop-xlsx');
+const fileXlsx = document.getElementById('file-xlsx');
+dropXlsx.onclick = () => fileXlsx.click();
+fileXlsx.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      wb = XLSX.read(data, {type:'array', cellDates:true});
+      parseWorkbook();
+      dropXlsx.classList.add('loaded');
+      dropXlsx.textContent = '✅ ' + f.name;
+      checkReady();
+    } catch (err) {
+      log('Erreur lecture fichier : ' + err.message, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(f);
+};
+
+function checkReady() {
+  const imgOk = document.getElementById('plan-img').style.display === 'block';
+  const xlsxOk = elements.length > 0;
+  document.getElementById('btn-run').disabled = !(imgOk && xlsxOk);
+}
+
+function sheetRows(name) {
+  const s = wb.Sheets[name];
+  if (!s) return null;
+  return XLSX.utils.sheet_to_json(s, {header:1, raw:true, defval:''});
+}
+
+function parseWorkbook() {
+  elements = [];
+  logEl.innerHTML = '';
+  const dateDebut = new Date(document.getElementById('p-datedebut').value);
+
+  // --- Inputs ---
+  const rowsIn = sheetRows('Inputs');
+  if (!rowsIn) { log('Onglet "Inputs" introuvable.', 'err'); return; }
+
+  let hIdx = -1;
+  for (let i = 0; i < rowsIn.length; i++) {
+    if (rowsIn[i].some(c => String(c).trim() === 'PL-1')) { hIdx = i; break; }
+  }
+  if (hIdx === -1) { log('Ligne d\'en-tête "PL-1..SPE" introuvable dans Inputs.', 'err'); return; }
+  const header = rowsIn[hIdx];
+  const colOf = (name) => header.findIndex(c => String(c).trim() === name);
+  const cols = {1: colOf('PL-1'), 2: colOf('PL-2'), 3: colOf('PL-3'), 4: colOf('PL-4'), 5: colOf('PL-5'), 6: colOf('SPE')};
+  const colNo = 0;
+
+  for (let r = hIdx + 1; r < rowsIn.length; r++) {
+    const row = rowsIn[r];
+    if (row === undefined) continue;
+    const noVal = row[colNo];
+    if (noVal === '' || noVal === undefined || isNaN(Number(noVal))) continue;
+    const ordreSeq = Number(noVal);
+    for (let l = 1; l <= 6; l++) {
+      const c = cols[l];
+      if (c < 0) continue;
+      const raw = String(row[c] ?? '').trim();
+      if (raw === '' || raw.toLowerCase() === 'empty') continue;
+      elements.push({
+        id: raw, ligne: l, ordreSeq, zoneSPE: 0, statut: 'EnAttente', termine: false,
+        dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+        dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
+        basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
+        dateBallast:null, dateImmersion:null,
+      });
+    }
+  }
+  log(`Inputs : ${elements.length} éléments chargés (${new Set(elements.map(e=>e.ligne)).size} lignes).`);
+
+  // Seq2_Debut
+  const headerRow0 = rowsIn[0] || [];
+  let seqCol = -1;
+  for (let c = 0; c < Math.min(30, headerRow0.length); c++) {
+    if (String(headerRow0[c]).trim() === 'Seq2_Debut') { seqCol = c; break; }
+  }
+  if (seqCol >= 0 && rowsIn[1] && rowsIn[1][seqCol]) {
+    dateSeq2Debut = excelDate(rowsIn[1][seqCol]) || addDays(dateDebut, 365);
+  } else {
+    dateSeq2Debut = addDays(dateDebut, 365);
+    log('Seq2_Debut non trouvé — bascule Sequence 2 par défaut à +365j.', 'warn');
+  }
+
+  // --- Immersion ---
+  const sImm = wb.Sheets['Immersion'] || wb.Sheets['Utilisation'];
+  if (!sImm) {
+    log('Onglet "Immersion" introuvable — dates estimées automatiquement.', 'warn');
+  } else {
+    const imm = XLSX.utils.sheet_to_json(sImm, {defval:null});
+    const map = {};
+    imm.forEach(row => {
+      const id = String(row['ID Element'] ?? '').trim();
+      if (id) map[id] = excelDate(row['Date Immersion']);
+    });
+    let missing = 0;
+    elements.forEach(e => {
+      e.dateImmersion = map[e.id] || null;
+      if (!e.dateImmersion) missing++;
+    });
+    log(`Immersion : ${imm.length} dates lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}.`, missing ? 'warn' : undefined);
+  }
+
+  // --- Config_Cycles ---
+  const rowsCyc = sheetRows('Config_Cycles');
+  if (rowsCyc) {
+    cyclesConfig = {};
+    for (let pl = 1; pl <= 5; pl++) {
+      const row = rowsCyc[pl];
+      if (!row) continue;
+      const seuils = [], durees = [];
+      for (let s = 0; s < 4; s++) {
+        seuils.push(excelDate(row[1 + s*2]) || dateDebut);
+        const dv = row[2 + s*2];
+        durees.push(typeof dv === 'number' ? dv : 0.9);
+      }
+      cyclesConfig[pl] = {seuils, durees};
+    }
+    log('Config_Cycles chargé.');
+  } else {
+    cyclesConfig = defaultCyclesConfig(dateDebut);
+    log('Config_Cycles absent — valeurs par défaut appliquées (0.9/0.85/0.8/0.75 sem).', 'warn');
+  }
+
+  // --- Config_SPE ---
+  const rowsSPE = sheetRows('Config_SPE');
+  if (rowsSPE) {
+    speConfig = [];
+    for (let i = 1; i <= 7; i++) {
+      const row = rowsSPE[i];
+      if (!row) { speConfig.push(defaultSPEConfig()[i-1]); continue; }
+      speConfig.push({
+        nom: String(row[1] ?? '').trim(),
+        activite: String(row[2] ?? '').trim(),
+        dureeJours: (typeof row[3] === 'number' ? row[3] : 5) * 7,
+        estBeton: String(row[4] ?? '').trim().toLowerCase() === 'beton',
+      });
+    }
+    log('Config_SPE chargé.');
+  } else {
+    speConfig = defaultSPEConfig();
+    log('Config_SPE absent — valeurs par défaut appliquées (CPA..CP3 béton, UB1..UB3 outfitting).', 'warn');
+  }
+
+  // --- Config_Outfitting ---
+  const rowsOut = sheetRows('Config_Outfitting');
+  if (rowsOut) {
+    const seq1 = [], seq2 = [];
+    for (let i = 1; i < rowsOut.length; i++) {
+      const row = rowsOut[i];
+      if (!row || row[1] === undefined || row[1] === '') continue;
+      seq1.push({nom: String(row[1]).trim(), duree: typeof row[2]==='number'?row[2]:1});
+      seq2.push({nom: String(row[3]).trim(), duree: typeof row[4]==='number'?row[4]:1});
+    }
+    outfittingConfig = {seq1, seq2};
+    log(`Config_Outfitting chargé (${seq1.length} phases).`);
+  } else {
+    outfittingConfig = defaultOutfittingConfig();
+    log('Config_Outfitting absent — séquence par défaut (6 phases génériques) appliquée.', 'warn');
+  }
+}
+
+/* ================================================================
+   7. MOTEUR DE CYCLE (rythme béton/outfitting par ligne, dans le temps)
+   ================================================================ */
+function cycleApplicable(ligne, d) {
+  const c = cyclesConfig[ligne];
+  for (let s = 3; s >= 0; s--) {
+    if (c.seuils[s] && d >= c.seuils[s]) return c.durees[s];
+  }
+  return 0.9;
+}
+function dureeOutfittingJours(ligne, dStart) {
+  const seq = (dStart >= dateSeq2Debut) ? outfittingConfig.seq2 : outfittingConfig.seq1;
+  const c = cycleApplicable(ligne, dStart);
+  return seq.reduce((tot, ph) => tot + ph.duree * c * 7, 0);
+}
+
+/* ================================================================
+   8. SIMULATION JOUR PAR JOUR (portage fidèle de la macro VBA)
+   ================================================================ */
+function runSimulation() {
+  PARAMS = {
+    dateDebut: new Date(document.getElementById('p-datedebut').value),
+    seuilParkingSem: parseFloat(document.getElementById('p-seuilparking').value) || 4,
+    floatUpSem: parseFloat(document.getElementById('p-floatup').value) || 1,
+    hookupSem: parseFloat(document.getElementById('p-hookup').value) || 0.5,
+    ballastSem: parseFloat(document.getElementById('p-ballast').value) || 1,
+  };
+
+  // reset element states (garde id/ligne/ordreSeq/dateImmersion)
+  elements.forEach(e => Object.assign(e, {
+    zoneSPE: 0, statut: 'EnAttente', termine: false,
+    dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+    dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
+    basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
+    dateBallast:null,
+  }));
+
+  const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
+  const zoneOutOccupee = {1:false,2:false,3:false,4:false,5:false};
+  const zonesSPE = speConfig.map(z => ({...z, occupee:false, idOccupant:'', jourEntree:0}));
+  const basinOccupee = {1:{1:false,2:false}, 2:{1:false,2:false}, 3:{1:false,2:false}};
+  const parkingOccupee = {1:false,2:false,3:false,4:false,5:false,6:false};
+
+  simTimeline = {};
+  let joursMax = 365 * 6;
+
+  function prochainEnAttente(ligne) {
+    let best = null, bestOrdre = Infinity;
+    for (const e of elements) {
+      if (e.ligne === ligne && e.statut === 'EnAttente' && e.ordreSeq < bestOrdre) { best = e; bestOrdre = e.ordreSeq; }
+    }
+    return best;
+  }
+
+  function demarrerBetonPL(e, dCur) {
+    zoneBetonOccupee[e.ligne] = true;
+    e.statut = 'Beton';
+    e.dateDebutBeton = dCur;
+    const c = cycleApplicable(e.ligne, dCur);
+    e.dateFinBeton = addDays(dCur, c * 7 * 9);
+  }
+  function demarrerOutfittingPL(e, dCur) {
+    e.dateDebutOut = dCur;
+    e.dateFinOut = addDays(dCur, dureeOutfittingJours(e.ligne, dCur));
+  }
+  function demarrerBallast(e, dCur) {
+    e.dateBallast = dCur;
+    e.statut = 'Ballast';
+    if (!e.dateImmersion) e.dateImmersion = addDays(dCur, PARAMS.ballastSem * 7);
+  }
+  function tenterEntreeBasin(e, dCur) {
+    const g = groupeId(e.ligne), part = partenaire(e.ligne);
+    const idxPart = elements.find(x => x.ligne === part && x.statut === 'AttenteBasin');
+    if (!idxPart) return;
+    if (basinOccupee[g][1] || basinOccupee[g][2]) return;
+    const place1 = (e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2;
+    const place2 = place1 === 1 ? 2 : 1;
+    basinOccupee[g][place1] = true;
+    basinOccupee[g][place2] = true;
+    const dureeHookup = PARAMS.hookupSem * 7;
+    e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place1;
+    idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeHookup); idxPart.basinNum = g; idxPart.basinPlace = place2;
+  }
+  function libererBasin(e) { basinOccupee[e.basinNum][e.basinPlace] = false; }
+  function tenterEntreeParking(e, dCur) {
+    for (let p = 1; p <= 6; p++) {
+      if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
+    }
+  }
+  function libererParking(e) { parkingOccupee[e.parkingNum] = false; }
+
+  function traiterElementPL(e, dCur) {
+    const ligne = e.ligne;
+    switch (e.statut) {
+      case 'Beton':
+        if (dCur >= e.dateFinBeton) {
+          if (!zoneOutOccupee[ligne]) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+          else e.statut = 'AttenteOutfitting';
+        }
+        break;
+      case 'AttenteOutfitting':
+        if (!zoneOutOccupee[ligne]) { zoneBetonOccupee[ligne]=false; zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+        break;
+      case 'Outfitting':
+        if (dCur >= e.dateFinOut) { zoneOutOccupee[ligne]=false; e.statut='AttenteFloatUp'; }
+        break;
+      case 'FloatUp':
+        if (dCur >= e.dateFinFU) e.statut = 'AttenteBasin';
+        break;
+      case 'AttenteBasin':
+        tenterEntreeBasin(e, dCur);
+        break;
+      case 'Basin':
+        if (dCur >= e.dateFinBasin) {
+          libererBasin(e);
+          const joursSeuil = PARAMS.seuilParkingSem * 7;
+          if (e.dateImmersion && diffDays(e.dateImmersion, dCur) <= joursSeuil) { e.parkingSaute = true; demarrerBallast(e, dCur); }
+          else e.statut = 'AttenteParking';
+        }
+        break;
+      case 'AttenteParking':
+        tenterEntreeParking(e, dCur);
+        break;
+      case 'Parking': {
+        const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : dCur;
+        if (dCur >= dateDebutBallast) { libererParking(e); demarrerBallast(e, dCur); }
+        break;
+      }
+      case 'Ballast':
+        if (e.dateImmersion && dCur >= e.dateImmersion) { e.statut = 'Immerge'; e.termine = true; }
+        break;
+    }
+  }
+
+  function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
+    zonesSPE[zoneNum-1].occupee = true;
+    zonesSPE[zoneNum-1].idOccupant = e.id;
+    zonesSPE[zoneNum-1].jourEntree = jourCourant;
+    e.zoneSPE = zoneNum;
+    e.statut = zonesSPE[zoneNum-1].estBeton ? 'Beton' : 'Outfitting';
+    if (zoneNum === 1) e.dateDebutBeton = dCur;
+    const nBeton = zonesSPE.filter(z=>z.estBeton).length;
+    if (zoneNum === nBeton + 1) e.dateDebutOut = dCur;
+  }
+  function traiterElementSPE(e, dCur, jourCourant) {
+    const z = e.zoneSPE;
+    if (z === 0) return;
+    if (['AttenteFloatUp','FloatUp','AttenteBasin','Basin','Ballast'].includes(e.statut)) {
+      switch (e.statut) {
+        case 'FloatUp': if (dCur >= e.dateFinFU) e.statut = 'AttenteBasin'; break;
+        case 'AttenteBasin': tenterEntreeBasin(e, dCur); break;
+        case 'Basin': if (dCur >= e.dateFinBasin) { libererBasin(e); demarrerBallast(e, dCur); } break;
+        case 'Ballast': if (e.dateImmersion && dCur >= e.dateImmersion) { e.statut='Immerge'; e.termine=true; } break;
+      }
+      return;
+    }
+    const zc = zonesSPE[z-1];
+    const jourFin = zc.jourEntree + zc.dureeJours;
+    if (jourCourant >= jourFin) {
+      if (z === 7) { zonesSPE[6].occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur; return; }
+      if (!zonesSPE[z].occupee) {
+        zonesSPE[z-1].occupee = false;
+        zonesSPE[z].occupee = true; zonesSPE[z].idOccupant = e.id; zonesSPE[z].jourEntree = jourCourant;
+        e.zoneSPE = z + 1;
+        if (!zonesSPE[z].estBeton && zc.estBeton) { e.statut = 'Outfitting'; e.dateDebutOut = dCur; }
+      }
+    }
+  }
+
+  function verifierFloatUpGroupes(dCur) {
+    for (const [lA, lB] of GROUPES) {
+      const eA = elements.find(x => x.ligne===lA && x.statut==='AttenteFloatUp');
+      const eB = elements.find(x => x.ligne===lB && x.statut==='AttenteFloatUp');
+      if (eA && eB) {
+        const bloque = elements.some(x => (x.ligne===lA || x.ligne===lB) && (x.statut==='Outfitting' || x.statut==='AttenteOutfitting'));
+        if (!bloque) {
+          const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
+          eA.statut='FloatUp'; eA.dateDebutFU=dCur; eA.dateFinFU=dFin;
+          eB.statut='FloatUp'; eB.dateDebutFU=dCur; eB.dateFinFU=dFin;
+        }
+      }
+    }
+  }
+
+  // Comptage des zones beton/outfitting SPE pour le rendu (indices dans la chaîne)
+  const speBetonIdx = [], speOutIdx = [];
+  zonesSPE.forEach((z,i) => { (z.estBeton ? speBetonIdx : speOutIdx).push(i+1); });
+
+  const changements = []; // journal des changements de cycle détectés (pour affichage sidebar)
+  const lastCycle = {1:null,2:null,3:null,4:null,5:null};
+
+  let jourCourant = 0;
+  for (; jourCourant <= joursMax; jourCourant++) {
+    const dCur = addDays(PARAMS.dateDebut, jourCourant);
+
+    for (let l = 1; l <= 5; l++) {
+      if (!zoneBetonOccupee[l]) { const e = prochainEnAttente(l); if (e) demarrerBetonPL(e, dCur); }
+      const c = cycleApplicable(l, dCur);
+      if (lastCycle[l] !== c) {
+        if (lastCycle[l] !== null) changements.push({ligne: LIGNE_NOM[l], date: new Date(dCur), rythme: c});
+        lastCycle[l] = c;
+      }
+    }
+    if (!zonesSPE[0].occupee) { const e = prochainEnAttente(6); if (e) demarrerZoneSPE(e, 1, dCur, jourCourant); }
+
+    for (const e of elements) {
+      if (e.termine) continue;
+      if (e.ligne === 6) traiterElementSPE(e, dCur, jourCourant);
+      else traiterElementPL(e, dCur);
+    }
+    verifierFloatUpGroupes(dCur);
+
+    // --- construction de l'image du jour pour le rendu ---
+    const key = dCur.toISOString().slice(0,10);
+    const frame = [];
+    for (const e of elements) {
+      if (e.statut === 'EnAttente' || e.statut === 'Immerge') continue;
+      const item = renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx);
+      if (item) frame.push(item);
+    }
+    simTimeline[key] = frame;
+
+    if (elements.every(e => e.termine)) break;
+  }
+
+  dateKeys = Object.keys(simTimeline).sort();
+  log(`Simulation terminée sur ${jourCourant} jours (${dateKeys.length} images). ${elements.filter(e=>e.termine).length}/${elements.length} éléments immergés.`);
+  renderChangeTable(changements);
+  renderStats();
+  return jourCourant;
+}
+
+function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+
+function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
+  const ligne = e.ligne;
+  const len = lenOf(ligne);
+  const y = GEO.y_lines[ligne];
+  const late = e.dateImmersion && dCur > e.dateImmersion && e.statut !== 'Immerge';
+  const base = {id: e.id, ligne, late};
+
+  switch (e.statut) {
+    case 'Beton': {
+      let progress;
+      if (ligne <= 5) {
+        progress = e.dateFinBeton > e.dateDebutBeton ? diffDays(dCur, e.dateDebutBeton) / diffDays(e.dateFinBeton, e.dateDebutBeton) : 0;
+      } else {
+        const stepIdx = speBetonIdx.indexOf(e.zoneSPE);
+        const zc = zonesSPE[e.zoneSPE-1];
+        const localFrac = zc.dureeJours > 0 ? (jourCourant - zc.jourEntree) / zc.dureeJours : 0;
+        progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speBetonIdx.length;
+      }
+      return {...base, type:'concrete', anchor:'right', x: GEO.x_entry, y, w: len * Math.max(0,Math.min(1,progress))};
+    }
+    case 'AttenteOutfitting':
+      return {...base, type:'concrete-wait', anchor:'right', x: GEO.x_entry, y, w: len};
+    case 'Outfitting': {
+      let progress;
+      if (ligne <= 5) {
+        progress = e.dateFinOut > e.dateDebutOut ? diffDays(dCur, e.dateDebutOut) / diffDays(e.dateFinOut, e.dateDebutOut) : 0;
+      } else {
+        const stepIdx = speOutIdx.indexOf(e.zoneSPE);
+        const zc = zonesSPE[e.zoneSPE-1];
+        const localFrac = zc.dureeJours > 0 ? (jourCourant - zc.jourEntree) / zc.dureeJours : 0;
+        progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speOutIdx.length;
+      }
+      const x = lerp(GEO.x_hall_end, GEO.x_outfit_end, progress);
+      return {...base, type:'outfitting', anchor:'center', x, y, w: len};
+    }
+    case 'AttenteFloatUp':
+      return {...base, type:'outfitting-wait', anchor:'center', x: GEO.x_outfit_end, y, w: len};
+    case 'FloatUp': {
+      const progress = e.dateFinFU > e.dateDebutFU ? diffDays(dCur, e.dateDebutFU) / diffDays(e.dateFinFU, e.dateDebutFU) : 0;
+      const x = lerp(GEO.x_outfit_end, GEO.x_basin, progress);
+      return {...base, type:'floatup', anchor:'center', x, y, w: len};
+    }
+    case 'AttenteBasin':
+      return {...base, type:'basin-wait', anchor:'center', x: GEO.x_basin, y, w: len};
+    case 'Basin':
+      return {...base, type:'basin', anchor:'center', x: GEO.x_basin, y, w: len};
+    case 'AttenteParking':
+      return {...base, type:'basin-wait', anchor:'center', x: GEO.x_basin, y, w: len};
+    case 'Parking': {
+      const r = (e.parkingNum - 1) / (GEO.parking.slots - 1);
+      const x = lerp(GEO.parking.start.x, GEO.parking.end.x, r);
+      const py = lerp(GEO.parking.start.y, GEO.parking.end.y, r);
+      return {...base, type:'parking', anchor:'center', x, y:py, w: len, rot: GEO.parking.rot};
+    }
+    case 'Ballast':
+      return {...base, type:'ballast', anchor:'center', x: GEO.ballast.x, y: GEO.ballast.y, w: len * 0.6};
+    default:
+      return null;
+  }
+}
+
+/* ================================================================
+   9. RENDU VISUEL
+   ================================================================ */
+function render(idx) {
+  const key = dateKeys[idx];
+  const items = simTimeline[key];
+  if (!items) return;
+  const d = new Date(key);
+  document.getElementById('date-display').textContent = fmt(d);
+  document.getElementById('current-date-val').textContent = fmt(d);
+  const layer = document.getElementById('production-layer');
+  layer.innerHTML = '';
+  items.forEach(el => {
+    const div = document.createElement('div');
+    const waitClass = el.type.endsWith('-wait') ? ' wait-state' : '';
+    div.className = `segment ${el.type}${waitClass}${el.late ? ' late' : ''}`;
+    div.title = `${el.id} — ${LIGNE_NOM[el.ligne]} — ${el.type}`;
+    div.textContent = el.id;
+    div.style.height = GEO.thickness + '%';
+    div.style.width = el.w + '%';
+    if (el.rot) {
+      div.style.left = el.x + '%';
+      div.style.top = el.y + '%';
+      div.style.transform = `translate(-50%,-50%) rotate(${el.rot}deg)`;
+    } else if (el.anchor === 'right') {
+      div.style.right = (100 - el.x) + '%';
+      div.style.top = (el.y - GEO.thickness/2) + '%';
+    } else {
+      div.style.left = (el.x - el.w/2) + '%';
+      div.style.top = (el.y - GEO.thickness/2) + '%';
+    }
+    layer.appendChild(div);
+  });
+}
+
+function renderStats() {
+  const total = elements.length;
+  const done = elements.filter(e=>e.termine).length;
+  const late = elements.filter(e=>e.dateImmersion && new Date() > e.dateImmersion && !e.termine).length;
+  const maxDate = elements.reduce((m,e)=> (e.dateImmersion && e.dateImmersion>m) ? e.dateImmersion : m, PARAMS.dateDebut);
+  const skip = elements.filter(e=>e.parkingSaute).length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-row"><span>Total éléments</span><b>${total}</b></div>
+    <div class="stat-row"><span>Immergés (fin de simulation)</span><b>${done}</b></div>
+    <div class="stat-row"><span>Fin de projet estimée</span><b>${fmt(maxDate)}</b></div>
+    <div class="stat-row"><span>Parkings sautés (immersion proche)</span><b>${skip}</b></div>
+  `;
+}
+
+function renderChangeTable(changements) {
+  const tbody = document.querySelector('#change-table tbody');
+  tbody.innerHTML = '';
+  changements.slice(0, 200).forEach(c => {
+    tbody.innerHTML += `<tr><td>${c.ligne}</td><td>${fmt(c.date)}</td><td>${c.rythme.toFixed(2)}</td></tr>`;
+  });
+}
+
+/* ================================================================
+   10. CONTROLES UI
+   ================================================================ */
+document.getElementById('btn-run').onclick = () => {
+  document.getElementById('btn-run').textContent = '⏳ Calcul en cours…';
+  document.getElementById('btn-run').disabled = true;
+  setTimeout(() => {
+    try {
+      runSimulation();
+      const slider = document.getElementById('timeline');
+      slider.disabled = false;
+      slider.min = 0; slider.max = dateKeys.length - 1; slider.value = 0;
+      render(0);
+    } catch (err) {
+      log('Erreur simulation : ' + err.message, 'err');
+      console.error(err);
+    }
+    document.getElementById('btn-run').textContent = '🚀 RELANCER LA SIMULATION';
+    document.getElementById('btn-run').disabled = false;
+  }, 30);
+};
+
+document.getElementById('timeline').oninput = (e) => render(parseInt(e.target.value));
+
+let playing = false, playTimer = null;
+document.getElementById('play-btn').onclick = () => {
+  playing = !playing;
+  document.getElementById('play-btn').textContent = playing ? '⏸' : '▶';
+  if (playing) {
+    playTimer = setInterval(() => {
+      const slider = document.getElementById('timeline');
+      const step = parseInt(document.getElementById('speed').value);
+      let v = parseInt(slider.value) + step;
+      if (v >= dateKeys.length) { v = dateKeys.length - 1; playing = false; document.getElementById('play-btn').textContent = '▶'; clearInterval(playTimer); }
+      slider.value = v;
+      render(v);
+    }, 120);
+  } else {
+    clearInterval(playTimer);
+  }
+};
+
+// Re-parse workbook automatically if date début changes
+document.getElementById('p-datedebut').addEventListener('change', () => { if (wb) parseWorkbook(); });
+
+/* ================================================================
+   11. GENERATION D'UN CLASSEUR MODELE VIDE
+   ================================================================ */
+document.getElementById('btn-template').onclick = () => {
+  const outWb = XLSX.utils.book_new();
+  const dateDebut = new Date(document.getElementById('p-datedebut').value || '2026-07-01');
+
+  // --- Inputs ---
+  const inAoa = [];
+  inAoa[0] = ['Sequence Production']; inAoa[0][14] = 'Seq2_Debut';
+  inAoa[1] = []; inAoa[1][14] = addDays(dateDebut, 365);
+  inAoa[2] = [];
+  inAoa[2][1] = 'PL-1'; inAoa[2][3] = 'PL-2'; inAoa[2][5] = 'PL-3';
+  inAoa[2][7] = 'PL-4'; inAoa[2][9] = 'PL-5'; inAoa[2][11] = 'SPE';
+  inAoa[3] = ['No.', 'STE-01', '', 'STE-02', '', 'STE-03', '', 'STE-04', '', 'STE-05', '', 'SPE-01'];
+  inAoa[4] = [1, 'empty', '', 'empty', '', 'empty', '', 'empty', '', 'empty', '', 'empty'];
+  const wsIn = XLSX.utils.aoa_to_sheet(inAoa);
+  wsIn['!cols'] = Array(15).fill({wch: 12});
+  XLSX.utils.book_append_sheet(outWb, wsIn, 'Inputs');
+
+  // --- Immersion ---
+  const immAoa = [['ID Element', 'Date Immersion', 'Date Hookup', 'Date Ballast Jetty'],
+                   ['STE-01', addDays(dateDebut, 730), '', '']];
+  const wsImm = XLSX.utils.aoa_to_sheet(immAoa);
+  wsImm['!cols'] = Array(4).fill({wch: 16});
+  XLSX.utils.book_append_sheet(outWb, wsImm, 'Immersion');
+
+  // --- Config_Cycles ---
+  const cycAoa = [['Ligne (PL)', 'Date Seuil 1', 'Cycle 1 (sem)', 'Date Seuil 2', 'Cycle 2 (sem)',
+                    'Date Seuil 3', 'Cycle 3 (sem)', 'Date Seuil 4', 'Cycle 4 (sem)']];
+  for (let pl = 1; pl <= 5; pl++) {
+    cycAoa.push(['PL-' + pl, dateDebut, 0.9, addDays(dateDebut,180), 0.85, addDays(dateDebut,360), 0.8, addDays(dateDebut,540), 0.75]);
+  }
+  const wsCyc = XLSX.utils.aoa_to_sheet(cycAoa);
+  wsCyc['!cols'] = Array(9).fill({wch: 14});
+  XLSX.utils.book_append_sheet(outWb, wsCyc, 'Config_Cycles');
+
+  // --- Config_SPE ---
+  const speAoa = [['No Zone', 'Nom Zone', 'Activite / Phase', 'Duree fixe (semaines)', 'Type (Beton ou Outfitting)']];
+  defaultSPEConfig().forEach((z, i) => speAoa.push([i+1, z.nom, z.activite, z.dureeJours/7, z.estBeton ? 'Beton' : 'Outfitting']));
+  const wsSpe = XLSX.utils.aoa_to_sheet(speAoa);
+  wsSpe['!cols'] = Array(5).fill({wch: 16});
+  XLSX.utils.book_append_sheet(outWb, wsSpe, 'Config_SPE');
+
+  // --- Config_Outfitting ---
+  const oc = defaultOutfittingConfig();
+  const outAoa = [['No Phase', 'Nom Sequence 1', 'Duree Seq 1 (sem)', 'Nom Sequence 2', 'Duree Seq 2 (sem)']];
+  for (let i = 0; i < oc.seq1.length; i++) outAoa.push([i+1, oc.seq1[i].nom, oc.seq1[i].duree, oc.seq2[i].nom, oc.seq2[i].duree]);
+  const wsOut = XLSX.utils.aoa_to_sheet(outAoa);
+  wsOut['!cols'] = Array(5).fill({wch: 16});
+  XLSX.utils.book_append_sheet(outWb, wsOut, 'Config_Outfitting');
+
+  XLSX.writeFile(outWb, 'Lolland_Planning_Modele.xlsx');
+};
+</script>
+</body>
+</html>
