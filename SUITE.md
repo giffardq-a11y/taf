@@ -8,14 +8,21 @@ ce document ne couvre que ce qui reste à faire et les décisions en attente.
 Date de référence 05/08/2026, cadence de départ 3 semaines/segment (confirmée), staggering
 actif, ligne SPE sur planning P6, séquence automatique :
 
-**4 éléments en retard sur 89, 12 jours au maximum, 29 jours de retard cumulé, aucun bloqué,
-aucune fermeture provisoire de SPE nécessaire.** Répartition retenue par le solveur :
-18/17/16/18/10 sur les lignes PL, contre 17/17/17/17/11 au classeur.
+**2 éléments en retard sur 89, 5 jours au maximum, 6 jours de retard cumulé**, aucun bloqué,
+aucune fermeture provisoire de SPE nécessaire.
 
-Deux réglages y ont conduit, tous deux mesurés :
+Quatre corrections y ont conduit, toutes mesurées :
 
-- **la cadence n'est plus relâchée** (voir ci-dessous) : 22 → 14 retards à séquence égale ;
-- **l'optimiseur choisit le nombre d'éléments par ligne**, pas seulement leur ordre.
+| | Retards | Retard max | Retard cumulé |
+|---|---|---|---|
+| Ligne SPE estimée, cadence relâchée | 18 | 133 j | 774 j |
+| + ligne SPE sur planning P6 | 8 | 12 j | 34 j |
+| + cadence jamais relâchée, lignes rééquilibrées | 4 | 12 j | 29 j |
+| + ballast au planning, aucun pour les SPE | **2** | **5 j** | **6 j** |
+
+Ce qui reste : `SPE-06` à 5 jours — le planning P6 le fait entrer en FI3 le 18/09/2028 pour
+une immersion au 16/10, soit 28 jours, quand il en faut 21 (UB3) plus 11,5 de float-up et
+hook-up — et `STE-43` à 1 jour, qui le suit dans l'ordre d'immersion.
 
 ## Les retards qui restent, un par un
 
@@ -24,15 +31,16 @@ Réponse élément par élément, sur le meilleur plan obtenu (4 retards, 29 j d
 
 | Élément | Retard | Cause |
 |---|---|---|
-| `SPE-06` | 12 j | Le planning P6 le fait entrer en FI3 le 18/09/2028 pour une immersion cible au 16/10 — 28 jours. Il en faut 21 (durée UB3 de `Config_SPE`) plus 17,5 de float-up, hook-up et ballast, soit 38,5. **Le planning se contredit de 10 jours.** |
-| `STE-43` | 10 j | Suit `SPE-06` dans l'ordre d'immersion, à 9 jours d'écart de cible : il hérite du retard. |
-| `STE-11` | 6 j | Suit `STE-43`, même mécanisme. |
-| `STE-65` | 1 j | Sa cible tombe exactement 7 jours après celle de l'élément précédent, or le ballast dure 7 jours et un seul élément est ballasté à la fois. Le pas d'un jour de la simulation fait le reste. |
+| `SPE-06` | 5 j | Le planning P6 le fait entrer en FI3 le 18/09/2028 pour une immersion cible au 16/10 — 28 jours. Il en faut 21 (durée UB3 de `Config_SPE`) plus 11,5 de float-up et hook-up, soit 32,5. **Le planning se contredit de 5 jours.** |
+| `STE-43` | 1 j | Suit `SPE-06` dans l'ordre d'immersion : il hérite d'un jour de son retard. |
 
-Autrement dit : **trois des quatre retards descendent d'une seule incohérence du planning P6 sur
-`SPE-06`**, et le quatrième d'une cible espacée d'exactement une durée de ballast. Aucun ne
-vient de la séquence de production, et aucun ne se corrige en la changeant. À vérifier côté
-chantier : la durée d'UB3 pour `SPE-06`, ou celles de float-up / hook-up / ballast.
+Autrement dit : **les deux retards descendent d'une seule incohérence du planning P6 sur
+`SPE-06`**. Aucun ne vient de la séquence de production, et aucun ne se corrige en la
+changeant. À vérifier côté chantier : la durée d'UB3 pour `SPE-06`, ou celles de float-up et
+hook-up.
+
+Les retards d'arrondi ont disparu avec la durée de ballast lue au planning : elle vaut 4 ou
+5 jours selon l'élément, non 7, et les cibles espacées de 6 ou 7 jours ne se télescopent plus.
 
 ## Où en est le modèle
 

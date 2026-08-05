@@ -666,6 +666,27 @@ function parseWorkbook(dateRefArg) {
       log(`Planning P6 : passages de zone lus pour ${nbAvecPassages} SPE — la ligne SPE suit le planning, elle n'est plus estimée par des durées fixes.`);
     }
 
+    // --- Durée du ballast, lue au planning P6 ---
+    // Le ballast d'un élément est son activité « Floatout, 1st Phase Ballast Concrete ». Sa
+    // durée varie d'un élément à l'autre, et les SPE n'y figurent pas : ils n'ont pas de phase
+    // de ballast, ils passent du bassin à l'immersion.
+    const ballastP6 = {};
+    imm.forEach(row => {
+      const nom = row['Activity Name'];
+      if (typeof nom !== 'string' || !/floatout/i.test(nom)) return;
+      const m = nom.match(/Concrete\s*-\s*(TE|SPE?)-?\s?(\d+)/i);
+      const debut = excelDate(row['Start']), fin = excelDate(row['Finish']);
+      if (!m || !debut || !fin) return;
+      const id = (m[1].toUpperCase() === 'TE' ? 'STE-' : 'SPE-') + String(parseInt(m[2], 10)).padStart(2, '0');
+      const jours = Math.round(diffDays(fin, debut));
+      if (jours > 0) ballastP6[id] = jours;
+    });
+    const nbBallast = Object.keys(ballastP6).length;
+    if (nbBallast) {
+      const dur = [...new Set(Object.values(ballastP6))].sort((x, y) => x - y);
+      log(`Float-out : durée de ballast lue pour ${nbBallast} élément(s) (${dur.join(' / ')} j). Les SPE n'y figurent pas — ils n'ont pas de phase de ballast.`);
+    }
+
     const nbEtanche = Object.keys(etancheP6).length;
     if (nbEtanche) {
       const dates = Object.values(etancheP6).sort((a, b) => a - b);
@@ -677,6 +698,7 @@ function parseWorkbook(dateRefArg) {
       e.dateEtancheP6 = etancheP6[e.id] || null;
       e.zonesP6 = (e.ligne === 6 && passagesP6[e.id] && Object.keys(passagesP6[e.id]).length >= 3)
         ? passagesP6[e.id] : null;
+      e.dureeBallastP6 = ballastP6[e.id] || null;
       e.dateImmersion = map[e.id] || null;
       e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
       if (!e.dateImmersion) missing++;
@@ -1258,14 +1280,25 @@ function runSimulation(paramsArg) {
     e.dateDebutOut = dCur;
     e.dateFinOut = addDays(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
   }
+  // Durée du ballast d'un élément. Le planning P6 la donne par son activité de float-out, et
+  // elle varie d'un élément à l'autre. Un SPE n'a pas de phase de ballast du tout : il passe
+  // du bassin à l'immersion, ce que traduit une durée nulle.
+  function dureeBallastJours(e) {
+    if (e.ligne === 6) return 0;
+    return e.dureeBallastP6 || (PARAMS.ballastSem * 7);
+  }
+
   // Une fois ballasté, l'élément est immergé directement : la fin du ballast EST l'immersion.
   function demarrerBallast(e, dCur) {
     // Le hook-up standard occupe les 24 h précédant le Ballast Jetty.
     e.dateHookup = addDays(dCur, -PARAMS.hookupSem * 7);
     e.dateBallast = dCur;
-    e.dateFinBallast = addDays(dCur, PARAMS.ballastSem * 7);
+    e.dateFinBallast = addDays(dCur, dureeBallastJours(e));
     e.statut = 'Ballast';
     if (!e.dateImmersion) e.dateImmersion = e.dateFinBallast;
+    // Sans phase de ballast — le cas des SPE — l'immersion suit dans le même pas de temps.
+    // Attendre le tour de boucle suivant coûterait un jour à chacun d'eux.
+    if (dureeBallastJours(e) <= 0) immerger(e, dCur);
   }
   // Statuts d'un élément encore susceptible de rejoindre son partenaire à l'entrée du bassin.
   const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
@@ -1275,7 +1308,7 @@ function runSimulation(paramsArg) {
   // Date d'évacuation du Basin C d'un SPE : il n'en sort qu'avant son utilisation finale,
   // c'est-à-dire au démarrage de son Ballast Jetty.
   function dateEvacuationSPE(e) {
-    return e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+    return e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
   }
   // Prochaine évacuation SPE à venir (tous SPE confondus), vue depuis dCur.
   function prochaineEvacuationSPE(dCur) {
@@ -1392,7 +1425,7 @@ function runSimulation(paramsArg) {
       if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
     }
     if (parkingOccupee[reserve]) return;
-    const sortie = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+    const sortie = e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
     if (!sortie || diffDays(sortie, dCur) > REGLES.parkingReserveJours) return;
     parkingOccupee[reserve] = true;
     e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = reserve; e.parkingReserve = true;
@@ -1487,7 +1520,7 @@ function runSimulation(paramsArg) {
         if (e.statut === 'AttenteParking') stockerEnBassin(e, dCur);
         break;
       case 'Parking': {
-        const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : dCur;
+        const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : dCur;
         if (dCur >= dateDebutBallast) {
           if (!ballastAutorise(e)) { bloquesParOrdre.set(e.id, (bloquesParOrdre.get(e.id) || 0) + 1); break; }
           libererParking(e); demarrerBallast(e, dCur);
@@ -1665,7 +1698,7 @@ function runSimulation(paramsArg) {
   const bloquesParOrdre = new Map(); // id -> jours d'attente imposés par l'ordre seul
 
   function dateDebutBallastDe(e) {
-    return e.dateImmersion ? addDays(e.dateImmersion, -PARAMS.ballastSem * 7) : null;
+    return e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
   }
 
   // Stockage croisé : quand le parking est saturé, un élément peut être garé dans une place

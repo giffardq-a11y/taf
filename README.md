@@ -282,6 +282,14 @@ parking** n'est pas une contrainte de flux mais une économie de mouvement : qua
 l'immersion est assez proche, on évite le détour par le parking — sauf si la place est
 réclamée, auquel cas la production prime.
 
+**Ballast** : sa durée est celle de l'activité *Floatout, 1st Phase Ballast Concrete* du
+planning P6, propre à chaque élément (4, 5 ou 25 jours sur le classeur de référence). Le
+paramètre *Durée Ballast* de l'interface ne sert que de repli, pour un élément absent du
+planning.
+
+**Les SPE n'ont pas de phase de ballast.** Ils ne figurent pas dans les activités de float-out :
+un SPE passe du bassin à l'immersion, sans passer par le Ballast Jetty.
+
 **Hook-up** : 24 h, sur place, juste avant le Ballast Jetty.
 
 **Parking** : 5 places sans limite de durée, plus une 6e réservée au déblocage ponctuel,
