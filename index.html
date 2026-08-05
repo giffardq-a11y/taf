@@ -370,6 +370,27 @@ function parseWorkbook(dateRefArg) {
       });
     }
   }
+  // Sur une même ligne, produire A avant B alors que B doit s'immerger avant A est
+  // impossible à tenir : les places en aval sont uniques, A y bloquerait B. On le signale
+  // à la lecture, faute de quoi la simulation se fige sans dire pourquoi.
+  function controlerCoherenceSequence() {
+    const inversions = [];
+    for (let l = 1; l <= 6; l++) {
+      const file = elements.filter(e => e.ligne === l && e.dateImmersion)
+                           .sort((a, b) => a.ordreSeq - b.ordreSeq);
+      for (let i = 0; i + 1 < file.length; i++) {
+        if (file[i].dateImmersion > file[i + 1].dateImmersion) {
+          inversions.push(`${LIGNE_NOM[l]} : ${file[i].id} est produit avant ${file[i + 1].id} mais s'immerge après`);
+        }
+      }
+    }
+    if (inversions.length) {
+      log(`⚠ ${inversions.length} inversion(s) entre séquence de production et ordre d'immersion — la production se bloquera :`, 'err');
+      inversions.slice(0, 6).forEach(t => log('   ' + t, 'err'));
+    }
+    return inversions;
+  }
+
   log(`Inputs : ${elements.length} éléments chargés (${new Set(elements.map(e=>e.ligne)).size} lignes), ${nbStatuts} statut(s) as-built renseigné(s).`);
 
   // Seq2_Debut
@@ -393,13 +414,26 @@ function parseWorkbook(dateRefArg) {
     log('Onglet "Immersion" introuvable — dates estimées automatiquement.', 'warn');
   } else {
     const imm = XLSX.utils.sheet_to_json(sImm, {defval:null});
+    // Les activités « Immersion - TE-xx / SP-xx » du planning P6 font foi : la colonne
+    // « Date Immersion » n'est pas tenue à jour et diverge de plusieurs mois.
+    const immP6 = {};
+    imm.forEach(row => {
+      const m = String(row['Activity Name'] ?? '').match(/Immersion\s*-\s*(TE|SP)-?\s?(\d+)/i);
+      const fin = excelDate(row['Finish']);
+      if (!m || !fin) return;
+      const id = (m[1].toUpperCase() === 'TE' ? 'STE-' : 'SPE-') + String(parseInt(m[2], 10)).padStart(2, '0');
+      if (!immP6[id] || fin < immP6[id]) immP6[id] = fin;
+    });
     const map = {}, rang = {};
     // L'ordre des lignes de l'onglet Immersion fait foi : les éléments doivent être immergés
     // dans cet ordre, un élément non prêt bloquant tous ceux qui le suivent.
-    imm.forEach((row, i) => {
+    imm.forEach(row => {
       const id = String(row['ID Element'] ?? '').trim();
-      if (id) { map[id] = excelDate(row['Date Immersion']); rang[id] = i; }
+      if (id) map[id] = immP6[id] || excelDate(row['Date Immersion']);
     });
+    // L'ordre d'immersion découle des dates retenues : c'est la séquence physique du chantier.
+    Object.keys(map).filter(id => map[id]).sort((a, b) => map[a] - map[b])
+      .forEach((id, i) => { rang[id] = i; });
     // Activités « clamping » du planning P6 collé en colonnes F/G/H : un SPE est étanche
     // quand toutes les siennes sont terminées. Cette date réelle prime sur le jalon
     // théorique de Config_SPE.
@@ -427,8 +461,15 @@ function parseWorkbook(dateRefArg) {
       if (!e.dateImmersion) missing++;
       if (!isFinite(e.rangImmersion)) sansRang++;
     });
-    log(`Immersion : ${imm.length} dates lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}${sansRang ? `, ${sansRang} hors séquence d'immersion` : ''}.`, (missing || sansRang) ? 'warn' : undefined);
+    const nbP6 = Object.keys(immP6).length;
+    if (nbP6) {
+      const divergents = Object.keys(map).filter(id => immP6[id] && map[id] && +immP6[id] !== +map[id]).length;
+      log(`Immersion : ${nbP6} dates issues du planning P6 retenues${divergents ? ` (${divergents} divergentes de la colonne B)` : ''}.`);
+    }
+    log(`Immersion : ${imm.length} lignes lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}${sansRang ? `, ${sansRang} hors séquence d'immersion` : ''}.`, (missing || sansRang) ? 'warn' : undefined);
   }
+
+  controlerCoherenceSequence();
 
   // --- Config_Cycles ---
   // Seuls Date Seuil 1 / Cycle 1 (colonnes B/C) font foi : c'est l'ancre "rythme actuel" du solveur.
@@ -607,6 +648,7 @@ function runSimulation(paramsArg) {
   const lastRhythmState = {};
   for (let l = 1; l <= 5; l++) lastRhythmState[l] = {rhythm: anchorRhythm(l), changeDate: anchorDate(l)};
   const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
+  const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
   const parkingReserveUsages = []; // recours à la 6e place de parking (réserve de déblocage)
@@ -785,11 +827,12 @@ function runSimulation(paramsArg) {
     const tenable = (R) => lignesPaire.every(l =>
       fileTenable(l, dConcreteStart, R, l === ligne ? elemCourant : null));
 
-    // Une cadence atteinte n'est jamais relâchée : remonter puis redescendre coûte deux
-    // réinstallations, sans commune mesure avec l'économie d'un cycle plus lent — et le
-    // moindre retard qui en découlerait se paie en pénalités. Le solveur ne peut donc
-    // qu'accélérer, dans la limite de la pente d'inertie.
-    const slopeOk = RYTHMES.filter(R => R <= state.rhythm + 1e-9
+    // PL-5 module librement sa cadence, ses contraintes propres l'imposent. Les autres
+    // lignes ne relâchent qu'une fois — en fin de programme, pour ne pas arrêter la
+    // production trop brutalement : chaque réinstallation coûte, et tout retard qui en
+    // découlerait se paierait en pénalités.
+    const ralentirPermis = (ligne === 5) || (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1;
+    const slopeOk = RYTHMES.filter(R => (ralentirPermis || R <= state.rhythm + 1e-9)
       && Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9);
     let chosen = slopeOk.find(tenable) ?? null;
     let atRisk = false;
@@ -800,6 +843,9 @@ function runSimulation(paramsArg) {
       atRisk = true;
     }
 
+    if (chosen > state.rhythm && ligne !== 5) {
+      ralentissementsPaire.set(lignesPaire[0], (ralentissementsPaire.get(lignesPaire[0]) || 0) + 1);
+    }
     if (chosen !== state.rhythm) {
       // La bascule s'applique à toute la paire, d'un seul tenant.
       lignesPaire.forEach(l => {
@@ -925,6 +971,16 @@ function runSimulation(paramsArg) {
     }
   }
   function libererBasin(e) { basinOccupee[e.basinNum][e.basinPlace] = false; }
+
+  // Dans un bassin, un seul élément fait face à la sortie : PL-2 pour le bassin A,
+  // PL-4 pour le bassin B. L'autre ne peut pas sortir avant lui. Le bassin C est libre.
+  const LIGNE_EN_FACE = {1: 2, 2: 4};
+  function sortieBasinBloquee(e, dCur) {
+    const enFace = LIGNE_EN_FACE[e.basinNum];
+    if (!enFace || e.ligne === enFace) return false;
+    return elements.some(x => x !== e && !x.termine && x.ligne === enFace
+      && x.statut === 'Basin' && x.basinNum === e.basinNum);
+  }
   // Les places 1 à 5 accueillent un élément sans limite de durée. La 6e est une réserve de
   // déblocage : on ne l'ouvre que si les autres sont pleines, et seulement si l'élément en
   // repart dans le mois — au-delà, il vaut mieux le laisser attendre en amont.
@@ -977,6 +1033,7 @@ function runSimulation(paramsArg) {
         // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
         // que le SPE présent en zone UB soit étanche.
         if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
+        if (sortieBasinBloquee(e, dCur)) break;
 
         // Départ direct au Ballast Jetty dès que sa date est atteinte et que l'ordre l'autorise :
         // le hook-up occupe les 24 h qui précèdent, sur place.
