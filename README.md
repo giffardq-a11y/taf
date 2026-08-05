@@ -284,16 +284,26 @@ Ce groupe ne fonctionne pas comme les deux autres. Les zones UB1-3 étant dans l
 Basin C, le SPE en construction y séjourne longtemps pendant que les éléments
 normaux de PL-5 défilent.
 
-1. **Jalon d'étanchéité** (colonne F de `Config_SPE`). Le SPE devient étanche N semaines
-   après son entrée en UB1. La valeur est saisie **sur chaque zone UB** — non pas parce
-   qu'elle diffère d'une zone à l'autre en régime normal, mais pour pouvoir suivre
+1. **Jalon d'étanchéité provisoire** (colonne F de `Config_SPE`). Ce qui commande
+   l'inondation du bassin est l'étanchéité **provisoire**, pas la fin des travaux : un SPE
+   passe par une phase d'étanchéité provisoire pour permettre le float-up, puis il est
+   rouvert pour finir les travaux intérieurs, et peut être refermé à la demande. Une fois le
+   jalon franchi, il ne bloque donc plus jamais. Le délai minimal court depuis l'entrée en
+   UB1 — de l'ordre de 8 à 12 semaines sur ce chantier. La valeur est saisie **sur chaque
+   zone UB**, non parce qu'elle diffère d'une zone à l'autre, mais pour pouvoir suivre
    indépendamment plusieurs SPE présents simultanément dans les UB.
 2. **Rythme SPE long en UB** (colonne G, optionnelle). Dans les zones UB1/UB2/UB3, le SPE
    peut suivre un rythme propre, bien plus long que les durées standard de la colonne D.
-**Étanchéité datée.** Si l'onglet `Immersion` contient les activités *clamping* du planning
-P6 (colonnes `Activity Name` / `Start` / `Finish`), un SPE est réputé étanche à la dernière
-fin de clamping le concernant. Cette date réelle prime sur le jalon théorique de la
-colonne F.
+   Cette valeur doit être cohérente avec le jalon d'étanchéité : si un SPE ne reste que
+   5 semaines en UB1 alors qu'il lui en faut 12 pour être provisoirement étanche, un nouveau
+   SPE non étanche entre en UB1 avant que le précédent n'ait franchi son jalon, et le bassin
+   n'est presque jamais inondable.
+
+**Le clamping du planning P6 ne commande pas la porte.** Les activités *clamping* lues dans
+l'onglet `Immersion` (colonnes `Activity Name` / `Start` / `Finish`) datent la **fin des
+travaux intérieurs**, huit à quinze mois après l'entrée en UB1 sur le classeur de référence.
+Les prendre pour l'étanchéité qui commande le bassin le fermait des mois durant. Elles sont
+lues et reportées au journal, à titre d'information.
 
 3. **Le SPE n'est évacué qu'avant son utilisation finale** : il reste en Basin C
    jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien

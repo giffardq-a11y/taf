@@ -98,11 +98,23 @@ La porte est fermée par le SPE présent en UB à l'instant considéré ; tant q
 non étanche, avancer les autres ne change rien. C'est un tout ou rien, et la boîte de dialogue
 le montre.
 
-**Écart à examiner** : les activités de clamping du planning P6 placent l'étanchéité **8 à 15
-mois** après l'entrée en UB1, là où `Config_SPE` déclare un jalon de 12 semaines. Le parseur
-retient la dernière fin de clamping concernant chaque SPE ; si ces activités couvrent autre
-chose que l'étanchéité proprement dite, c'est cette lecture qu'il faut revoir plutôt que le
-chantier qu'il faut accélérer.
+**Règle corrigée** : ce qui commande l'inondation du Basin C est l'étanchéité **provisoire**,
+atteinte 8 à 12 semaines après l'entrée en UB1 — pas la fin des travaux intérieurs que datent
+les activités de clamping P6, huit à quinze mois plus tard. Un SPE passe par une étanchéité
+provisoire pour permettre le float-up, est rouvert pour finir l'aménagement, et peut être
+refermé à la demande : une fois le jalon franchi il ne bloque plus jamais. Le clamping P6
+n'est plus qu'une information au journal.
+
+**Question ouverte, chiffrée** : le classeur laisse la colonne G de `Config_SPE` vide, donc
+chaque zone UB dure 5 semaines. Un SPE entre alors en UB1 tous les 35 jours alors qu'il lui
+faut 84 jours pour être provisoirement étanche : **2,4 SPE sont en permanence non étanches**,
+et le bassin n'est presque jamais inondable. Renseigner la colonne G à 12 semaines rétablit la
+cohérence et change le résultat du tout au tout :
+
+| Durée des zones UB | Séquence classeur | Séquence optimisée |
+|---|---|---|
+| 5 sem (classeur, colonne G vide) | 32 retards, 133 j max, 1885 j | 18 retards, 133 j max, 774 j |
+| 12 sem (colonne G renseignée) | 24 retards, 104 j max, 1231 j | **18 retards, 53 j max, 276 j** |
 
 **Faut-il itérer entre séquence et cadence, essayer toutes les combinaisons ?** Non, et pas
 par manque de moyens : l'espace des affectations seul vaut 5^79. Surtout, la mesure ci-dessus

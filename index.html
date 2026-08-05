@@ -595,7 +595,7 @@ function parseWorkbook(dateRefArg) {
     const nbEtanche = Object.keys(etancheP6).length;
     if (nbEtanche) {
       const dates = Object.values(etancheP6).sort((a, b) => a - b);
-      log(`Clamping : étanchéité datée pour ${nbEtanche} SPE (de ${fmt(dates[0])} à ${fmt(dates[dates.length-1])}).`);
+      log(`Clamping P6 : ${nbEtanche} SPE datés (de ${fmt(dates[0])} à ${fmt(dates[dates.length-1])}) — fin des travaux intérieurs, sans effet sur la porte du Basin C, qui suit l'étanchéité provisoire.`);
     }
 
     let missing = 0, sansRang = 0;
@@ -1402,12 +1402,15 @@ function runSimulation(paramsArg) {
 
   // Étanchéité d'un SPE : la date réelle issue des activités de clamping fait foi ;
   // à défaut, le jalon théorique compté depuis l'entrée en UB1.
-  // La contrainte d'étanchéité reste stricte : un SPE non étanche ferme le bassin. C'est la
-  // durée pour l'atteindre qui se négocie — en accélérant le clamping. La réduction s'applique
-  // à la date effective, qu'elle vienne du planning P6 ou du jalon théorique, et ne peut pas
-  // remonter avant l'entrée en UB1 : on ne devient pas étanche avant d'y être entré.
+  // Ce qui commande l'inondation du Basin C est l'étanchéité **provisoire** : un SPE passe par
+  // une phase d'étanchéité provisoire pour permettre le float-up, puis il est rouvert pour
+  // finir les travaux intérieurs, et peut être refermé à la demande. Le délai minimal pour
+  // l'atteindre court depuis l'entrée en UB1 — c'est le jalon de la colonne F de Config_SPE.
+  // Les activités de clamping du planning P6 datent, elles, la fin des travaux intérieurs,
+  // bien plus tard : les prendre pour l'étanchéité qui commande le bassin le fermait des mois
+  // durant. Elles restent lues, à titre d'information.
   function dateEtancheDe(e, dEntreeUB) {
-    const base = e.dateEtancheP6 || (speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null);
+    const base = speEtancheSem ? addDays(dEntreeUB, speEtancheSem * 7) : null;
     if (!base) return null;
     const reduc = PARAMS.reductionEtancheSem || 0;
     if (!reduc) return base;
