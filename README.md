@@ -15,8 +15,11 @@ aucune donnée n'est envoyée sur un serveur) qui :
 3. **Étape 2** — Charger le classeur (`.xlsx` ou `.xlsm`, macros préservées).
 4. **Étape 3** — Vérifier la date de référence (par défaut : aujourd'hui). C'est le
    « présent » du solveur : tout ce qui est renseigné comme en cours l'est à cette date.
-5. **Étape 4** — Ajuster les durées fixes si besoin, puis **LANCER LE SOLVEUR**.
-6. Parcourir le planning avec le curseur ou le bouton ▶, et exporter le résultat.
+5. **Étape 4** — Ajuster les durées fixes si besoin.
+6. **Étape 5** — Choisir la séquence de production du classeur, activer ou non le staggering
+   et l'optimiseur de séquence, puis **LANCER LE SOLVEUR**. Le bouton *Comparer* met les
+   deux séquences en regard sans avoir à relancer soi-même.
+7. Parcourir le planning avec le curseur ou le bouton ▶, et exporter le résultat.
 
 ## Ce que fait le solveur
 
@@ -48,6 +51,61 @@ Le rythme d'un élément est fixé à son lancement et ne change plus jusqu'à s
 
 Quand aucun rythme conforme à la pente ne permet de tenir les délais, le solveur retient
 le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
+
+## Staggering entre halls
+
+Le hall A (PL-1/PL-2) et le hall B (PL-3/PL-4) partagent les mêmes moyens : ils ne doivent
+pas attaquer un élément au même moment du cycle. Le solveur décale donc le départ du béton :
+
+- **3 segments entre A et B** — PL-3 et PL-4 démarrent quand PL-1 et PL-2 sont à leur
+  segment 4. La contrainte est **dure dès que la cadence atteint 1 semaine/segment**, et
+  reste une simple préférence en deçà.
+- **7 segments pour PL-5** — préférence seulement, jamais bloquante : sa cadence varie
+  librement.
+- **Aucun déphasage à l'intérieur d'un hall.**
+
+La phase se mesure sur le dernier départ de béton du hall A, modulo le takt de la ligne.
+Sous contrainte dure, la ligne patiente jusqu'au segment visé quel qu'en soit le prix : au
+plus un cycle, et une seule fois — les takts étant égaux, la phase se conserve ensuite
+d'elle-même. Écourter cette attente reviendrait à la reproduire à chaque cycle sans jamais
+rattraper la phase. Sous simple préférence, la ligne ne patiente que si l'attente est
+gratuite, c'est-à-dire si toute sa file restante tient encore ses dates après décalage.
+
+Deux cas lèvent le déphasage, tous deux signalés dans le journal :
+
+1. **Cadences de halls différentes.** Un déphasage ne se conserve qu'entre halls de même
+   cadence ; sinon la phase dérive d'un cycle à l'autre et la tenir reviendrait à brider le
+   hall le plus rapide. Il est suspendu le temps que les cadences se rejoignent — elles ne
+   divergent qu'entre deux bascules. PL-5 n'est pas concerné, son écart n'étant qu'une
+   préférence.
+2. **Hall A vidé.** Sa dernière date de départ n'est plus une phase, juste un souvenir : il
+   n'y a plus rien à déphaser, et attendre bloquerait la fin de programme pour rien.
+
+Le staggering se désactive depuis l'interface.
+
+## Optimiseur de séquence
+
+Le solveur de cadence prend la séquence de l'onglet `Inputs` telle quelle. L'optimiseur,
+lui, choisit **l'ordre des éléments sur chaque ligne** — l'affectation d'un élément à une
+ligne, elle, reste celle du classeur. Objectif, dans cet ordre :
+
+1. **zéro inversion** entre séquence de production et ordre d'immersion ;
+2. **minimisation des retards** : éléments bloqués, puis éléments en retard, puis retard
+   cumulé, puis retard maximum, puis nombre de changements de cadence.
+
+Le premier critère détermine presque tout : une file sans inversion est une file triée par
+date d'immersion, **ordre unique aux ex æquo près**. Le second critère ne s'exerce donc que
+là où le premier laisse le choix — les éléments sans date d'immersion, qui n'imposent rien,
+et ceux qui partagent la même date. L'optimiseur explore ces cas par descente locale, chaque
+candidat étant évalué par une simulation complète, sous budget de temps borné.
+
+Un élément déjà engagé — statut as-built saisi, ou date d'immersion déjà passée — garde sa
+place en tête de file : sa production est commencée. Et l'optimiseur ne rend jamais un plan
+pire que celui de l'utilisateur : à égalité, la séquence du classeur est conservée.
+
+La séquence retenue est celle que l'on peut recopier dans `Inputs` : la simuler donne
+exactement ce que donnerait le même ordre saisi dans le classeur. Elle est exportée telle
+quelle dans l'onglet `Sequence_Solveur`.
 
 ## Structure du classeur
 
@@ -112,10 +170,15 @@ ub1, ub2, ub3 — chacune à son emplacement propre.
   bascule, ancien → nouveau rythme, élément déclencheur), suivi des alertes de délai
   et de la liste des éléments ratant leur date cible.
 - **Classeur complet** — le fichier d'origine avec `Config_Cycles` mis à jour (les
-  changements calculés réinjectés dans les slots 2 à 4) et un nouvel onglet
-  `Solver_Report`. Les macros VBA sont préservées si l'entrée était un `.xlsm`.
-- **KPI à l'écran** — nombre d'éléments ratant leur date d'immersion, retard maximum,
-  fin de projet estimée, rythme courant par ligne.
+  changements calculés réinjectés dans les slots 2 à 4), un onglet `Solver_Report` et un
+  onglet `Sequence_Solveur` donnant la séquence réellement simulée, ligne par ligne.
+  L'onglet `Inputs` n'est jamais réécrit : ses colonnes de statut as-built appartiennent à
+  l'utilisateur. Les macros VBA sont préservées si l'entrée était un `.xlsm`.
+- **KPI à l'écran** — éléments bloqués, inversions restantes, nombre d'éléments ratant leur
+  date d'immersion, retard maximum, fin de projet estimée, rythme courant par ligne.
+- **Comparatif à l'écran** — séquence du classeur contre séquence optimisée, sur les mêmes
+  indicateurs : inversions, bloqués, éléments en retard, retard maximum, retard cumulé,
+  changements de cadence.
 
 ## Logique de production simulée
 
@@ -213,9 +276,9 @@ place 2 = SPE).
 
 ## À venir
 
-- **Optimisation de la séquence de production.** La séquence de l'onglet `Inputs` est
-  prise telle quelle : le solveur choisit les cadences, pas l'ordre des éléments sur
-  les lignes. La faire optimiser par le solveur est une évolution possible.
+- **Affectation des éléments aux lignes.** L'optimiseur choisit l'ordre sur chaque ligne,
+  pas la ligne sur laquelle un élément est produit. Rééquilibrer les files entre lignes est
+  le levier suivant sur les retards.
 - **Évacuation anticipée d'un SPE.** Si un SPE doit quitter le Basin C avant son immersion,
   deux éléments non étanches peuvent se retrouver simultanément dans les zones UB. Ce cas
   reste exceptionnel et n'est pas modélisé ; la structure par zone de la colonne F le
@@ -234,6 +297,16 @@ place 2 = SPE).
   partagées (bassins, parking). C'est ce que décrit le cahier des charges, et cela
   suffit à produire un plan de cadence exploitable, mais ce n'est pas une optimisation
   sous contraintes au sens mathématique.
+- **Le solveur ne modélise pas le staggering quand il choisit la cadence.** Comme pour les
+  portes du Basin C, le décalage de phase imposé au départ n'entre pas dans son estimation
+  de délai : elle reste optimiste sur PL-3, PL-4 et PL-5. La simulation, elle, applique bien
+  le déphasage — les dates affichées et les retards signalés sont justes.
+- **L'optimiseur n'a que peu de marge sur son second objectif.** Une file sans inversion est
+  une file triée par date d'immersion : l'ordre est unique aux ex æquo près. Sur un classeur
+  où toutes les dates d'immersion sont distinctes et renseignées, l'optimiseur se réduit donc
+  à ce tri, et l'affinage sur les retards ne trouve rien à déplacer. Ce n'est pas une limite
+  d'implémentation mais du degré de liberté disponible : le levier suivant est l'affectation
+  des éléments aux lignes.
 - **Le solveur ne modélise pas les portes du Basin C.** Quand il choisit un rythme pour
   PL-5, il ignore que la porte outfitting ou la porte étanchéité pourront retarder
   l'élément. Ses estimations de délai sont donc optimistes sur cette ligne, ce qui peut

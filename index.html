@@ -47,6 +47,9 @@
   #log div.err { color: var(--late); }
   #log div.warn { color: var(--warn); }
   label.field { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin: 4px 0; color: var(--text-dim); }
+  label.check { display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; margin: 5px 0; color: var(--text-dim); cursor: pointer; line-height: 1.35; }
+  label.check input { margin-top: 1px; flex-shrink: 0; }
+  label.field select { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 3px; max-width: 60%; }
   input[type=date], input[type=number] {
     background: #0d1114; color: var(--accent); border: 1px solid var(--border); border-radius: 4px;
     padding: 3px 6px; width: 130px; font-family: 'Consolas', monospace; font-size: 12px;
@@ -146,6 +149,21 @@
     <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
 
+    <h4>5 — Séquence de production</h4>
+    <label class="field">Séquence du classeur <select id="p-sequence"><option value="0">Séquence 1</option></select></label>
+    <label class="check"><input type="checkbox" id="p-optimiser">
+      <span><b>Optimiser la séquence</b> — remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards.</span></label>
+    <label class="check"><input type="checkbox" id="p-stagger" checked>
+      <span><b>Staggering entre halls</b> — PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence).</span></label>
+    <button class="sub-btn" id="btn-comparer" disabled>⚖️ Comparer séquence du classeur / optimisée</button>
+    <div id="compare-box" style="display:none">
+      <table class="change-table" id="compare-table">
+        <thead><tr><th>Indicateur</th><th>Classeur</th><th>Optimisée</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="compare-note" style="font-size:10px; color:var(--text-dim); margin-top:4px; line-height:1.4;"></div>
+    </div>
+
     <button class="main-btn" id="btn-run" disabled>🚀 LANCER LE SOLVEUR</button>
     <button class="sub-btn" id="btn-export-csv" disabled>📄 Exporter le rapport de cadence (CSV)</button>
     <button class="sub-btn" id="btn-export-wb" disabled>💾 Exporter le classeur (Config_Cycles + rapport)</button>
@@ -239,6 +257,25 @@ const SLOPE_PERIODE_JOURS = 4 * 30.44;
 // dont l'occupation ne doit pas dépasser un mois.
 const PARKING_RESERVE_JOURS = 30;
 
+/* --- Staggering entre halls ---------------------------------------------------------
+   Le hall A (PL-1/PL-2) et le hall B (PL-3/PL-4) partagent les mêmes moyens : ils ne
+   doivent pas attaquer un élément au même moment du cycle. Le hall B démarre donc quand
+   le hall A est à son segment 4 — 3 segments de déphasage. PL-5 vise 7 segments d'écart.
+   Aucun déphasage à l'intérieur d'un hall : les deux lignes d'un hall démarrent ensemble.
+   La contrainte n'est dure qu'une fois la cadence de 1 semaine/segment atteinte ; en deçà
+   elle reste une préférence, et sur PL-5 elle n'est jamais bloquante, sa cadence variant
+   librement. */
+const STAGGER = {
+  actif: true,             // piloté par l'interface
+  hallA: [1, 2],           // lignes de référence : c'est sur leur départ que la phase se mesure
+  cibleSegments: {3: 3, 4: 3, 5: 7},
+  bloquant: {3: true, 4: true, 5: false},
+  cadenceDure: 1,          // cadence (sem/segment) à partir de laquelle la contrainte devient dure
+  // Le pas de simulation est le jour et les cibles tombent sur des demi-journées (3 × R × 7,
+  // R étant un multiple de 0,5 semaine) : une demi-journée de tolérance vise le segment exact.
+  tolJours: 0.5,
+};
+
 /* ================================================================
    2. CONFIGURATION PAR DEFAUT (reprise des valeurs par défaut de la macro VBA)
    ================================================================ */
@@ -294,6 +331,7 @@ let speConfig = null;
 let speEtancheSem = null;    // jalon d'étanchéité SPE : semaines après l'entrée en UB1
 let sequencesInputs = [];    // variantes de séquence de production trouvées dans Inputs
 let sequenceChoisie = 0;     // variante retenue pour le calcul
+let sequenceOrigine = null;  // séquence telle que lue dans le classeur, avant optimisation
 let outfittingConfig = null;
 let dateSeq2Debut = null;
 let PARAMS = {};
@@ -302,12 +340,18 @@ let dateKeys = [];
 let lastChangements = [];    // dernier rapport de rythmes calculé par le solveur
 let lastRisques = [];        // alertes de délai non tenable relevées par le solveur
 let lastRetards = [];        // éléments ratant leur date d'immersion cible
+let lastKPI = null;          // indicateurs de la dernière simulation (cf. runSimulation)
 let logEl = document.getElementById('log');
+
+// L'optimiseur de séquence enchaîne des dizaines de simulations d'essai : leurs messages
+// n'ont pas à encombrer le journal, seul le résultat retenu compte.
+let journalSilencieux = false;
 
 // Le panneau de journal peut être absent (page de restitution réutilisant ce moteur) :
 // on retombe alors sur la console, et les messages restent collectés dans lastJournal.
 let lastJournal = [];
 function log(msg, cls) {
+  if (journalSilencieux) return;
   lastJournal.push({msg, cls});
   if (!logEl) { (cls === 'err' ? console.error : console.log)(msg); return; }
   const d = document.createElement('div');
@@ -325,6 +369,25 @@ function sheetRows(name) {
   const s = wb.Sheets[name];
   if (!s) return null;
   return XLSX.utils.sheet_to_json(s, {header:1, raw:true, defval:''});
+}
+
+// Sur une même ligne, produire A avant B alors que B doit s'immerger avant A est impossible
+// à tenir : les places en aval sont uniques, A y bloquerait B. C'est le premier critère de
+// l'optimiseur de séquence, et le contrôle fait à la lecture du classeur — faute de quoi la
+// simulation se fige sans dire pourquoi.
+function inversionsSequence() {
+  const inversions = [];
+  for (let l = 1; l <= 6; l++) {
+    const file = elements.filter(e => e.ligne === l && e.dateImmersion)
+                         .sort((a, b) => a.ordreSeq - b.ordreSeq);
+    for (let i = 0; i + 1 < file.length; i++) {
+      if (file[i].dateImmersion > file[i + 1].dateImmersion) {
+        inversions.push({ligne: l, avant: file[i].id, apres: file[i + 1].id,
+          texte: `${LIGNE_NOM[l]} : ${file[i].id} est produit avant ${file[i + 1].id} mais s'immerge après`});
+      }
+    }
+  }
+  return inversions;
 }
 
 function parseWorkbook(dateRefArg) {
@@ -387,23 +450,12 @@ function parseWorkbook(dateRefArg) {
       });
     }
   }
-  // Sur une même ligne, produire A avant B alors que B doit s'immerger avant A est
-  // impossible à tenir : les places en aval sont uniques, A y bloquerait B. On le signale
-  // à la lecture, faute de quoi la simulation se fige sans dire pourquoi.
   function controlerCoherenceSequence() {
-    const inversions = [];
-    for (let l = 1; l <= 6; l++) {
-      const file = elements.filter(e => e.ligne === l && e.dateImmersion)
-                           .sort((a, b) => a.ordreSeq - b.ordreSeq);
-      for (let i = 0; i + 1 < file.length; i++) {
-        if (file[i].dateImmersion > file[i + 1].dateImmersion) {
-          inversions.push(`${LIGNE_NOM[l]} : ${file[i].id} est produit avant ${file[i + 1].id} mais s'immerge après`);
-        }
-      }
-    }
+    const inversions = inversionsSequence();
     if (inversions.length) {
       log(`⚠ ${inversions.length} inversion(s) entre séquence de production et ordre d'immersion — la production se bloquera :`, 'err');
-      inversions.slice(0, 6).forEach(t => log('   ' + t, 'err'));
+      inversions.slice(0, 6).forEach(i => log('   ' + i.texte, 'err'));
+      log('   L\'optimiseur de séquence (étape 5) les résout ; à défaut, permuter ces éléments dans Inputs.');
     }
     return inversions;
   }
@@ -487,6 +539,9 @@ function parseWorkbook(dateRefArg) {
   }
 
   controlerCoherenceSequence();
+  // Photo de la séquence du classeur : l'optimiseur réécrit ordreSeq, il faut pouvoir
+  // revenir à l'original sans relire le fichier.
+  sequenceOrigine = sequenceCourante();
 
   // --- Config_Cycles ---
   // Seuls Date Seuil 1 / Cycle 1 (colonnes B/C) font foi : c'est l'ancre "rythme actuel" du solveur.
@@ -629,18 +684,29 @@ function parseAsBuiltCode(raw) {
    retient le premier qui respecte à la fois la pente d'inertie de la
    ligne (vs. son dernier changement réel) et la date d'immersion cible.
    ================================================================ */
-function runSimulation(paramsArg) {
+// Paramètres saisis dans l'interface. Absente (page de restitution, essais hors navigateur),
+// on retombe sur les valeurs par défaut du cahier des charges.
+function lireParamsUI() {
   const champ = (id, def) => {
     const n = document.getElementById(id);
     return n ? (parseFloat(n.value) || def) : def;
   };
-  PARAMS = paramsArg || {
-    dateRef: new Date(document.getElementById('p-dateref').value),
+  const dref = document.getElementById('p-dateref');
+  return {
+    dateRef: dref ? new Date(dref.value) : new Date(),
     seuilParkingSem: champ('p-seuilparking', 4),
     floatUpSem: champ('p-floatup', 1),
     hookupSem: champ('p-hookup', 0.5),
     ballastSem: champ('p-ballast', 1),
   };
+}
+
+// paramsArg accepte deux drapeaux réservés aux simulations d'essai de l'optimiseur :
+//   silencieux   — n'écrit ni dans le journal ni dans l'interface ;
+//   sansTimeline — ne construit pas les images du rendu (l'essentiel du coût).
+function runSimulation(paramsArg) {
+  PARAMS = paramsArg || lireParamsUI();
+  journalSilencieux = !!PARAMS.silencieux;
   const REF = PARAMS.dateRef;
 
   // reset element states (garde id/ligne/ordreSeq/dateImmersion/statutBrut)
@@ -660,6 +726,8 @@ function runSimulation(paramsArg) {
   const premiereUB = speConfig.findIndex(z => !z.estBeton) + 1; // n° de zone du 1er UB (0 si aucune)
   const basinOccupee = {1:{1:false,2:false}, 2:{1:false,2:false}, 3:{1:false,2:false}};
   const parkingOccupee = {1:false,2:false,3:false,4:false,5:false,6:false};
+  // Dernier démarrage de béton par ligne : c'est l'ancre de phase du staggering entre halls.
+  const dernierDebutBeton = {1:null,2:null,3:null,4:null,5:null};
 
   // Etat du solveur par ligne PL : dernier rythme réellement en vigueur + date de ce changement.
   const lastRhythmState = {};
@@ -717,6 +785,9 @@ function runSimulation(paramsArg) {
         e.dateFinBeton = addDays(e.dateDebutBeton, anchorR * 7 * 9);
         e.statut = 'Beton';
         zoneBetonOccupee[ligne] = true;
+        if (!dernierDebutBeton[ligne] || e.dateDebutBeton > dernierDebutBeton[ligne]) {
+          dernierDebutBeton[ligne] = e.dateDebutBeton;
+        }
         break;
       }
       case 'zone': {
@@ -779,13 +850,19 @@ function runSimulation(paramsArg) {
   });
   log(`État as-built appliqué à la date de référence (${fmt(REF)}) : ${nbAutoTermine} élément(s) déjà immergé(s) (auto), ${nbOverride} en cours (statut manuel)${nbOverrideIgnore ? `, ${nbOverrideIgnore} statut(s) ignoré(s) (ligne incompatible)` : ''}.`);
 
-  function prochainEnAttente(ligne) {
-    let best = null, bestOrdre = Infinity;
+  // Sur une ligne, les éléments avancent dans l'ordre de production. Quand plusieurs
+  // partagent le même statut d'attente — l'outfitting peut se libérer avant que le float-up
+  // n'ait eu lieu, et deux éléments attendre ensemble — c'est le plus ancien qui part.
+  // Sans ce tri, l'ordre du tableau `elements`, c'est-à-dire l'ordre des lignes du classeur,
+  // déciderait à sa place.
+  function premierDeLigne(ligne, statut) {
+    let best = null;
     for (const e of elements) {
-      if (e.ligne === ligne && e.statut === 'EnAttente' && e.ordreSeq < bestOrdre) { best = e; bestOrdre = e.ordreSeq; }
+      if (e.ligne === ligne && e.statut === statut && (!best || e.ordreSeq < best.ordreSeq)) best = e;
     }
     return best;
   }
+  function prochainEnAttente(ligne) { return premierDeLigne(ligne, 'EnAttente'); }
 
   // Temps de traversée complet (jours) d'un élément lancé au rythme R, du 1er segment béton
   // jusqu'à l'immersion. Le Parking est exclu : il n'ajoute pas de délai, il absorbe au contraire
@@ -877,8 +954,91 @@ function runSimulation(paramsArg) {
     return {rhythm: chosen, atRisk};
   }
 
+  /* ---- Staggering entre halls ----
+     Le hall B (PL-3/PL-4) doit attaquer son élément quand le hall A (PL-1/PL-2) est à son
+     4e segment, PL-5 quand il est à son 8e. La phase se mesure donc sur le dernier départ
+     de béton du hall A, modulo le takt de la ligne. */
+  const staggerAttentes = {3:0, 4:0, 5:0};  // jours d'attente imposés par le déphasage
+  const staggerNonTenus = [];               // départs pris hors phase (déphasage abandonné)
+  let staggerSuspenduSignale = false;       // divergence de cadence déjà portée au journal
+
+  // Ancre de phase : dernier départ du hall A. Ses deux lignes démarrant ensemble (aucun
+  // déphasage à l'intérieur d'un hall), la plus récente des deux dates suffit.
+  function ancreHallA() {
+    let best = null;
+    for (const l of STAGGER.hallA) {
+      const d = dernierDebutBeton[l];
+      if (d && (!best || d > best)) best = d;
+    }
+    return best;
+  }
+
+  // Jours à patienter pour que la ligne démarre au segment visé du cycle du hall A.
+  // null quand le déphasage ne s'applique pas (désactivé, ligne du hall A, hall A pas démarré).
+  function attenteStagger(ligne, dCur) {
+    if (!STAGGER.actif) return null;
+    const cibleSeg = STAGGER.cibleSegments[ligne];
+    if (!cibleSeg) return null;
+    const ancre = ancreHallA();
+    if (!ancre) return null;
+    // Hall A vidé : sa dernière date de départ n'est plus une phase, juste un souvenir.
+    // Il n'y a plus rien à déphaser, et attendre bloquerait la fin de programme pour rien.
+    if (!STAGGER.hallA.some(l => elements.some(x => x.ligne === l && x.statut === 'EnAttente'))) return null;
+    // Un déphasage ne se conserve qu'entre halls de même cadence : sinon la phase dérive d'un
+    // cycle à l'autre et la tenir reviendrait à brider le hall le plus rapide. On le suspend
+    // le temps que les cadences se rejoignent — elles ne divergent qu'entre deux bascules.
+    // PL-5 n'est pas concerné : sa cadence varie librement et son écart n'est qu'une préférence.
+    if (ligne !== 5 && !hallsMemeCadence()) {
+      if (!staggerSuspenduSignale) {
+        staggerSuspenduSignale = true;
+        log(`Staggering suspendu le ${fmt(dCur)} : halls A et B à des cadences différentes ` +
+            `(${lastRhythmState[1].rhythm} vs ${lastRhythmState[3].rhythm} sem/segment). Il reprendra dès qu'elles se rejoindront.`, 'warn');
+      }
+      return null;
+    }
+    const RA = lastRhythmState[STAGGER.hallA[0]].rhythm;
+    const takt = RA * 7 * 9;
+    const phase = ((diffDays(dCur, ancre) % takt) + takt) % takt;
+    let attente = (cibleSeg * RA * 7) - phase;
+    if (attente < 0) attente += takt;   // la cible de ce cycle est passée : viser le suivant
+    return attente;
+  }
+
+  // Le déphasage n'a de sens que si les deux halls tournent à la même cadence : sinon la
+  // phase dérive à chaque cycle et la tenir reviendrait à brider le hall le plus rapide.
+  function hallsMemeCadence() {
+    return Math.abs(lastRhythmState[1].rhythm - lastRhythmState[3].rhythm) < 1e-9;
+  }
+
+  // Décide si la ligne peut lancer son prochain élément aujourd'hui, au regard du déphasage.
+  function departAutoriseParStagger(e, dCur) {
+    const ligne = e.ligne;
+    const attente = attenteStagger(ligne, dCur);
+    if (attente === null || attente <= STAGGER.tolJours) return true;
+
+    // Contrainte dure : uniquement à partir de la cadence de 1 semaine/segment, et à condition
+    // que les deux halls y soient ensemble. On patiente alors jusqu'au segment visé, quel qu'en
+    // soit le prix — au plus un cycle, et une seule fois : les takts étant égaux, la phase une
+    // fois prise se conserve d'elle-même. Écourter cette attente reviendrait à la reproduire à
+    // chaque cycle sans jamais rattraper la phase.
+    const dure = STAGGER.bloquant[ligne]
+      && lastRhythmState[ligne].rhythm <= STAGGER.cadenceDure + 1e-9
+      && lastRhythmState[STAGGER.hallA[0]].rhythm <= STAGGER.cadenceDure + 1e-9;
+    if (dure) { staggerAttentes[ligne]++; return false; }
+
+    // Simple préférence : on ne patiente que si l'attente est gratuite, c'est-à-dire si toute
+    // la file restante de la ligne tient encore ses dates après décalage.
+    if (fileTenable(ligne, addDays(dCur, attente), lastRhythmState[ligne].rhythm, e)) {
+      staggerAttentes[ligne]++;
+      return false;
+    }
+    staggerNonTenus.push({id: e.id, ligne: LIGNE_NOM[ligne], date: new Date(dCur), attente: Math.round(attente)});
+    return true;
+  }
+
   function demarrerBetonPL(e, dCur) {
     zoneBetonOccupee[e.ligne] = true;
+    dernierDebutBeton[e.ligne] = dCur;
     e.statut = 'Beton';
     e.dateDebutBeton = dCur;
     const {rhythm, atRisk} = chooseRhythm(e.ligne, dCur, e);
@@ -974,7 +1134,7 @@ function runSimulation(paramsArg) {
     }
 
     const part = partenaire(e.ligne);
-    const idxPart = elements.find(x => x.ligne === part && x.statut === 'AttenteBasin');
+    const idxPart = premierDeLigne(part, 'AttenteBasin');
     // Si la ligne partenaire est épuisée, l'élément entre seul plutôt que de rester bloqué
     // indéfiniment en attente d'un partenaire qui n'arrivera jamais.
     if (!idxPart && elements.some(x => x.ligne === part && EN_AMONT_BASIN.includes(x.statut))) return;
@@ -1187,13 +1347,13 @@ function runSimulation(paramsArg) {
       if (lA === 5) {
         const dFinC = addDays(dCur, PARAMS.floatUpSem * 7);
         [lA, lB].forEach(l => {
-          const e = elements.find(x => x.ligne===l && x.statut==='AttenteFloatUp');
+          const e = premierDeLigne(l, 'AttenteFloatUp');
           if (e) { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFinC; }
         });
         continue;
       }
-      const eA = elements.find(x => x.ligne===lA && x.statut==='AttenteFloatUp');
-      const eB = elements.find(x => x.ligne===lB && x.statut==='AttenteFloatUp');
+      const eA = premierDeLigne(lA, 'AttenteFloatUp');
+      const eB = premierDeLigne(lB, 'AttenteFloatUp');
       const partants = [eA, eB].filter(Boolean);
       if (!partants.length) continue;
 
@@ -1280,8 +1440,13 @@ function runSimulation(paramsArg) {
   for (; jourCourant <= joursMax; jourCourant++) {
     const dCur = addDays(REF, jourCourant);
 
+    // Le hall A est traité en premier : c'est sur son départ que se cale la phase du hall B
+    // et de PL-5, y compris pour un départ pris le jour même.
     for (let l = 1; l <= 5; l++) {
-      if (!zoneBetonOccupee[l]) { const e = prochainEnAttente(l); if (e) demarrerBetonPL(e, dCur); }
+      if (!zoneBetonOccupee[l]) {
+        const e = prochainEnAttente(l);
+        if (e && departAutoriseParStagger(e, dCur)) demarrerBetonPL(e, dCur);
+      }
     }
     if (!zonesSPE[0].occupee) { const e = prochainEnAttente(6); if (e) demarrerZoneSPE(e, 1, dCur, jourCourant); }
 
@@ -1293,14 +1458,18 @@ function runSimulation(paramsArg) {
     verifierFloatUpGroupes(dCur);
 
     // --- construction de l'image du jour pour le rendu ---
-    const key = dCur.toISOString().slice(0,10);
-    const frame = [];
-    for (const e of elements) {
-      if (e.statut === 'EnAttente' || e.statut === 'Immerge') continue;
-      const item = renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx);
-      if (item) frame.push(item);
+    // Les simulations d'essai de l'optimiseur n'affichent rien : construire leurs images
+    // coûterait l'essentiel du temps de calcul pour un résultat jeté aussitôt.
+    if (!PARAMS.sansTimeline) {
+      const key = dCur.toISOString().slice(0,10);
+      const frame = [];
+      for (const e of elements) {
+        if (e.statut === 'EnAttente' || e.statut === 'Immerge') continue;
+        const item = renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx);
+        if (item) frame.push(item);
+      }
+      simTimeline[key] = frame;
     }
-    simTimeline[key] = frame;
 
     if (elements.every(e => e.termine)) break;
   }
@@ -1327,9 +1496,203 @@ function runSimulation(paramsArg) {
   if (parkingReserveUsages.length) log(`6e place de parking (réserve) utilisée ${parkingReserveUsages.length} fois : ${parkingReserveUsages.slice(0,5).map(u=>u.id).join(', ')}${parkingReserveUsages.length>5?'…':''}.`, 'warn');
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
-  if (document.getElementById('change-table')) renderChangeTable(changements);
-  if (document.getElementById('stats')) renderStats();
-  return jourCourant;
+  const joursStagger = staggerAttentes[3] + staggerAttentes[4] + staggerAttentes[5];
+  if (STAGGER.actif && (joursStagger || staggerNonTenus.length)) {
+    log(`Staggering entre halls : ${joursStagger} jour(s) de décalage appliqués au départ des lignes${staggerNonTenus.length ? `, ${staggerNonTenus.length} départ(s) pris hors phase` : ''}.`);
+  }
+  if (!PARAMS.silencieux && document.getElementById('change-table')) renderChangeTable(changements);
+  if (!PARAMS.silencieux && document.getElementById('stats')) renderStats();
+  journalSilencieux = false;
+
+  // Indicateurs de la simulation — ce sont eux que compare l'optimiseur de séquence,
+  // et que le comparatif de l'interface met en regard.
+  const finReelle = elements.reduce((m, e) => {
+    const d = e.dateImmersionReelle || e.dateBallast;
+    return (d && (!m || d > m)) ? d : m;
+  }, null);
+  lastKPI = {
+    jours: jourCourant,
+    inversions: inversionsSequence().length,
+    nonImmerges: nonTermines,
+    nbRetards: lastRetards.length,
+    retardMax: lastRetards.length ? lastRetards[0].retardJours : 0,
+    retardTotal: lastRetards.reduce((s, r) => s + r.retardJours, 0),
+    nbChangements: changements.length,
+    joursStagger,
+    finProjet: finReelle,
+  };
+  return lastKPI;
+}
+
+/* ================================================================
+   8bis. OPTIMISEUR DE SEQUENCE DE PRODUCTION
+   Le solveur de cadence prend la séquence de l'onglet Inputs telle quelle. L'optimiseur,
+   lui, choisit l'ordre des éléments sur chaque ligne — l'affectation aux lignes, elle,
+   reste celle du classeur.
+   Objectif, dans cet ordre : zéro inversion, puis minimisation des retards.
+   Le premier critère détermine presque tout l'ordre : une file sans inversion est une file
+   triée par date d'immersion, ordre unique aux ex æquo près. Restent donc libres les
+   éléments sans date d'immersion et ceux qui partagent la même date — c'est sur eux que
+   porte l'affinage, évalué par simulation complète.
+   ================================================================ */
+
+// Un élément déjà engagé (statut as-built saisi, ou date d'immersion déjà passée) ne peut
+// plus changer de place : sa production est commencée, il précède tout ce qui attend.
+function elementEngage(e, dateRef) {
+  if (parseAsBuiltCode(e.statutBrut)) return true;
+  return !!(dateRef && e.dateImmersion && e.dateImmersion <= dateRef);
+}
+
+// Photo de la séquence courante : ligne → liste d'ids dans l'ordre de production.
+function sequenceCourante() {
+  const seq = {};
+  for (let l = 1; l <= 6; l++) {
+    seq[l] = elements.filter(e => e.ligne === l).sort((a, b) => a.ordreSeq - b.ordreSeq).map(e => e.id);
+  }
+  return seq;
+}
+
+// Réécrit ordreSeq d'après une séquence donnée, puis remet le tableau des éléments dans
+// l'ordre où la lecture du classeur les aurait produits — ligne du classeur, puis colonne.
+// Simuler une séquence optimisée doit donner exactement ce que donnerait le même ordre
+// saisi dans Inputs : c'est ce que l'utilisateur fera du résultat.
+function appliquerSequence(seq) {
+  const parCle = new Map(elements.map(e => [e.ligne + '|' + e.id, e]));
+  for (let l = 1; l <= 6; l++) {
+    (seq[l] || []).forEach((id, i) => {
+      const e = parCle.get(l + '|' + id);
+      if (e) e.ordreSeq = i + 1;
+    });
+  }
+  elements.sort((a, b) => (a.ordreSeq - b.ordreSeq) || (a.ligne - b.ligne));
+}
+
+function copierSequence(seq) {
+  const c = {};
+  for (const l of Object.keys(seq)) c[l] = seq[l].slice();
+  return c;
+}
+
+// Ordre de production sans inversion : les éléments déjà engagés gardent la tête de file,
+// les autres suivent l'ordre d'immersion. Un élément sans date d'immersion n'impose rien —
+// il conserve sa place, et c'est l'affinage qui décidera de le déplacer ou non.
+function sequenceSansInversion(dateRef) {
+  const seq = {};
+  for (let l = 1; l <= 6; l++) {
+    const file = elements.filter(e => e.ligne === l).sort((a, b) => a.ordreSeq - b.ordreSeq);
+    const engages = file.filter(e => elementEngage(e, dateRef));
+    const libres = file.filter(e => !elementEngage(e, dateRef));
+    const dates = libres.filter(e => e.dateImmersion)
+                        .sort((a, b) => (a.dateImmersion - b.dateImmersion) || (a.ordreSeq - b.ordreSeq));
+    let k = 0;
+    const ordonne = libres.map(e => e.dateImmersion ? dates[k++] : e);
+    seq[l] = engages.concat(ordonne).map(e => e.id);
+  }
+  return seq;
+}
+
+// Comparaison lexicographique de deux jeux d'indicateurs : négatif si a est meilleur que b.
+// L'ordre des critères est celui de l'objectif — zéro inversion d'abord, retards ensuite ;
+// à retards égaux, le moins de changements de cadence à faire appliquer aux opérateurs.
+const CRITERES_KPI = ['inversions', 'nonImmerges', 'nbRetards', 'retardTotal', 'retardMax', 'nbChangements'];
+function comparerKPI(a, b) {
+  for (const c of CRITERES_KPI) {
+    if (a[c] !== b[c]) return a[c] - b[c];
+  }
+  return 0;
+}
+
+// Simule une séquence candidate sans rien afficher ni construire d'images.
+function evaluerSequence(seq, params) {
+  appliquerSequence(seq);
+  return runSimulation({...params, silencieux: true, sansTimeline: true});
+}
+
+// Mouvements d'affinage : les seuls qui préservent l'absence d'inversion.
+//  - un élément sans date d'immersion peut aller n'importe où dans sa file ;
+//  - deux éléments de même date d'immersion peuvent être permutés.
+// Chaque candidat coûte une simulation complète : les déplacements sont bornés à une fenêtre
+// autour de la position courante, un élément n'ayant pas d'intérêt à traverser toute la file.
+const AFFINAGE_FENETRE = 4;
+function* mouvementsAffinage(seq, dateRef) {
+  const parCle = new Map(elements.map(e => [e.ligne + '|' + e.id, e]));
+  for (let l = 1; l <= 6; l++) {
+    const ids = seq[l] || [];
+    if (ids.length < 2) continue;
+    const el = ids.map(id => parCle.get(l + '|' + id));
+    // Rien ne bouge devant un élément déjà engagé : sa production est commencée.
+    let dernierEngage = -1;
+    el.forEach((e, i) => { if (e && elementEngage(e, dateRef)) dernierEngage = i; });
+    const premierLibre = dernierEngage + 1;
+    if (premierLibre >= ids.length) continue;
+
+    for (let i = premierLibre; i < ids.length; i++) {
+      if (!el[i]) continue;
+      if (!el[i].dateImmersion) {
+        const jMin = Math.max(premierLibre, i - AFFINAGE_FENETRE);
+        const jMax = Math.min(ids.length - 1, i + AFFINAGE_FENETRE);
+        for (let j = jMin; j <= jMax; j++) {
+          if (j === i) continue;
+          const variante = copierSequence(seq);
+          const [x] = variante[l].splice(i, 1);
+          variante[l].splice(j, 0, x);
+          yield {seq: variante, desc: `${LIGNE_NOM[l]} : ${ids[i]} déplacé en position ${j + 1}`};
+        }
+      } else if (i + 1 < ids.length && el[i + 1] && el[i + 1].dateImmersion
+                 && +el[i].dateImmersion === +el[i + 1].dateImmersion) {
+        const variante = copierSequence(seq);
+        [variante[l][i], variante[l][i + 1]] = [variante[l][i + 1], variante[l][i]];
+        yield {seq: variante, desc: `${LIGNE_NOM[l]} : ${ids[i]} ↔ ${ids[i + 1]} (même date d'immersion)`};
+      }
+    }
+  }
+}
+
+// Optimise la séquence et laisse la meilleure appliquée aux éléments.
+// budgetMs borne l'affinage : au-delà, on garde la meilleure séquence trouvée.
+function optimiserSequence(paramsArg, options) {
+  const params = paramsArg || lireParamsUI();
+  const budgetMs = (options && options.budgetMs) || 5000;
+  const t0 = Date.now();
+  const journalOptim = [];
+  let evaluations = 0;
+
+  try {
+    const seqInitiale = sequenceCourante();
+    const kpiInitial = evaluerSequence(seqInitiale, params); evaluations++;
+
+    let meilleure = sequenceSansInversion(params.dateRef);
+    let kpiMeilleur = evaluerSequence(meilleure, params); evaluations++;
+
+    // L'optimiseur ne doit jamais rendre un plan pire que celui de l'utilisateur.
+    if (comparerKPI(kpiInitial, kpiMeilleur) < 0) {
+      meilleure = seqInitiale; kpiMeilleur = kpiInitial;
+      journalOptim.push('Ordre d\'immersion : aucune amélioration sur la séquence fournie — elle est conservée.');
+    }
+
+    // Affinage : descente locale sur les seuls degrés de liberté restants.
+    let progresse = true;
+    while (progresse && Date.now() - t0 < budgetMs) {
+      progresse = false;
+      for (const mouvement of mouvementsAffinage(meilleure, params.dateRef)) {
+        if (Date.now() - t0 >= budgetMs) break;
+        const kpi = evaluerSequence(mouvement.seq, params); evaluations++;
+        if (comparerKPI(kpi, kpiMeilleur) < 0) {
+          meilleure = mouvement.seq; kpiMeilleur = kpi; progresse = true;
+          journalOptim.push(mouvement.desc);
+          break;
+        }
+      }
+    }
+
+    appliquerSequence(meilleure);
+    return {sequenceInitiale: seqInitiale, sequenceRetenue: meilleure,
+            kpiInitial, kpiRetenu: kpiMeilleur, evaluations,
+            dureeMs: Date.now() - t0, journal: journalOptim};
+  } finally {
+    // Une simulation d'essai interrompue ne doit pas laisser le journal muet.
+    journalSilencieux = false;
+  }
 }
 
 function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
@@ -1442,9 +1805,13 @@ function renderStats() {
     const last = [...lastChangements].reverse().find(c => c.ligne === LIGNE_NOM[l]);
     return `<div class="stat-row"><span>Rythme actuel PL-${l}</span><b>${(last ? last.to : anchorRhythm(l)).toFixed(1)} sem/seg</b></div>`;
   }).join('');
+  const bloques = total - done;
+  const inversions = inversionsSequence().length;
   document.getElementById('stats').innerHTML = `
     <div class="stat-row"><span>Total éléments</span><b>${total}</b></div>
     <div class="stat-row"><span>Immergés (fin de simulation)</span><b>${done}</b></div>
+    <div class="stat-row"><span>Bloqués (non immergés)</span><b style="${bloques?'color:var(--late)':'color:var(--ok)'}">${bloques}</b></div>
+    <div class="stat-row"><span>Inversions séquence / immersion</span><b style="${inversions?'color:var(--late)':'color:var(--ok)'}">${inversions}</b></div>
     <div class="stat-row"><span>Éléments ratant leur date cible</span><b style="${lastRetards.length?'color:var(--late)':'color:var(--ok)'}">${lastRetards.length}</b></div>
     <div class="stat-row"><span>Retard max</span><b style="${lastRetards.length?'color:var(--late)':''}">${lastRetards.length ? lastRetards[0].retardJours + ' j (' + lastRetards[0].id + ')' : '—'}</b></div>
     <div class="stat-row"><span>Fin de projet estimée</span><b>${fmt(maxDate)}</b></div>
@@ -1501,7 +1868,9 @@ fileXlsx.onchange = (e) => {
     try {
       const data = new Uint8Array(ev.target.result);
       wb = XLSX.read(data, {type:'array', cellDates:true, bookVBA:true});
+      sequenceChoisie = 0;
       parseWorkbook();
+      remplirMenuSequences();
       dropXlsx.classList.add('loaded');
       dropXlsx.textContent = '✅ ' + f.name;
       checkReady();
@@ -1516,25 +1885,125 @@ function checkReady() {
   const imgOk = document.getElementById('plan-img').style.display === 'block';
   const xlsxOk = elements.length > 0;
   document.getElementById('btn-run').disabled = !(imgOk && xlsxOk);
+  document.getElementById('btn-comparer').disabled = !xlsxOk;
 }
+
+/* ---- Séquence de production : choix de la variante, staggering, optimiseur ---- */
+
+// Le classeur peut empiler plusieurs séquences dans Inputs : chaque retour du compteur
+// à 1 ouvre une variante. Le menu les expose une fois le fichier lu.
+function remplirMenuSequences() {
+  const sel = document.getElementById('p-sequence');
+  const n = Math.max(1, sequencesInputs.length);
+  sel.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = `Séquence ${i + 1}${sequencesInputs[i] ? ` (${sequencesInputs[i].length} lignes)` : ''}`;
+    sel.appendChild(o);
+  }
+  sel.value = Math.min(sequenceChoisie, n - 1);
+  sel.disabled = n < 2;
+}
+
+document.getElementById('p-sequence').onchange = (ev) => {
+  sequenceChoisie = parseInt(ev.target.value) || 0;
+  if (wb) { parseWorkbook(); checkReady(); }
+  document.getElementById('compare-box').style.display = 'none';
+};
+
+// Les paramètres de la simulation lancée depuis l'interface.
+function paramsUI() {
+  STAGGER.actif = document.getElementById('p-stagger').checked;
+  return lireParamsUI();
+}
+
+// Rejoue la simulation retenue et rebranche le curseur temporel.
+function afficherSimulation(params) {
+  runSimulation(params);
+  const slider = document.getElementById('timeline');
+  slider.disabled = false;
+  slider.min = 0; slider.max = Math.max(0, dateKeys.length - 1); slider.value = 0;
+  render(0);
+}
+
 document.getElementById('btn-run').onclick = () => {
-  document.getElementById('btn-run').textContent = '⏳ Calcul en cours…';
-  document.getElementById('btn-run').disabled = true;
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '⏳ Calcul en cours…';
+  btn.disabled = true;
   setTimeout(() => {
     try {
-      runSimulation();
-      const slider = document.getElementById('timeline');
-      slider.disabled = false;
-      slider.min = 0; slider.max = dateKeys.length - 1; slider.value = 0;
-      render(0);
+      const params = paramsUI();
+      if (document.getElementById('p-optimiser').checked) {
+        const res = optimiserSequence(params);
+        log(`Optimiseur : ${res.evaluations} séquences évaluées en ${(res.dureeMs/1000).toFixed(1)} s — ` +
+            `inversions ${res.kpiInitial.inversions} → ${res.kpiRetenu.inversions}, ` +
+            `bloqués ${res.kpiInitial.nonImmerges} → ${res.kpiRetenu.nonImmerges}, ` +
+            `retards ${res.kpiInitial.nbRetards} → ${res.kpiRetenu.nbRetards} ` +
+            `(max ${res.kpiInitial.retardMax} → ${res.kpiRetenu.retardMax} j).`);
+        res.journal.slice(0, 8).forEach(t => log('   ' + t));
+      } else if (sequenceOrigine) {
+        // Sans optimisation, on repart toujours de la séquence du classeur : une optimisation
+        // précédente a pu réécrire l'ordre en mémoire.
+        appliquerSequence(sequenceOrigine);
+      }
+      afficherSimulation(params);
     } catch (err) {
       log('Erreur simulation : ' + err.message, 'err');
       console.error(err);
     }
-    document.getElementById('btn-run').textContent = '🚀 RELANCER LE SOLVEUR';
-    document.getElementById('btn-run').disabled = false;
+    btn.textContent = '🚀 RELANCER LE SOLVEUR';
+    btn.disabled = false;
   }, 30);
 };
+
+/* ---- Comparatif séquence du classeur / séquence optimisée ---- */
+document.getElementById('btn-comparer').onclick = () => {
+  const btn = document.getElementById('btn-comparer');
+  const avant = btn.textContent;
+  btn.textContent = '⏳ Comparaison…';
+  btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const params = paramsUI();
+      if (sequenceOrigine) appliquerSequence(sequenceOrigine);
+      const res = optimiserSequence(params);
+      renderComparatif(res);
+      // La séquence retenue par le comparatif est celle qui reste affichée : on relance la
+      // simulation complète pour que le plan à l'écran corresponde au tableau.
+      const optimActif = comparerKPI(res.kpiRetenu, res.kpiInitial) < 0;
+      document.getElementById('p-optimiser').checked = optimActif;
+      if (!optimActif && sequenceOrigine) appliquerSequence(sequenceOrigine);
+      afficherSimulation(params);
+    } catch (err) {
+      log('Erreur comparatif : ' + err.message, 'err');
+      console.error(err);
+    }
+    btn.textContent = avant;
+    btn.disabled = false;
+  }, 30);
+};
+
+function renderComparatif(res) {
+  const lignes = [
+    ['Inversions séquence / immersion', 'inversions', false],
+    ['Bloqués (non immergés)', 'nonImmerges', false],
+    ['Éléments en retard', 'nbRetards', false],
+    ['Retard max (j)', 'retardMax', false],
+    ['Retard cumulé (j)', 'retardTotal', false],
+    ['Changements de cadence', 'nbChangements', false],
+  ];
+  const tbody = document.querySelector('#compare-table tbody');
+  tbody.innerHTML = lignes.map(([nom, cle]) => {
+    const a = res.kpiInitial[cle], b = res.kpiRetenu[cle];
+    const couleur = b < a ? 'var(--ok)' : (b > a ? 'var(--late)' : '');
+    return `<tr><td>${nom}</td><td>${a}</td><td style="${couleur?`color:${couleur};font-weight:bold`:''}">${b}</td></tr>`;
+  }).join('');
+  const gagnant = comparerKPI(res.kpiRetenu, res.kpiInitial) < 0 ? 'optimisée' : 'du classeur';
+  document.getElementById('compare-note').textContent =
+    `Séquence retenue : ${gagnant}. ${res.evaluations} séquences évaluées en ${(res.dureeMs/1000).toFixed(1)} s.`;
+  document.getElementById('compare-box').style.display = 'block';
+}
 
 document.getElementById('timeline').oninput = (e) => render(parseInt(e.target.value));
 
@@ -1697,6 +2166,20 @@ document.getElementById('btn-export-wb').onclick = () => {
   } else {
     XLSX.utils.book_append_sheet(wb, wsReport, 'Solver_Report');
   }
+
+  // Séquence réellement simulée : sans optimisation c'est celle du classeur, sinon celle que
+  // le solveur a retenue. L'onglet Inputs n'est jamais réécrit — ses colonnes de statut
+  // as-built appartiennent à l'utilisateur.
+  const seq = sequenceCourante();
+  const nbMax = Math.max(...Object.values(seq).map(v => v.length));
+  const seqAoa = [['Ordre', 'PL-1', 'PL-2', 'PL-3', 'PL-4', 'PL-5', 'SPE']];
+  for (let i = 0; i < nbMax; i++) {
+    seqAoa.push([i + 1, ...[1,2,3,4,5,6].map(l => seq[l][i] || '')]);
+  }
+  const wsSeq = XLSX.utils.aoa_to_sheet(seqAoa);
+  wsSeq['!cols'] = [{wch:7},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10}];
+  if (wb.Sheets['Sequence_Solveur']) wb.Sheets['Sequence_Solveur'] = wsSeq;
+  else XLSX.utils.book_append_sheet(wb, wsSeq, 'Sequence_Solveur');
 
   const isXlsm = /\.xlsm$/i.test(dropXlsx.textContent || '') || !!(wb.vbaraw || (wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.CodeName));
   const bookType = isXlsm ? 'xlsm' : 'xlsx';
