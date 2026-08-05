@@ -34,23 +34,27 @@ stockage quatre jours après son hook-up, `SPE-06` prend la place et s'immerge, 
 revient pour son ballast. Le chantier n'en compte qu'**une seule place** (confirmé), et elle
 suffit : en essayer deux ne change rien.
 
-| Variante | Inversions | Bloqués | Retards | Retard max | Retard cumulé |
+| Variante | Inversions PL | Bloqués | Retards | Retard max | Retard cumulé |
 |---|---|---|---|---|---|
-| 1 (classeur) | 4 | 0 | 85 | 140 j | 1993 j |
-| 1 optimisée | 1 | 0 | 85 | 140 j | **896 j** |
-| 2 (classeur) | 2 | 5 | 80 | 140 j | 1751 j |
-| 2 optimisée | 1 | 0 | 85 | 140 j | **935 j** |
-| 3 (classeur) | 6 | 51 | 34 | 70 j | 559 j |
-| 3 optimisée | 0 | 0 | 85 | 70 j | 609 j |
+| 1 (classeur) | 3 | 0 | 33 | 141 j | 1999 j |
+| **1 optimisée** | **0** | **0** | **19** | **141 j** | **888 j** |
+| 2 (classeur) | 1 | 5 | 36 | 141 j | 1761 j |
+| 2 optimisée | 0 | 0 | 33 | 141 j | 1367 j |
+| 3 (classeur) | 5 | 51 | 13 | 71 j | 559 j |
+| 3 optimisée | 0 | 0 | 43 | 71 j | 1352 j |
 
-Lecture : la variante 3 paraît meilleure sur *Retards* parce que 51 de ses éléments ne
-sortent jamais et ne comptent donc pas comme retardataires. C'est l'inverse d'un bon plan,
-et c'est pourquoi *Bloqués* passe avant *Retards* dans les critères.
+C'est la **variante 1 optimisée** que retient le mode automatique. Deux pièges de lecture
+qu'elle illustre :
 
-L'inversion résiduelle est `SPE-02`/`SPE-06` : elle ne se corrige plus par la séquence —
-`SPE-02` est déjà en zone CP1 à la date de référence — et n'a plus à l'être, le stockage
-l'absorbe. Le journal la distingue désormais des inversions de lignes PL, qui, elles,
-bloquent vraiment.
+- la variante 3 *au classeur* paraît la meilleure sur *Retards* (13) parce que 51 de ses
+  éléments ne sortent jamais et ne comptent donc pas comme retardataires. C'est l'inverse
+  d'un bon plan, et c'est pourquoi *Bloqués* passe avant *Retards* dans les critères ;
+- une fois toutes débloquées, c'est la variante 1 qui l'emporte nettement (19 retards,
+  888 j) — l'ordre du classeur n'était pas prédictif de l'ordre après optimisation.
+
+Chaque variante garde une inversion sur la ligne SPE (`SPE-02`/`SPE-06`), sauf la 3. Elle
+ne se corrige plus par la séquence — `SPE-02` est déjà en zone CP1 à la date de référence —
+et n'a plus à l'être : le stockage l'absorbe.
 
 ## Pourquoi les dates d'immersion ne sont pas tenues — analyse de sensibilité
 
