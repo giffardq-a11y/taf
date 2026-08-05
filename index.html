@@ -292,6 +292,8 @@ let elements = [];           // liste des éléments (production)
 let cyclesConfig = null;
 let speConfig = null;
 let speEtancheSem = null;    // jalon d'étanchéité SPE : semaines après l'entrée en UB1
+let sequencesInputs = [];    // variantes de séquence de production trouvées dans Inputs
+let sequenceChoisie = 0;     // variante retenue pour le calcul
 let outfittingConfig = null;
 let dateSeq2Debut = null;
 let PARAMS = {};
@@ -346,12 +348,27 @@ function parseWorkbook(dateRefArg) {
   const colNo = 0;
   let nbStatuts = 0;
 
+  // Plusieurs séquences de production peuvent être empilées dans la feuille : chaque
+  // retour du compteur à 1 ouvre une variante. On les découpe pour pouvoir les comparer,
+  // au lieu de les fusionner en doublons.
+  sequencesInputs = [];
+  let blocCourant = null, dernierNo = Infinity;
   for (let r = hIdx + 1; r < rowsIn.length; r++) {
     const row = rowsIn[r];
     if (row === undefined) continue;
     const noVal = row[colNo];
     if (noVal === '' || noVal === undefined || isNaN(Number(noVal))) continue;
     const ordreSeq = Number(noVal);
+    if (ordreSeq <= dernierNo) { blocCourant = []; sequencesInputs.push(blocCourant); }
+    dernierNo = ordreSeq;
+    blocCourant.push({row, ordreSeq});
+  }
+  if (sequencesInputs.length > 1) {
+    log(`Inputs : ${sequencesInputs.length} séquences de production trouvées — variante ${sequenceChoisie + 1} retenue.`);
+  }
+  const bloc = sequencesInputs[Math.min(sequenceChoisie, sequencesInputs.length - 1)] || [];
+
+  for (const {row, ordreSeq} of bloc) {
     for (let l = 1; l <= 6; l++) {
       const c = cols[l];
       if (c < 0) continue;
