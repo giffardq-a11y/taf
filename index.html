@@ -47,6 +47,20 @@
   #log div.err { color: var(--late); }
   #log div.warn { color: var(--warn); }
   label.field { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin: 4px 0; color: var(--text-dim); }
+  #asbuilt-box { max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; }
+  table.asbuilt { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  table.asbuilt th { position: sticky; top: 0; background: var(--panel2); color: var(--text-dim);
+    font-weight: normal; text-align: left; padding: 4px 5px; border-bottom: 1px solid var(--border); }
+  table.asbuilt td { padding: 2px 4px; border-bottom: 1px solid var(--border); }
+  table.asbuilt tr.engage td:first-child { color: var(--accent); font-weight: bold; }
+  table.asbuilt .ico { font-size: 12px; }
+  table.asbuilt select, table.asbuilt input {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 3px; font-size: 10.5px; padding: 1px 3px; width: 100%; font-family: inherit;
+  }
+  table.asbuilt input[type=date] { width: 104px; font-family: monospace; }
+  #asbuilt-filtre { width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px; margin-bottom: 4px; }
   label.check { display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; margin: 5px 0; color: var(--text-dim); cursor: pointer; line-height: 1.35; }
   label.check input { margin-top: 1px; flex-shrink: 0; }
   label.field select { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 3px; max-width: 60%; }
@@ -157,6 +171,12 @@
       Ajouter <code>:AAAA-MM-JJ</code> en suffixe pour préciser la date de début réelle (sinon = date de référence).
     </div>
     <label class="field">Date de référence (aujourd'hui) <input type="date" id="p-dateref"></label>
+    <input type="text" id="asbuilt-filtre" placeholder="Filtrer : id, ligne, statut…">
+    <div id="asbuilt-box"></div>
+    <div style="display:flex; gap:6px;">
+      <button class="sub-btn" id="btn-asbuilt-classeur" style="flex:1">↺ Reprendre le classeur</button>
+      <button class="sub-btn" id="btn-asbuilt-vider" style="flex:1">✕ Tout vider</button>
+    </div>
 
     <h4>4 — Paramètres du solveur</h4>
     <label class="field">Seuil saut Parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
@@ -427,6 +447,9 @@ let speEtancheSem = null;    // jalon d'étanchéité SPE : semaines après l'en
 let sequencesInputs = [];    // variantes de séquence de production trouvées dans Inputs
 let sequenceChoisie = 0;     // variante retenue pour le calcul
 let sequenceOrigine = null;  // séquence telle que lue dans le classeur, avant optimisation
+// État as-built réglé à l'écran, par id. Il prime sur les colonnes de `Inputs` — sans quoi la
+// moindre relecture du classeur (changement de séquence, mode automatique) l'effacerait.
+let asbuiltSaisi = null;
 let outfittingConfig = null;
 let dateSeq2Debut = null;
 let PARAMS = {};
@@ -730,6 +753,16 @@ function parseWorkbook(dateRefArg) {
       log(`Immersion : ${nbP6} dates issues du planning P6 retenues${divergents ? ` (${divergents} divergentes de la colonne B)` : ''}.`);
     }
     log(`Immersion : ${imm.length} lignes lues${missing ? `, ${missing} élément(s) sans date (estimée)` : ''}${sansRang ? `, ${sansRang} hors séquence d'immersion` : ''}.`, (missing || sansRang) ? 'warn' : undefined);
+  }
+
+  if (asbuiltSaisi) {
+    let nbSaisis = 0;
+    elements.forEach(e => {
+      if (!(e.id in asbuiltSaisi)) return;
+      e.statutBrut = asbuiltSaisi[e.id];
+      if (e.statutBrut) nbSaisis++;
+    });
+    log(`État as-built : ${nbSaisis} élément(s) réglés à l'écran — ces valeurs priment sur les colonnes de Inputs.`);
   }
 
   controlerCoherenceSequence();
@@ -2483,8 +2516,11 @@ fileXlsx.onchange = (e) => {
       const data = new Uint8Array(ev.target.result);
       wb = XLSX.read(data, {type:'array', cellDates:true, bookVBA:true});
       sequenceChoisie = 0;
+      asbuiltSaisi = null;   // nouveau classeur : sa saisie fait foi
       parseWorkbook();
       remplirMenuSequences();
+      asbuiltClasseur = Object.fromEntries(elements.map(e => [e.id, e.statutBrut || '']));
+      rendreAsBuilt();
       dropXlsx.classList.add('loaded');
       dropXlsx.textContent = '✅ ' + f.name;
       checkReady();
@@ -2501,6 +2537,123 @@ function checkReady() {
   document.getElementById('btn-run').disabled = !(imgOk && xlsxOk);
   document.getElementById('btn-comparer').disabled = !xlsxOk;
 }
+
+/* ---- État as-built, défini à l'écran ----
+   Le classeur reste la source de départ, mais l'état de chaque élément se règle ici : une
+   ligne par élément, son statut choisi dans une liste, la date de début de phase à côté.
+   Ce qui est saisi ici prime sur les colonnes de `Inputs` au lancement suivant.
+   La ligne PL et la ligne SPE n'admettent pas les mêmes statuts : la liste s'adapte. */
+const ASBUILT_STATUTS_PL = [
+  ['', '— non démarré —', '·'],
+  ['Beton:1', 'Béton, segment 1', '▰'], ['Beton:2', 'Béton, segment 2', '▰'],
+  ['Beton:3', 'Béton, segment 3', '▰'], ['Beton:4', 'Béton, segment 4', '▰'],
+  ['Beton:5', 'Béton, segment 5', '▰'], ['Beton:6', 'Béton, segment 6', '▰'],
+  ['Beton:7', 'Béton, segment 7', '▰'], ['Beton:8', 'Béton, segment 8', '▰'],
+  ['Beton:9', 'Béton, segment 9', '▰'],
+  ['Outfitting', 'Outfitting', '▤'], ['Ready', 'Prêt pour le float-up', '▷'],
+  ['FloatUp', 'Float-up en cours', '≈'], ['Basin', 'Lower Basin (hook-up)', '⬓'],
+  ['Parking', 'Parking', '⊟'], ['Ballast', 'Ballast Jetty', '⬒'],
+  ['Done', 'Immergé', '✓'],
+];
+const ASBUILT_STATUTS_SPE = [
+  ['', '— non démarré —', '·'],
+  ['Zone:1', 'CPA', '▰'], ['Zone:2', 'CP1', '▰'], ['Zone:3', 'CP2', '▰'], ['Zone:4', 'CP3', '▰'],
+  ['Zone:5', 'UB1', '▤'], ['Zone:6', 'UB2', '▤'], ['Zone:7', 'UB3', '▤'],
+  ['Ready', 'Prêt pour le float-up', '▷'], ['FloatUp', 'Float-up en cours', '≈'],
+  ['Basin', 'Basin C', '⬓'], ['Done', 'Immergé', '✓'],
+];
+let asbuiltClasseur = null;   // statuts tels que lus dans Inputs, pour pouvoir y revenir
+
+// Le statut saisi peut porter une date en suffixe (« Beton:5:2026-06-15 ») : on la sépare
+// pour l'afficher dans son propre champ.
+function decomposerStatut(brut) {
+  const m = String(brut || '').match(/^(.*?)(?::(\d{4}-\d{2}-\d{2}))?$/);
+  return {code: (m && m[1]) || '', date: (m && m[2]) || ''};
+}
+
+// Le classeur écrit les statuts comme il veut — « Bassin », « Beton 7 », « immergé ». Le
+// solveur les comprend tous ; le tableau doit donc les montrer tels qu'il les a compris,
+// et non signaler comme inconnu ce qui est parfaitement lu.
+function codeCanonique(brut, ligne) {
+  const c = parseAsBuiltCode(brut);
+  if (!c) return '';
+  switch (c.type) {
+    case 'beton':       return ligne === 6 ? `Zone:${c.n || 1}` : `Beton:${Math.min(9, Math.max(1, c.n || 1))}`;
+    case 'zone':        return `Zone:${c.n || 1}`;
+    case 'outfitting':  return ligne === 6 ? `Zone:${c.n || 5}` : 'Outfitting';
+    case 'attentefloatup': return 'Ready';
+    case 'floatup':     return 'FloatUp';
+    case 'basin':       return 'Basin';
+    case 'parking':     return 'Parking';
+    case 'ballast':     return 'Ballast';
+    case 'done':        return 'Done';
+    default:            return String(brut || '').trim();
+  }
+}
+
+function rendreAsBuilt() {
+  const box = document.getElementById('asbuilt-box');
+  if (!box) return;
+  if (!elements.length) { box.innerHTML = '<div style="padding:8px;color:var(--text-dim);font-size:11px">Chargez le classeur pour régler l\'état des éléments.</div>'; return; }
+  const filtre = (document.getElementById('asbuilt-filtre').value || '').toLowerCase();
+  const lignes = elements.slice().sort((a, b) => (a.ligne - b.ligne) || (a.ordreSeq - b.ordreSeq))
+    .filter(e => !filtre || (e.id + ' ' + LIGNE_NOM[e.ligne] + ' ' + (e.statutBrut || '')).toLowerCase().includes(filtre));
+
+  const options = (e) => {
+    const liste = e.ligne === 6 ? ASBUILT_STATUTS_SPE : ASBUILT_STATUTS_PL;
+    const code = codeCanonique(decomposerStatut(e.statutBrut).code, e.ligne);
+    const connu = liste.some(([v]) => v.toLowerCase() === code.toLowerCase());
+    return liste.map(([v, lib, ico]) =>
+      `<option value="${v}"${v.toLowerCase() === code.toLowerCase() ? ' selected' : ''}>${ico} ${lib}</option>`
+    ).join('') + (connu || !code ? '' : `<option value="${code}" selected>? ${code}</option>`);
+  };
+
+  box.innerHTML = `<table class="asbuilt"><thead><tr><th>Élément</th><th>Ligne</th><th>Statut</th><th>Depuis</th></tr></thead><tbody>` +
+    lignes.map(e => {
+      const {date} = decomposerStatut(e.statutBrut);
+      return `<tr${e.statutBrut ? ' class="engage"' : ''}><td>${e.id}</td><td>${LIGNE_NOM[e.ligne]}</td>` +
+        `<td><select data-ab="${e.id}" data-champ="code">${options(e)}</select></td>` +
+        `<td><input type="date" data-ab="${e.id}" data-champ="date" value="${date}"></td></tr>`;
+    }).join('') + '</tbody></table>';
+
+  box.querySelectorAll('[data-ab]').forEach(n => { n.onchange = () => lireAsBuilt(); });
+}
+
+// Recompose le statut de chaque élément à partir du tableau. Une date sans statut n'a pas de
+// sens : elle est ignorée plutôt que de produire un code que le parseur refuserait.
+function lireAsBuilt() {
+  const box = document.getElementById('asbuilt-box');
+  if (!box) return;
+  const parId = new Map(elements.map(e => [e.id, e]));
+  const saisie = {};
+  box.querySelectorAll('[data-ab]').forEach(n => {
+    const id = n.dataset.ab;
+    saisie[id] = saisie[id] || {code: '', date: ''};
+    saisie[id][n.dataset.champ] = n.value;
+  });
+  asbuiltSaisi = asbuiltSaisi || {};
+  Object.entries(saisie).forEach(([id, {code, date}]) => {
+    const valeur = code ? (date ? `${code}:${date}` : code) : '';
+    asbuiltSaisi[id] = valeur;
+    const e = parId.get(id);
+    if (e) e.statutBrut = valeur;
+  });
+}
+
+document.getElementById('asbuilt-filtre').oninput = () => rendreAsBuilt();
+document.getElementById('btn-asbuilt-classeur').onclick = () => {
+  if (!asbuiltClasseur) return;
+  asbuiltSaisi = null;   // le classeur redevient la source
+  elements.forEach(e => { e.statutBrut = asbuiltClasseur[e.id] || ''; });
+  rendreAsBuilt();
+  log('État as-built repris du classeur.');
+};
+document.getElementById('btn-asbuilt-vider').onclick = () => {
+  asbuiltSaisi = Object.fromEntries(elements.map(e => [e.id, '']));
+  elements.forEach(e => { e.statutBrut = ''; });
+  rendreAsBuilt();
+  log('État as-built vidé : tous les éléments sont considérés comme non démarrés.', 'warn');
+};
 
 /* ---- Règles du modèle : les rendre visibles et modifiables ----
    Ce qui était figé dans le code est désormais dans REGLES ; ce panneau en est le miroir.
@@ -2593,6 +2746,7 @@ document.getElementById('p-sequence').onchange = (ev) => {
 // Les paramètres de la simulation lancée depuis l'interface.
 function paramsUI() {
   appliquerReglesUI();
+  lireAsBuilt();
   STAGGER.actif = document.getElementById('p-stagger').checked;
   OPTIM.reaffecterLignes = document.getElementById('p-reaffecter').checked;
   return lireParamsUI();

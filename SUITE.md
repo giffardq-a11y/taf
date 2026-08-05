@@ -285,8 +285,15 @@ maintenant dans un objet `REGLES` unique, exposé à l'étape 6 de l'interface a
 métier par règle, et un bouton de retour aux valeurs de référence. Modifier une règle change
 le calcul : porter la pente d'inertie de 4 à 2 mois fait passer de 4 à 9 retards.
 
-**Reste** : l'état as-built à définir à l'écran plutôt que dans les colonnes de `Inputs`, les
-icônes par élément portant leur statut, et la capacité des bassins (3 × 2, encore en dur).
+**Fait aussi** : l'**état as-built se règle à l'écran** (étape 3). Une ligne par élément, le
+statut dans une liste adaptée à la ligne — segments béton, outfitting, bassin, parking… pour
+une PL, les sept zones pour la SPE — avec sa date de début et un filtre. Le classeur remplit
+le tableau au chargement ; la saisie écran prime ensuite, y compris quand le classeur est relu
+(changement de séquence, mode automatique), ce qui demandait de porter la surcharge dans le
+moteur et non dans la page.
+
+**Reste** : la capacité des bassins (3 × 2, encore en dur) et les icônes par élément sur le
+plan lui-même — le tableau en porte déjà une par statut.
 
 ### 6bis. Interface — spécification d'origine
 

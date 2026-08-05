@@ -121,6 +121,20 @@ La séquence retenue est celle que l'on peut recopier dans `Inputs` : la simuler
 exactement ce que donnerait le même ordre saisi dans le classeur. Elle est exportée telle
 quelle dans l'onglet `Sequence_Solveur`.
 
+## État as-built, réglé à l'écran
+
+L'étape 3 affiche un tableau d'une ligne par élément : son identifiant, sa ligne de
+production, son statut choisi dans une liste, et la date de début de phase. Les statuts
+proposés dépendent de la ligne — segments béton, outfitting, float-up, bassin, parking,
+ballast, immergé pour une ligne PL ; les sept zones CPA→UB3 pour la ligne SPE. Un champ de
+filtre permet de retrouver un élément par son identifiant, sa ligne ou son statut.
+
+Le classeur reste la source de départ : le tableau est rempli à son chargement, et les
+statuts écrits librement (`Bassin`, `Beton 7`, `immergé`) y apparaissent tels que le solveur
+les a compris, pas tels qu'ils sont écrits. Ce qui est réglé à l'écran **prime ensuite sur les
+colonnes de `Inputs`**, y compris lorsque le classeur est relu — changement de séquence, mode
+automatique. Deux boutons permettent de revenir aux statuts du classeur ou de tout vider.
+
 ## Règles du modèle, visibles et modifiables
 
 Tout ce qui était figé dans le code est regroupé dans l'objet `REGLES` et exposé à l'étape 6
