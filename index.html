@@ -546,15 +546,18 @@ function parseAsBuiltCode(raw) {
   if (!raw) return null;
   const norm = String(raw).trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   if (!norm) return null;
+
+  // Le libellé complet peut désigner une zone SPE, par son nom (CPA, UB2…) ou par son
+  // activité (« Phase 4b », « Walls »…) — testé avant tout découpage, ces libellés
+  // contenant des espaces.
+  const cle = s => String(s ?? '').trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const zoneIdx = (speConfig || []).findIndex(z => cle(z.nom) === norm || cle(z.activite) === norm);
+  if (zoneIdx >= 0) return {type:'zone', n: zoneIdx + 1, date: null};
+
   const parts = norm.split(/[:;,/\s]+/).filter(Boolean);
   if (!parts.length) return null;
 
-  let type = parts[0], n = null, date = null;
-
-  // Un nom de zone SPE saisi directement (CPA, CP1, UB2…) vaut "Zone:N".
-  const zoneIdx = (speConfig || []).findIndex(z => String(z.nom ?? '').trim().toLowerCase() === type);
-  if (zoneIdx >= 0) { type = 'zone'; n = zoneIdx + 1; }
-  else type = AS_BUILT_SYNONYMES[type] || type;
+  let type = AS_BUILT_SYNONYMES[parts[0]] || parts[0], n = null, date = null;
 
   for (let i = 1; i < parts.length; i++) {
     if (/^\d+(\.\d+)?$/.test(parts[i])) { if (n === null) n = parseFloat(parts[i]); }
@@ -744,31 +747,51 @@ function runSimulation() {
   //   - la date d'immersion de l'élément courant ET de tous ceux qui attendent derrière lui.
   // Regarder toute la file (et pas seulement l'élément courant) est ce qui évite l'oscillation :
   // ralentir maintenant repousse mécaniquement tous les suivants.
+  // Faisabilité d'un rythme R pour toute la file restante d'une ligne donnée.
+  function fileTenable(ligne, dConcreteStart, R, elemCourant) {
+    const queue = (elemCourant ? [elemCourant] : []).concat(
+      elements.filter(x => x.ligne === ligne && x.statut === 'EnAttente' && x !== elemCourant)
+              .sort((a, b) => a.ordreSeq - b.ordreSeq)
+    );
+    if (!queue.length) return true;
+    const takt = taktJours(ligne, dConcreteStart, R);
+    const pipe = pipelineJours(ligne, dConcreteStart, R);
+    for (let i = 0; i < queue.length; i++) {
+      const target = queue[i].dateImmersion;
+      if (!target) continue;
+      if (i * takt + pipe > diffDays(target, dConcreteStart) + 1e-9) return false;
+    }
+    return true;
+  }
+
   function chooseRhythm(ligne, dConcreteStart, elemCourant) {
     const state = lastRhythmState[ligne];
     const gapDays = Math.max(0, diffDays(dConcreteStart, state.changeDate));
     const slopeMax = (SLOPE_SEM_PAR_PERIODE * gapDays) / SLOPE_PERIODE_JOURS;
 
-    // File restante sur cette ligne : l'élément courant, puis ceux encore en attente, dans l'ordre.
-    const queue = [elemCourant].concat(
-      elements.filter(x => x.ligne === ligne && x.statut === 'EnAttente' && x !== elemCourant)
-              .sort((a, b) => a.ordreSeq - b.ordreSeq)
-    );
+    // Les deux lignes d'une paire partagent la même cadence : leurs éléments doivent sortir
+    // de l'outfitting ensemble, donc accélérer une ligne sans l'autre créerait un blocage au
+    // transfert vers le bassin. Le rythme retenu doit tenir les délais des DEUX files, et la
+    // pente d'inertie est mesurée sur le dernier changement de la paire.
+    const jumelle = partenaire(ligne);
+    const lignesPaire = (jumelle >= 1 && jumelle <= 5) ? [ligne, jumelle] : [ligne];
+    const slopeMaxPaire = lignesPaire.reduce((m, l) => Math.min(m,
+      (SLOPE_SEM_PAR_PERIODE * Math.max(0, diffDays(dConcreteStart, lastRhythmState[l].changeDate))) / SLOPE_PERIODE_JOURS), slopeMax);
 
-    const feasibleForQueue = (R) => {
-      const takt = taktJours(ligne, dConcreteStart, R);
-      const pipe = pipelineJours(ligne, dConcreteStart, R);
-      for (let i = 0; i < queue.length; i++) {
-        const target = queue[i].dateImmersion;
-        if (!target) continue;
-        const finish = diffDays(dConcreteStart, dConcreteStart) + i * takt + pipe;
-        if (finish > diffDays(target, dConcreteStart) + 1e-9) return false;
-      }
-      return true;
-    };
+    const tenable = (R) => lignesPaire.every(l =>
+      fileTenable(l, dConcreteStart, R, l === ligne ? elemCourant : null));
 
-    const slopeOk = RYTHMES.filter(R => Math.abs(R - state.rhythm) <= slopeMax + 1e-9);
-    let chosen = slopeOk.find(feasibleForQueue) ?? null;
+    // On ne ralentit jamais une paire déjà en déficit. Le critère « le rythme le plus lent qui
+    // tient les délais » suppose de la marge ; dès qu'un élément de la paire a dépassé sa date
+    // d'immersion sans être immergé, cette marge n'existe plus. Sans cette règle le solveur
+    // relâche la cadence sur la foi d'un calcul de ligne vierge, qui ignore l'attente imposée
+    // par l'ordre d'immersion et par les ressources partagées en aval.
+    const enDeficit = elements.some(x => !x.termine && x.dateImmersion
+      && lignesPaire.includes(x.ligne) && dConcreteStart > x.dateImmersion);
+
+    const slopeOk = RYTHMES.filter(R => Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9
+      && (!enDeficit || R <= state.rhythm + 1e-9));
+    let chosen = slopeOk.find(tenable) ?? null;
     let atRisk = false;
     if (chosen === null) {
       // Aucun rythme conforme à la pente ne tient les délais : on prend le plus rapide que la pente
@@ -778,8 +801,13 @@ function runSimulation() {
     }
 
     if (chosen !== state.rhythm) {
-      changements.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), from: state.rhythm, to: chosen, atRisk, declencheur: elemCourant.id});
-      lastRhythmState[ligne] = {rhythm: chosen, changeDate: new Date(dConcreteStart)};
+      // La bascule s'applique à toute la paire, d'un seul tenant.
+      lignesPaire.forEach(l => {
+        if (lastRhythmState[l].rhythm === chosen) return;
+        changements.push({ligne: LIGNE_NOM[l], date: new Date(dConcreteStart),
+          from: lastRhythmState[l].rhythm, to: chosen, atRisk, declencheur: elemCourant.id});
+        lastRhythmState[l] = {rhythm: chosen, changeDate: new Date(dConcreteStart)};
+      });
     } else if (atRisk) {
       risques.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), rythme: chosen, element: elemCourant.id});
     }
