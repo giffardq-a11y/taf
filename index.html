@@ -332,10 +332,17 @@ function defaultOutfittingConfig() {
 function addDays(d, n) { const r = new Date(d.getTime()); r.setDate(r.getDate() + Math.round(n)); return r; }
 function diffDays(a, b) { return (a.getTime() - b.getTime()) / 86400000; }
 function fmt(d) { return d ? d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'; }
+// Le moteur avance d'un jour entier à la fois. Une date cible portant une heure — le planning
+// P6 en donne à 17:00, 20:00, 22:00… — ferait compter en retard un élément immergé le bon jour,
+// simplement parce que la simulation le date à minuit. Toute date lue est donc ramenée au jour.
+function jourSeul(d) {
+  if (!(d instanceof Date) || isNaN(d)) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 function excelDate(v) {
-  if (v instanceof Date) return v;
-  if (typeof v === 'number') return new Date(Math.round((v - 25569) * 86400000));
-  if (typeof v === 'string' && v.trim()) { const d = new Date(v); if (!isNaN(d)) return d; }
+  if (v instanceof Date) return jourSeul(v);
+  if (typeof v === 'number') return jourSeul(new Date(Math.round((v - 25569) * 86400000)));
+  if (typeof v === 'string' && v.trim()) { const d = new Date(v); if (!isNaN(d)) return jourSeul(d); }
   return null;
 }
 
@@ -1164,10 +1171,12 @@ function runSimulation(paramsArg) {
   }
   // Évacuer un élément normal du Basin C impose d'inonder le bassin : tout SPE présent dans
   // les zones UB doit avoir franchi son jalon d'étanchéité.
+  // Sans jalon d'étanchéité renseigné, la contrainte n'existe pas : un SPE sans date connue
+  // ne doit pas fermer la porte pour toujours — il n'y a rien à attendre.
   function speNonEtancheEnUB(dCur) {
     if (!premiereUB) return false;
     return elements.some(x => x.ligne === 6 && !x.termine && x.statut === 'Outfitting'
-      && x.zoneSPE >= premiereUB && (!x.dateEtanche || dCur < x.dateEtanche));
+      && x.zoneSPE >= premiereUB && x.dateEtanche && dCur < x.dateEtanche);
   }
 
   // La ligne SPE dispose d'une zone de stockage qui lui est propre, à part du parking. Elle
@@ -1600,7 +1609,8 @@ function runSimulation(paramsArg) {
   }, null);
   lastKPI = {
     jours: jourCourant,
-    inversions: inversionsSequence().length,
+    inversions: inversionsSequence().filter(i => i.ligne !== 6).length,
+    inversionsSPE: inversionsSequence().filter(i => i.ligne === 6).length,
     nonImmerges: nonTermines,
     nbRetards: lastRetards.length,
     retardMax: lastRetards.length ? lastRetards[0].retardJours : 0,
@@ -1731,7 +1741,11 @@ function affectationEquilibree(dateRef, taktJoursEstime) {
 // Comparaison lexicographique de deux jeux d'indicateurs : négatif si a est meilleur que b.
 // L'ordre des critères est celui de l'objectif — zéro inversion d'abord, retards ensuite ;
 // à retards égaux, le moins de changements de cadence à faire appliquer aux opérateurs.
-const CRITERES_KPI = ['inversions', 'nonImmerges', 'nbRetards', 'retardTotal', 'retardMax', 'nbChangements'];
+// Les éléments bloqués passent avant tout : c'est le seul résultat dont on ne se relève pas.
+// Les inversions viennent ensuite — elles ne comptent que sur les lignes PL, où elles bloquent
+// vraiment ; sur la ligne SPE la zone de stockage les absorbe, et les ranger au même niveau
+// ferait préférer une variante sans inversion SPE mais bien plus en retard.
+const CRITERES_KPI = ['nonImmerges', 'inversions', 'nbRetards', 'retardTotal', 'retardMax', 'nbChangements'];
 function comparerKPI(a, b) {
   for (const c of CRITERES_KPI) {
     if (a[c] !== b[c]) return a[c] - b[c];
@@ -1907,6 +1921,40 @@ function optimiserSequence(paramsArg, options) {
     // Une simulation d'essai interrompue ne doit pas laisser le journal muet.
     journalSilencieux = false;
   }
+}
+
+// Séquence automatique : le classeur peut empiler plusieurs séquences, et rien ne dit que
+// la meilleure une fois optimisée soit celle qui paraît la meilleure telle quelle — une
+// variante peut sembler bonne parce que ses éléments bloqués ne comptent pas comme retards.
+// On les optimise donc toutes et on garde la meilleure, plutôt que de demander à
+// l'utilisateur de trancher à l'aveugle.
+function optimiserToutesVariantes(dateRefISO, paramsArg, options) {
+  const params = paramsArg || lireParamsUI();
+  const opts = options || {};
+  const nbVariantes = Math.max(1, sequencesInputs.length);
+  const budgetTotal = opts.budgetMs || OPTIM.budgetMs;
+  const t0 = Date.now();
+  const parVariante = [];
+  let meilleur = null, varianteRetenue = 0;
+
+  for (let v = 0; v < nbVariantes; v++) {
+    sequenceChoisie = v;
+    parseWorkbook(dateRefISO);
+    const res = optimiserSequence(params, {...opts, budgetMs: Math.round(budgetTotal / nbVariantes)});
+    parVariante.push({variante: v + 1, kpiInitial: res.kpiInitial, kpiRetenu: res.kpiRetenu,
+                      deplacements: res.deplacements.length});
+    if (!meilleur || comparerKPI(res.kpiRetenu, meilleur.kpiRetenu) < 0) { meilleur = res; varianteRetenue = v; }
+  }
+
+  // La dernière variante essayée est celle qui reste en mémoire : on recharge la gagnante.
+  if (sequenceChoisie !== varianteRetenue) {
+    sequenceChoisie = varianteRetenue;
+    parseWorkbook(dateRefISO);
+  }
+  appliquerSequence(meilleur.sequenceRetenue);
+  log(`Séquence automatique : ${nbVariantes} séquence(s) du classeur optimisée(s) en ${((Date.now() - t0)/1000).toFixed(1)} s — ` +
+      `la ${varianteRetenue + 1} l'emporte (retard cumulé ${meilleur.kpiRetenu.retardTotal} j, ${meilleur.kpiRetenu.nonImmerges} bloqué(s)).`);
+  return {...meilleur, varianteRetenue, parVariante, dureeMs: Date.now() - t0};
 }
 
 // Éléments qui ont changé de ligne entre deux séquences.
@@ -2131,12 +2179,19 @@ function remplirMenuSequences() {
     o.textContent = `Séquence ${i + 1}${sequencesInputs[i] ? ` (${sequencesInputs[i].length} lignes)` : ''}`;
     sel.appendChild(o);
   }
+  // Le solveur essaie chaque séquence du classeur, optimise chacune et retient la meilleure.
+  const auto = document.createElement('option');
+  auto.value = 'auto'; auto.textContent = 'Automatique — le solveur choisit';
+  sel.appendChild(auto);
   sel.value = Math.min(sequenceChoisie, n - 1);
-  sel.disabled = n < 2;
 }
 
 document.getElementById('p-sequence').onchange = (ev) => {
-  sequenceChoisie = parseInt(ev.target.value) || 0;
+  const auto = ev.target.value === 'auto';
+  // En automatique, c'est le solveur qui choisit la séquence : l'optimiseur va de pair.
+  document.getElementById('p-optimiser').checked = auto || document.getElementById('p-optimiser').checked;
+  document.getElementById('p-optimiser').disabled = auto;
+  sequenceChoisie = auto ? 0 : (parseInt(ev.target.value) || 0);
   if (wb) { parseWorkbook(); checkReady(); }
   document.getElementById('compare-box').style.display = 'none';
 };
@@ -2164,8 +2219,11 @@ document.getElementById('btn-run').onclick = () => {
   setTimeout(() => {
     try {
       const params = paramsUI();
-      if (document.getElementById('p-optimiser').checked) {
-        const res = optimiserSequence(params);
+      const auto = document.getElementById('p-sequence').value === 'auto';
+      if (auto || document.getElementById('p-optimiser').checked) {
+        const res = auto
+          ? optimiserToutesVariantes(document.getElementById('p-dateref').value, params)
+          : optimiserSequence(params);
         log(`Optimiseur : ${res.evaluations} séquences évaluées en ${(res.dureeMs/1000).toFixed(1)} s — ` +
             `inversions ${res.kpiInitial.inversions} → ${res.kpiRetenu.inversions}, ` +
             `bloqués ${res.kpiInitial.nonImmerges} → ${res.kpiRetenu.nonImmerges}, ` +

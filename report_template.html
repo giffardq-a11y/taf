@@ -226,6 +226,28 @@
     background: var(--surface-2); padding: 3px 9px; white-space: nowrap; }
   .move b { color: var(--accent); font-weight: 600; }
   .seq-vide { margin: 0; font-size: 13px; color: var(--ink-3); }
+
+  /* ---- grille de séquence : une colonne par ligne, un jeton par élément ---- */
+  .seq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 14px; }
+  .seq-switch { display: inline-flex; border: 1px solid var(--line); }
+  .seq-switch button { border: none; background: var(--surface-2); color: var(--ink-2); font-family: var(--mono);
+    font-size: 11.5px; letter-spacing: .04em; padding: 6px 13px; cursor: pointer; }
+  .seq-switch button + button { border-left: 1px solid var(--line); }
+  .seq-switch button[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
+  .seq-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seq-hint { font-size: 12.5px; color: var(--ink-3); }
+  .seq-hint b { color: var(--accent); font-weight: 600; font-family: var(--mono); }
+  .seq-grid { position: relative; }
+  .seq-col { position: absolute; top: 0; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--ink-2); text-align: center; letter-spacing: .06em; }
+  .seq-rail { position: absolute; top: 20px; background: var(--surface-2); }
+  .seq-chip { position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10.5px; background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--line-soft); white-space: nowrap; overflow: hidden;
+    transition: transform .62s cubic-bezier(.22,.68,.32,1), background-color .3s, border-color .3s, color .3s; }
+  .seq-chip.bouge { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .seq-chip.spe { border-style: dashed; }
+  @media (prefers-reduced-motion: reduce) { .seq-chip { transition: none; } }
   #relancer { padding: 9px 18px; background: var(--accent); color: var(--surface); border: none;
     border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 13px; font-family: var(--sans); }
   #relancer:disabled { background: var(--line); color: var(--ink-3); cursor: not-allowed; }
@@ -306,6 +328,16 @@
       </table>
     </div>
     <div class="panel" id="seq-moves"></div>
+    <div class="panel" id="seq-panel-grille">
+      <div class="seq-head">
+        <div class="seq-switch" role="group" aria-label="Séquence affichée">
+          <button type="button" id="seq-b-avant" aria-pressed="true">Classeur</button>
+          <button type="button" id="seq-b-apres" aria-pressed="false">Optimisée</button>
+        </div>
+        <span class="seq-hint" id="seq-hint"></span>
+      </div>
+      <div class="scroll"><div class="seq-grid" id="seq-grid"></div></div>
+    </div>
   </section>
 
   <section>
@@ -433,6 +465,7 @@
     rendreEnTete(nomFichier, dateRef);
     afficherJournal(lastJournal);
     rendreSequence();
+    rendreGrilleSequence();
 
   "use strict";
 
@@ -900,6 +933,97 @@ function rendreSequence() {
   moves.append(box);
 }
 
+/* ---- grille de séquence : une colonne par ligne, les jetons glissent d'une séquence à l'autre ---- */
+const GRILLE = {colW: 96, colGap: 10, ligneH: 21, ligneGap: 3, hautEntete: 24};
+function rendreGrilleSequence() {
+  const sq = D.sequence;
+  const grille = document.getElementById('seq-grid');
+  const hint = document.getElementById('seq-hint');
+  const panneau = document.getElementById('seq-panel-grille');
+  grille.textContent = '';
+  const lignes = ['PL-1','PL-2','PL-3','PL-4','PL-5','SPE'];
+
+  // Position d'un élément dans une séquence : sa colonne et son rang de production.
+  // Les séquences sont indexées par numéro de ligne (1 à 6), pas par nom.
+  const placer = (seq) => {
+    const pos = new Map();
+    lignes.forEach((nom, col) => (seq[col + 1] || []).forEach((id, rang) => pos.set(id, {col, rang})));
+    return pos;
+  };
+  const avant = placer(sq.avantSeq), apres = placer(sq.apresSeq);
+  const hauteurMax = Math.max(...lignes.map((_, col) => (sq.apresSeq[col + 1] || []).length), 1);
+  const largeur = lignes.length * (GRILLE.colW + GRILLE.colGap) - GRILLE.colGap;
+  const hauteur = GRILLE.hautEntete + hauteurMax * (GRILLE.ligneH + GRILLE.ligneGap);
+  grille.style.width = largeur + 'px';
+  grille.style.height = hauteur + 'px';
+  grille.style.minWidth = largeur + 'px';
+
+  lignes.forEach((nom, col) => {
+    const x = col * (GRILLE.colW + GRILLE.colGap);
+    const t = el('div', 'seq-col', nom);
+    t.style.left = x + 'px'; t.style.width = GRILLE.colW + 'px';
+    grille.append(t);
+    const rail = el('div', 'seq-rail');
+    rail.style.left = x + 'px'; rail.style.width = GRILLE.colW + 'px';
+    rail.style.height = (hauteur - GRILLE.hautEntete) + 'px';
+    grille.append(rail);
+  });
+
+  const jetons = new Map();
+  apres.forEach((_, id) => {
+    const chip = el('div', 'seq-chip' + (id.startsWith('SPE') ? ' spe' : ''), id);
+    chip.style.width = GRILLE.colW + 'px';
+    chip.style.height = GRILLE.ligneH + 'px';
+    chip.title = id;
+    grille.append(chip);
+    jetons.set(id, chip);
+  });
+
+  const poser = (pos, marquer) => {
+    jetons.forEach((chip, id) => {
+      const p = pos.get(id) || avant.get(id);
+      if (!p) { chip.style.opacity = 0; return; }
+      const x = p.col * (GRILLE.colW + GRILLE.colGap);
+      const y = GRILLE.hautEntete + p.rang * (GRILLE.ligneH + GRILLE.ligneGap);
+      chip.style.transform = `translate(${x}px, ${y}px)`;
+      const a = avant.get(id), b = apres.get(id);
+      chip.classList.toggle('bouge', marquer && !!a && !!b && (a.col !== b.col || a.rang !== b.rang));
+    });
+  };
+
+  const bAvant = document.getElementById('seq-b-avant');
+  const bApres = document.getElementById('seq-b-apres');
+  const montrer = (versApres) => {
+    poser(versApres ? apres : avant, versApres);
+    bAvant.setAttribute('aria-pressed', String(!versApres));
+    bApres.setAttribute('aria-pressed', String(versApres));
+  };
+  bAvant.onclick = () => montrer(false);
+  bApres.onclick = () => montrer(true);
+
+  const bouges = [...jetons.keys()].filter(id => {
+    const a = avant.get(id), b = apres.get(id);
+    return a && b && (a.col !== b.col || a.rang !== b.rang);
+  }).length;
+
+  if (!sq.optimise) {
+    panneau.hidden = false;
+    hint.textContent = 'Séquence de production telle qu\'elle est lue dans le classeur, une colonne par ligne.';
+    bAvant.disabled = bApres.disabled = true;
+    montrer(false);
+    return;
+  }
+  panneau.hidden = false;
+  bAvant.disabled = bApres.disabled = false;
+  hint.innerHTML = `Basculez d'une séquence à l'autre : <b>${bouges}</b> élément(s) changent de place, `
+    + `dont <b>${sq.deplacements.length}</b> de ligne.`;
+  montrer(false);
+  // Un aller-retour au chargement montre le mouvement sans qu'on ait à cliquer.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && bouges) {
+    setTimeout(() => montrer(true), 700);
+  }
+}
+
 /* ---- en-tête, verdict et pied de page, écrits d'après le résultat ---- */
 function rendreEnTete(nomFichier, dateRef) {
   const n = D.retards.length, tot = D.elements.length;
@@ -1024,16 +1148,19 @@ $('relancer').addEventListener('click', () => calculer($('drop-xlsx').textConten
 function remplirMenuSequences() {
   const sel = $('p-sequence');
   const n = Math.max(1, sequencesInputs.length);
-  if (sel.options.length === n && sel.dataset.rempli === String(n)) return;
-  const choix = Math.min(sequenceChoisie, n - 1);
+  if (sel.dataset.rempli === String(n)) return;
+  const choix = sel.value === 'auto' ? 'auto' : String(Math.min(sequenceChoisie, n - 1));
   sel.textContent = '';
   for (let i = 0; i < n; i++) {
     const o = document.createElement('option');
     o.value = i; o.textContent = `Séquence ${i + 1}`;
     sel.append(o);
   }
+  // Le solveur essaie chaque séquence du classeur, optimise chacune et garde la meilleure.
+  const auto = document.createElement('option');
+  auto.value = 'auto'; auto.textContent = 'Automatique — le solveur choisit';
+  sel.append(auto);
   sel.value = choix;
-  sel.disabled = n < 2;
   sel.dataset.rempli = String(n);
 }
 
@@ -1046,7 +1173,8 @@ function calculer(nomFichier) {
   setTimeout(() => {
     try {
       const dateRef = new Date($('p-dateref').value);
-      sequenceChoisie = parseInt($('p-sequence').value) || 0;
+      const auto = $('p-sequence').value === 'auto';
+      sequenceChoisie = auto ? 0 : (parseInt($('p-sequence').value) || 0);
       parseWorkbook($('p-dateref').value);
       if (!elements.length) { afficherJournal(lastJournal); return; }
       remplirMenuSequences();
@@ -1063,7 +1191,9 @@ function calculer(nomFichier) {
       OPTIM.reaffecterLignes = $('p-reaffecter').checked;
       // L'optimiseur enchaîne des simulations d'essai avant de retenir une séquence ; la
       // simulation affichée est ensuite rejouée sur celle-ci.
-      optim = $('p-optimiser').checked ? optimiserSequence(params) : null;
+      // En automatique, le solveur choisit la séquence : l'optimiseur est de rigueur.
+      if (auto) optim = optimiserToutesVariantes($('p-dateref').value, params);
+      else optim = $('p-optimiser').checked ? optimiserSequence(params) : null;
       runSimulation(params);
       construireD();
       toutRendre(nomFichier, dateRef);
@@ -1111,6 +1241,10 @@ function construireD() {
       dureeMs: optim ? optim.dureeMs : 0,
       parLigne: Object.fromEntries([1,2,3,4,5,6].map(l =>
         [LIGNE_NOM[l], elements.filter(e => e.ligne === l).length])),
+      avantSeq: optim ? optim.sequenceInitiale : sequenceCourante(),
+      apresSeq: optim ? optim.sequenceRetenue : sequenceCourante(),
+      parVariante: (optim && optim.parVariante) || null,
+      auto: !!(optim && optim.parVariante),
     },
   };
 }

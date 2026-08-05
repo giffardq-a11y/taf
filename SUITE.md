@@ -52,6 +52,44 @@ L'inversion résiduelle est `SPE-02`/`SPE-06` : elle ne se corrige plus par la s
 l'absorbe. Le journal la distingue désormais des inversions de lignes PL, qui, elles,
 bloquent vraiment.
 
+## Pourquoi les dates d'immersion ne sont pas tenues — analyse de sensibilité
+
+La question a été posée : le planning P6 prouve que ces dates sont tenables, pourquoi le
+solveur n'y arrive-t-il pas ? Réponse mesurée, en désactivant les règles une à une
+(variante 1, staggering actif) :
+
+| Configuration | Retards | Retard max | Retard cumulé |
+|---|---|---|---|
+| Référence | 33 | 141 j | 1999 j |
+| Sans porte d'étanchéité du Basin C | 19 | 104 j | 1116 j |
+| Ancre de cadence à 1 sem/segment | 26 | 141 j | 1218 j |
+| Étanchéité levée + ancre 1 sem | 12 | 65 j | 335 j |
+| Sans ordre d'immersion imposé | 5 | 141 j | 314 j |
+| Toutes règles levées | 3 | 49 j | 69 j |
+
+Trois enseignements :
+
+1. **L'ordre d'immersion imposé est le premier amplificateur** : à lui seul il fait passer le
+   retard cumulé de 314 à 1999 jours. Il ne crée presque aucun retard, il les propage — un
+   élément retenu bloque tous ceux qui le suivent, même prêts. Ce n'est donc pas la séquence
+   de production qui pèche : la réordonner ne change pas la cause.
+2. **La porte d'étanchéité du Basin C est le premier générateur.** `STE-70`, 141 jours de
+   retard, est en bassin dès la date de référence et n'en sort qu'en juillet 2027 : évacuer
+   un élément normal impose d'inonder, donc d'attendre l'étanchéité du SPE présent en UB.
+3. **L'ancre de cadence du classeur contredit le classeur lui-même.** `Config_Cycles`
+   déclare 3 semaines/segment ; l'onglet `Recap_Dates`, produit à partir du même planning,
+   montre 7 jours par segment sur tous les éléments — soit 1 semaine. Avec la pente d'inertie
+   (1 semaine de variation par 4 mois), partir de 3 coûte 8 mois avant d'atteindre 1. Corriger
+   cette seule saisie fait passer le cumul de 1999 à 1218 jours.
+
+**Faut-il itérer entre séquence et cadence, essayer toutes les combinaisons ?** Non, et pas
+par manque de moyens : l'espace des affectations seul vaut 5^79. Surtout, la mesure ci-dessus
+montre que la séquence n'est pas la contrainte active — les retards viennent de trois règles
+du modèle, pas de l'ordre de production. Le solveur explore déjà conjointement séquence et
+cadence, puisque chaque séquence candidate est évaluée par une simulation complète où le
+solveur de cadence tourne. Ce qui reste à trancher est métier, pas algorithmique : la porte
+d'étanchéité est-elle aussi stricte en réalité, et quelle est la cadence de départ ?
+
 ## Ce qui a été construit
 
 ### 1. Staggering entre halls — fait
@@ -109,13 +147,41 @@ qui arrive en retard bascule de la colonne *bloqués* vers la colonne *retards*.
 retards peut donc augmenter alors que le plan s'améliore. C'est pour cela que les deux
 colonnes figurent côte à côte, et que les critères sont comparés dans cet ordre.
 
-### 4. Coupe des éléments immergés — à faire
+### 4. Séquence automatique, grille et animation — fait
+
+Le menu de séquence porte une entrée **« Automatique — le solveur choisit »** : chaque
+séquence du classeur est optimisée, et la meilleure l'emporte. Sur ce classeur, la 1 gagne
+(19 retards, 888 j de cumul) devant la 2 (33, 1367 j) et la 3 (43, 1352 j).
+
+La page de rapport dessine la séquence comme l'onglet `Inputs` : une colonne par ligne, un
+jeton par élément dans l'ordre de production. Le bouton *Classeur / Optimisée* fait glisser
+les jetons d'une séquence à l'autre, ceux qui bougent s'allumant à l'accent. Le mouvement
+se lit d'un coup d'œil, sans comparer deux tableaux.
+
+### 5. Coupe des éléments immergés — à faire
 
 Inchangé : l'utilisateur fournira un PDF de coupe avec le positionnement des éléments. À
 remplir au fil des immersions, comme le plan d'installation l'est déjà pour le mouvement en
 surface.
 
 ## Défauts corrigés au passage
+
+**53 des 85 « retards » n'existaient pas.** Les dates cibles du planning P6 portent une heure
+— 17:00, 20:00, 22:00, 09:00 selon l'élément — alors que le moteur avance d'un jour entier et
+date ses immersions à minuit. Un élément immergé le bon jour était compté en retard d'un jour.
+Toute date lue est désormais ramenée au jour (`jourSeul` dans `index.html`). Le décompte passe
+de 85 à 33 retards réels, dont 26 dépassent le mois.
+
+**Un jalon d'étanchéité non renseigné fermait la porte pour toujours.** `speNonEtancheEnUB`
+traitait « pas de date d'étanchéité » comme « pas encore étanche », donc bloquait l'évacuation
+du Basin C indéfiniment — l'inverse de ce que le README annonce (« la contrainte est
+inactive »). Sans jalon, il n'y a rien à attendre : la porte reste ouverte.
+
+**Les inversions de la ligne SPE faussaient le choix entre variantes.** Elles comptaient au
+même rang que celles des lignes PL alors que la zone de stockage les absorbe. Le critère les
+sépare : les éléments bloqués passent en tête, puis les inversions des seules lignes PL. Sans
+cette correction, l'automatique retenait la variante 3 (43 retards) au motif qu'elle n'avait
+aucune inversion SPE, contre la variante 1 (19 retards).
 
 Quand deux éléments d'une même ligne attendaient ensemble — l'outfitting peut se libérer
 avant que le float-up n'ait eu lieu — le moteur prenait **le premier du tableau `elements`,

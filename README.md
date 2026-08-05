@@ -172,6 +172,20 @@ coordonnées du dossier de référence, superposé au plan d'installation géné
 La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
 ub1, ub2, ub3 — chacune à son emplacement propre.
 
+## Séquence automatique
+
+Le menu de séquence propose, en plus des variantes du classeur, une entrée **« Automatique —
+le solveur choisit »** : chaque séquence empilée dans `Inputs` est optimisée, et celle qui
+donne le meilleur plan est retenue. Une variante peut sembler bonne telle quelle parce que ses
+éléments bloqués ne comptent pas comme retards — les comparer une fois optimisées évite ce
+piège.
+
+Les critères sont comparés dans cet ordre : éléments bloqués, inversions des lignes PL,
+éléments en retard, retard cumulé, retard maximum, changements de cadence. Les bloqués passent
+en tête parce que c'est le seul résultat dont on ne se relève pas. Les inversions de la ligne
+SPE ne comptent pas : la zone de stockage les absorbe, et les ranger au même niveau ferait
+préférer une variante sans inversion SPE mais bien plus en retard.
+
 ## Sorties
 
 - **Rapport de cadence (CSV)** — une ligne par changement de rythme (ligne, date de
