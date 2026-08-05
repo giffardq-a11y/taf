@@ -56,7 +56,7 @@ le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
 | `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir. |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
 | `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = jalon d'étanchéité, en semaines après l'entrée en UB1, saisi sur chaque zone UB. **Colonne G** (optionnelle) = rythme SPE long, en semaines, remplaçant la durée standard de la colonne D dans les zones UB. |
-| `Config_Outfitting` | Phases d'outfitting, Séquence 1 et Séquence 2. |
+| `Config_Outfitting` | Noms des phases d'outfitting, Séquence 1 et Séquence 2. Les durées n'y pilotent plus le calendrier : la durée d'outfitting est dérivée de la production (voir ci-dessous). |
 
 ### Format des statuts as-built (colonnes C/E/G/I/K/M de `Inputs`)
 
@@ -115,6 +115,14 @@ coordonnées du dossier de référence ; une image de plan peut y être ajoutée
   fin de projet estimée, rythme courant par ligne.
 
 ## Logique de production simulée
+
+**Cadence de ligne et flux tendu.** Le segment 1 d'un élément ne démarre qu'une fois le
+segment 9 du précédent terminé : le takt d'une ligne vaut donc 9 × R semaines. L'outfitting
+d'un élément démarre quand ses 9 segments sont poussés et s'achève quand l'élément suivant
+a terminé son **7e segment** — soit 7 × R semaines. Plus court que le béton, le battement
+de 2 segments absorbant les deux transferts (béton → outfitting, puis outfitting → bassin).
+Un seul élément occupe l'outfitting à la fois. Tant que le suivant n'a pas démarré son
+béton, l'élément en outfitting garde sa place.
 
 `Béton (1 place/ligne)` → `Outfitting (1 place/ligne)` → `Float-up couplé
 (PL1+2 / PL3+4 / PL5+SPE)` → `Lower Basin (3 bassins × 2 places, hook-up sur place)` →
@@ -215,9 +223,6 @@ place 2 = SPE).
 - **Position du Ballast Jetty estimée.** Elle n'était pas fournie dans le cahier des
   charges ; elle est extrapolée depuis l'axe du parking (`GEO.ballast` dans
   `index.html`). À recalibrer si vous avez la position réelle.
-- **Contrainte de flux tendu non modélisée.** La règle « l'élément N libère sa place
-  d'outfitting quand N+1 atteint son 8ᵉ segment béton » n'est pas implémentée : le
-  moteur libère la place à la fin de l'outfitting, comme la macro VBA d'origine.
 - **`Config_Cycles` n'a que 3 slots de changement par ligne.** Si le solveur en produit
   davantage, les changements au-delà ne sont pas réinjectés dans cet onglet (un
   avertissement le signale) ; la liste complète reste dans `Solver_Report` et le CSV.

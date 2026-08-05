@@ -502,9 +502,16 @@ function parseWorkbook(dateRefArg) {
 /* ================================================================
    7. MOTEUR DE CYCLE — durée outfitting pour un rythme R donné
    ================================================================ */
+// L'outfitting d'un élément démarre quand ses 9 segments sont poussés et s'achève quand
+// l'élément suivant a terminé son 7e segment. Comme le suivant entre en zone béton au
+// moment où celui-ci en sort, cela vaut SEGMENTS_OUTFITTING segments de cycle — plus court
+// que les 9 du béton, le battement de 2 segments absorbant les deux transferts (béton vers
+// outfitting, puis outfitting vers bassin). Les durées de Config_Outfitting ne servent
+// plus qu'à nommer les phases.
+const SEGMENTS_OUTFITTING = 7;
+
 function dureeOutfittingJoursForR(ligne, dStart, R) {
-  const seq = (dStart >= dateSeq2Debut) ? outfittingConfig.seq2 : outfittingConfig.seq1;
-  return seq.reduce((tot, ph) => tot + ph.duree * R * 7, 0);
+  return SEGMENTS_OUTFITTING * R * 7;
 }
 function anchorRhythm(ligne) {
   return (cyclesConfig[ligne] && typeof cyclesConfig[ligne].durees[0] === 'number') ? cyclesConfig[ligne].durees[0] : 1;
@@ -819,6 +826,28 @@ function runSimulation(paramsArg) {
     e.rythme = rhythm; e.atRisk = atRisk;
     e.dateFinBeton = addDays(dCur, rhythm * 7 * 9);
   }
+  // Élément immédiatement suivant sur la même ligne, au sens de la séquence de production.
+  function suivantSurLigne(e) {
+    let best = null;
+    for (const x of elements) {
+      if (x.ligne !== e.ligne || x.ordreSeq <= e.ordreSeq) continue;
+      if (!best || x.ordreSeq < best.ordreSeq) best = x;
+    }
+    return best;
+  }
+
+  // Fin d'outfitting réelle : le 7e segment du suivant. Tant qu'il n'a pas démarré son
+  // béton, l'élément en outfitting garde sa place — c'est le flux tendu de la ligne.
+  function finOutfittingAtteinte(e, dCur) {
+    const suiv = suivantSurLigne(e);
+    if (suiv && suiv.dateDebutBeton) {
+      const seg7 = addDays(suiv.dateDebutBeton, SEGMENTS_OUTFITTING * (suiv.rythme || anchorRhythm(suiv.ligne)) * 7);
+      return dCur >= seg7;
+    }
+    if (suiv) return false;            // le suivant n'est pas encore lancé : on patiente
+    return dCur >= e.dateFinOut;       // dernier de la ligne : durée nominale
+  }
+
   function demarrerOutfittingPL(e, dCur) {
     e.dateDebutOut = dCur;
     e.dateFinOut = addDays(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
@@ -935,7 +964,11 @@ function runSimulation(paramsArg) {
         if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
         break;
       case 'Outfitting':
-        if (dCur >= e.dateFinOut) { zoneOutOccupee[ligne]=false; e.statut='AttenteFloatUp'; }
+        if (finOutfittingAtteinte(e, dCur)) {
+          zoneOutOccupee[ligne] = false;
+          e.dateFinOut = new Date(dCur);
+          e.statut = 'AttenteFloatUp';
+        }
         break;
       case 'FloatUp':
         if (dCur >= e.dateFinFU) e.statut = 'AttenteBasin';
