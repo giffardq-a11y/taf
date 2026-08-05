@@ -534,6 +534,8 @@ const AS_BUILT_SYNONYMES = {
   floatup:'floatup', float:'floatup',
   bassin:'basin', basin:'basin', hookup:'basin', lowerbasin:'basin',
   attentebassin:'attentebasin', attentebasin:'attentebasin',
+  ready:'attentefloatup', pret:'attentefloatup', prete:'attentefloatup',
+  attentefloatup:'attentefloatup', attentefu:'attentefloatup',
   parking:'parking', park:'parking', epi:'parking',
   ballast:'ballast', ballastjetty:'ballast',
   zone:'zone',
@@ -606,6 +608,25 @@ function runSimulation() {
   simTimeline = {};
   let joursMax = 365 * 6;
 
+  // Place un élément SPE dans une zone de la chaîne, en recalant son entrée en UB (et donc
+  // son jalon d'étanchéité) sur les durées des zones UB déjà traversées.
+  function placerEnZoneSPE(e, numZone, date) {
+    const n = Math.min(zonesSPE.length, Math.max(1, Math.round(numZone || 1)));
+    const zc = zonesSPE[n-1];
+    e.zoneSPE = n;
+    e.statut = zc.estBeton ? 'Beton' : 'Outfitting';
+    zc.occupee = true; zc.idOccupant = e.id;
+    zc.jourEntree = date ? Math.round(diffDays(date, REF)) : 0;
+    if (n === 1) e.dateDebutBeton = date || REF;
+    if (premiereUB && n >= premiereUB) {
+      let recul = 0;
+      for (let k = premiereUB; k < n; k++) recul += zonesSPE[k-1].dureeEff;
+      e.dateEntreeUB = addDays(date || REF, -recul);
+      e.dateDebutOut = e.dateEntreeUB;
+      e.dateEtanche = speEtancheSem ? addDays(e.dateEntreeUB, speEtancheSem * 7) : null;
+    }
+  }
+
   /* ---- Application de l'état "as-built" à la date de référence ---- */
   let nbAutoTermine = 0, nbOverride = 0, nbOverrideIgnore = 0;
   elements.forEach(e => {
@@ -634,26 +655,13 @@ function runSimulation() {
       }
       case 'zone': {
         if (ligne !== 6) { nbOverrideIgnore++; return; }
-        const n = Math.min(7, Math.max(1, Math.round(code.n || 1)));
-        const zc = speConfig[n-1];
-        e.zoneSPE = n;
-        e.statut = zc.estBeton ? 'Beton' : 'Outfitting';
-        zonesSPE[n-1].occupee = true; zonesSPE[n-1].idOccupant = e.id;
-        zonesSPE[n-1].jourEntree = code.date ? Math.round(diffDays(code.date, REF)) : 0;
-        if (n === 1) e.dateDebutBeton = code.date || REF;
-        if (n >= premiereUB && premiereUB) {
-          // Déjà en zone UB : on recale l'entrée UB (et donc le jalon d'étanchéité) sur les
-          // durées des zones UB déjà traversées avant celle où l'élément se trouve.
-          let recul = 0;
-          for (let k = premiereUB; k < n; k++) recul += zonesSPE[k-1].dureeEff;
-          e.dateEntreeUB = addDays(code.date || REF, -recul);
-          e.dateDebutOut = e.dateEntreeUB;
-          e.dateEtanche = speEtancheSem ? addDays(e.dateEntreeUB, speEtancheSem * 7) : null;
-        }
+        placerEnZoneSPE(e, code.n, code.date);
         break;
       }
       case 'outfitting': {
-        if (ligne > 5) { nbOverrideIgnore++; return; } // SPE : utiliser Zone:N
+        // Sur la ligne SPE, « Outfitting » désigne la chaîne UB : sans numéro de zone,
+        // l'élément est placé en UB1.
+        if (ligne === 6) { placerEnZoneSPE(e, code.n || premiereUB, code.date); break; }
         e.rythme = anchorR;
         e.dateDebutOut = code.date || REF;
         e.dateFinOut = addDays(e.dateDebutOut, dureeOutfittingJoursForR(ligne, e.dateDebutOut, anchorR));
@@ -661,6 +669,12 @@ function runSimulation() {
         zoneOutOccupee[ligne] = true;
         break;
       }
+      case 'attentefloatup':
+        // Outfitting terminé, en attente du float-up : ne réserve aucune zone de production.
+        e.dateFinOut = code.date || REF;
+        if (ligne <= 5) e.rythme = anchorR;
+        e.statut = 'AttenteFloatUp';
+        break;
       case 'floatup': {
         e.dateDebutFU = code.date || REF;
         e.dateFinFU = addDays(e.dateDebutFU, PARAMS.floatUpSem * 7);
@@ -935,8 +949,9 @@ function runSimulation() {
     if (zoneNum === premiereUB) marquerEntreeUB(e, dCur);
   }
   function traiterElementSPE(e, dCur, jourCourant) {
-    const z = e.zoneSPE;
-    if (z === 0) return;
+    // Les statuts postérieurs au float-up ne dépendent plus d'une zone de la chaîne SPE :
+    // ils doivent être traités avant le garde sur zoneSPE, sinon un élément arrivé là sans
+    // avoir traversé les zones (statut as-built « Ready ») ne serait jamais fait avancer.
     if (['AttenteFloatUp','FloatUp','AttenteBasin','Basin','Ballast'].includes(e.statut)) {
       switch (e.statut) {
         case 'FloatUp': if (dCur >= e.dateFinFU) e.statut = 'AttenteBasin'; break;
@@ -958,6 +973,8 @@ function runSimulation() {
       }
       return;
     }
+    const z = e.zoneSPE;
+    if (z === 0) return;
     const zc = zonesSPE[z-1];
     const jourFin = zc.jourEntree + zc.dureeEff;
     if (jourCourant >= jourFin) {
