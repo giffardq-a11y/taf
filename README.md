@@ -25,9 +25,17 @@ autorisés **du plus lent (économique) au plus rapide** et retient le premier q
 simultanément :
 
 - **la pente d'inertie de la ligne** — 1 semaine de variation par tranche de 4 mois
-  maximum, mesurée depuis le dernier changement réellement appliqué sur cette ligne ;
-- **les dates d'immersion de tout le reste de la file** de cette ligne, pas seulement
-  celle de l'élément courant.
+  maximum, mesurée depuis le dernier changement réellement appliqué sur la paire ;
+- **les dates d'immersion de tout le reste de la file**, pas seulement celle de
+  l'élément courant ;
+- **la cadence de la ligne jumelle** : les deux lignes d'une paire partagent un même
+  rythme et basculent ensemble. Leurs éléments doivent sortir de l'outfitting en même
+  temps, donc accélérer une ligne sans l'autre créerait un blocage au transfert vers le
+  bassin.
+
+**Une paire déjà en déficit ne ralentit jamais.** Le critère « le rythme le plus lent qui
+tient les délais » suppose de la marge ; dès qu'un élément de la paire a dépassé sa date
+d'immersion sans être immergé, cette marge n'existe plus.
 
 Ce second point est essentiel : ralentir un élément repousse mécaniquement tous ceux
 qui attendent derrière lui. Regarder toute la file évite au solveur d'osciller
@@ -76,6 +84,24 @@ Suffixe de date optionnel pour préciser le début réel de la phase :
 `Beton:5:2026-06-15`. Sans date, la phase est réputée avoir commencé à la date de
 référence. Un code non reconnu est signalé dans le journal et l'élément est traité
 comme non démarré.
+
+## Page de restitution autonome
+
+`report_template.html` + `build_report.py` produisent une page de rapport indépendante,
+qui embarque le solveur et SheetJS : on y charge un classeur et le calcul est relancé
+sur place, sans aucune ressource externe.
+
+```bash
+python3 build_report.py -o rapport.html
+```
+
+Le solveur n'y est jamais recopié : il est prélevé entre les marqueurs
+`SOLVEUR-CORE-DEBUT` / `SOLVEUR-CORE-FIN` de `index.html`, qui reste la seule
+implémentation. C'est le build **mini** de SheetJS qui est inliné — suffisant pour du
+`.xlsx`/`.xlsm`, là où le build *full* embarque les tables de pages de code héritées.
+
+La page affiche le mouvement des éléments sur un schéma reconstruit d'après les
+coordonnées du dossier de référence ; une image de plan peut y être ajoutée en fond.
 
 ## Sorties
 

@@ -1,0 +1,945 @@
+<title>Lolland — Rapport du solveur de cadence</title>
+<style>
+
+  :root {
+    --ground:      #E4E8EA;
+    --surface:     #FBFCFC;
+    --surface-2:   #EEF1F2;
+    --line:        #C7D0D3;
+    --line-soft:   #DCE3E5;
+    --ink:         #101A20;
+    --ink-2:       #46565E;
+    --ink-3:       #74868E;
+    --accent:      #0B6E78;
+    --accent-soft: #D3E6E8;
+    --ok:          #2C7355;
+    --warn:        #A66C12;
+    --crit:        #A83226;
+    --crit-soft:   #F2DCD9;
+
+    --ph-beton:   #8D9AA1;
+    --ph-outfit:  #0B6E78;
+    --ph-fu:      #6A5FA8;
+    --ph-basin:   #3E6FA8;
+    --ph-park:    #557A8C;
+    --ph-ballast: #B5791C;
+
+    --r-1:   #1E5F8C;
+    --r-15:  #2C7355;
+    --r-2:   #A66C12;
+    --r-25:  #A83226;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0A1015;
+      --surface:     #121B21;
+      --surface-2:   #18242B;
+      --line:        #2A3A43;
+      --line-soft:   #1E2C34;
+      --ink:         #DEE7EA;
+      --ink-2:       #96A8B0;
+      --ink-3:       #6D8189;
+      --accent:      #46BFCB;
+      --accent-soft: #103038;
+      --ok:          #4FB183;
+      --warn:        #D69B34;
+      --crit:        #E0685A;
+      --crit-soft:   #341B18;
+
+      --ph-beton:   #6E7D85;
+      --ph-outfit:  #2D8E99;
+      --ph-fu:      #7E73C2;
+      --ph-basin:   #4A82BF;
+      --ph-park:    #5D8A9E;
+      --ph-ballast: #C88C2A;
+
+      --r-1:   #4E9BD1;
+      --r-15:  #4FB183;
+      --r-2:   #D69B34;
+      --r-25:  #E0685A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0A1015; --surface:#121B21; --surface-2:#18242B; --line:#2A3A43; --line-soft:#1E2C34;
+    --ink:#DEE7EA; --ink-2:#96A8B0; --ink-3:#6D8189; --accent:#46BFCB; --accent-soft:#103038;
+    --ok:#4FB183; --warn:#D69B34; --crit:#E0685A; --crit-soft:#341B18;
+    --ph-beton:#6E7D85; --ph-outfit:#2D8E99; --ph-fu:#7E73C2; --ph-basin:#4A82BF; --ph-park:#5D8A9E; --ph-ballast:#C88C2A;
+    --r-1:#4E9BD1; --r-15:#4FB183; --r-2:#D69B34; --r-25:#E0685A;
+  }
+  :root[data-theme="light"] {
+    --ground:#E4E8EA; --surface:#FBFCFC; --surface-2:#EEF1F2; --line:#C7D0D3; --line-soft:#DCE3E5;
+    --ink:#101A20; --ink-2:#46565E; --ink-3:#74868E; --accent:#0B6E78; --accent-soft:#D3E6E8;
+    --ok:#2C7355; --warn:#A66C12; --crit:#A83226; --crit-soft:#F2DCD9;
+    --ph-beton:#8D9AA1; --ph-outfit:#0B6E78; --ph-fu:#6A5FA8; --ph-basin:#3E6FA8; --ph-park:#557A8C; --ph-ballast:#B5791C;
+    --r-1:#1E5F8C; --r-15:#2C7355; --r-2:#A66C12; --r-25:#A83226;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 34px; }
+
+  /* ---- masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+  h1 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.04; letter-spacing: -0.025em; font-weight: 800; text-wrap: balance; }
+  .standfirst { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 16px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+  .meta b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- verdict ---- */
+  .verdict {
+    background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--crit);
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .verdict h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; text-wrap: balance; }
+  .verdict p { margin: 0; color: var(--ink-2); max-width: 72ch; font-size: 14.5px; }
+
+  /* ---- kpi ---- */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .kpi { background: var(--surface); padding: 15px 16px 16px; display: flex; flex-direction: column; gap: 3px; }
+  .kpi .k-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .kpi .k-val { font-family: var(--mono); font-size: 27px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi .k-sub { font-size: 12px; color: var(--ink-3); }
+  .k-val.is-crit { color: var(--crit); } .k-val.is-ok { color: var(--ok); } .k-val.is-warn { color: var(--warn); }
+
+  /* ---- sections ---- */
+  section { display: flex; flex-direction: column; gap: 14px; }
+  .s-head { display: flex; flex-direction: column; gap: 5px; }
+  h2.s-title { margin: 0; font-size: 21px; letter-spacing: -0.015em; font-weight: 700; text-wrap: balance; }
+  .s-note { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 70ch; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); padding: 18px; }
+  .scroll { overflow-x: auto; }
+
+  /* ---- cadence timeline ---- */
+  .tl-axis { position: relative; height: 22px; margin-left: 62px; border-bottom: 1px solid var(--line); }
+  .tl-tick { position: absolute; top: 0; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); transform: translateX(-50%); white-space: nowrap; }
+  .tl-tick::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 1px; height: 6px; background: var(--line); }
+  .tl-row { display: flex; align-items: center; gap: 0; height: 34px; }
+  .tl-name { width: 62px; flex-shrink: 0; font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .tl-track { position: relative; flex-grow: 1; height: 22px; background: var(--surface-2); }
+  .tl-seg { position: absolute; top: 0; height: 22px; display: flex; align-items: center; justify-content: center;
+            font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: #fff; overflow: hidden; white-space: nowrap; }
+  .tl-mark { position: absolute; top: -3px; width: 2px; height: 28px; background: var(--ink); }
+  .tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-left: 62px; margin-top: 10px; font-size: 12px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 15px; height: 10px; flex-shrink: 0; }
+
+
+  /* ---- vue plan ---- */
+  .plan-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  #plan-play { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--accent); border-radius: 50%; cursor: pointer;
+    font-size: 12px; line-height: 1; font-family: var(--sans); }
+  #plan-play:hover { border-color: var(--accent); }
+  #plan-play:focus-visible, #plan-slider:focus-visible, #plan-speed:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
+  #plan-slider { flex-grow: 1; accent-color: var(--accent); min-width: 120px; }
+  #plan-speed { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 3px; font-size: 11px; padding: 3px 4px; font-family: var(--mono); }
+  #plan-date { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600;
+    color: var(--accent); width: 84px; text-align: right; font-size: 13px; }
+  #plan { display: block; width: 100%; min-width: 560px; height: auto; background: var(--surface-2);
+    border: 1px solid var(--line-soft); }
+  .plan-caveat { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-3); max-width: 74ch; }
+
+  /* ---- tables ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+       color: var(--ink-3); font-weight: 600; padding: 0 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: baseline; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .id { font-family: var(--mono); font-weight: 600; }
+
+  .pill { display: inline-block; padding: 1px 7px; font-family: var(--mono); font-size: 11px; font-weight: 600;
+          border: 1px solid currentColor; white-space: nowrap; }
+  .pill.up { color: var(--warn); } .pill.down { color: var(--ok); } .pill.risk { color: var(--crit); }
+
+  .bar-cell { min-width: 190px; }
+  .bar { position: relative; height: 15px; background: var(--surface-2); }
+  .bar > i { position: absolute; left: 0; top: 0; height: 15px; background: var(--crit); display: block; }
+
+  /* ---- gantt ---- */
+  .g-row { display: flex; align-items: center; height: 15px; }
+  .g-name { width: 72px; flex-shrink: 0; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+  .g-track { position: relative; flex-grow: 1; height: 9px; }
+  .g-seg { position: absolute; top: 0; height: 9px; }
+  .g-group { margin-bottom: 12px; }
+  .g-group-title { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+                   color: var(--ink-3); margin: 0 0 5px 0; }
+  .g-miss { position: absolute; top: -2px; width: 1.5px; height: 13px; background: var(--crit); }
+
+  /* ---- notes ---- */
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; }
+  .note { background: var(--surface); border: 1px solid var(--line); padding: 15px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .note h3 { margin: 0; font-size: 14px; letter-spacing: -0.005em; }
+  .note p { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .note.flag { border-left: 4px solid var(--warn); }
+  code { font-family: var(--mono); font-size: .88em; background: var(--surface-2); padding: 1px 4px; }
+
+  footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 12.5px; color: var(--ink-3); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 22px 15px 60px; gap: 28px; }
+    .tl-name, .g-name { width: 48px; font-size: 10.5px; }
+    .tl-axis, .legend { margin-left: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* ---- bandeau de chargement ---- */
+  .loader { background: var(--surface); border: 1px solid var(--line); padding: 18px; display: flex;
+    flex-direction: column; gap: 14px; }
+  .loader-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .drop { flex: 1 1 260px; border: 1px dashed var(--line); background: var(--surface-2); color: var(--accent);
+    padding: 14px 16px; text-align: center; cursor: pointer; font-size: 13px; border-radius: 3px; }
+  .drop:hover, .drop:focus-visible { border-color: var(--accent); outline: none; }
+  .drop.ok { border-color: var(--ok); color: var(--ok); border-style: solid; }
+  .drop small { display: block; margin-top: 4px; color: var(--ink-3); font-size: 11px; }
+  .champ { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--ink-3);
+    font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+  .champ input { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px 7px; font-family: var(--mono); font-size: 13px; width: 130px; }
+  .champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #relancer { padding: 9px 18px; background: var(--accent); color: var(--surface); border: none;
+    border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 13px; font-family: var(--sans); }
+  #relancer:disabled { background: var(--line); color: var(--ink-3); cursor: not-allowed; }
+  #journal { background: var(--surface-2); border: 1px solid var(--line-soft); font-family: var(--mono);
+    font-size: 11px; padding: 10px 12px; max-height: 132px; overflow-y: auto; line-height: 1.65; }
+  #journal div.err { color: var(--crit); } #journal div.warn { color: var(--warn); }
+  #journal:empty { display: none; }
+  .attente { color: var(--ink-3); font-style: italic; }
+  [hidden] { display: none !important; }
+</style>
+<input type="file" id="file-xlsx" accept=".xlsx,.xls,.xlsm" hidden>
+<input type="file" id="file-plan" accept="image/*" hidden>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Fehmarnbelt · Lolland · Solveur de cadence</div>
+    <h1 id="titre">Rapport du solveur de cadence</h1>
+    <p class="standfirst" id="chapeau">Chargez le classeur de production : le solveur calcule les cadences
+      à appliquer sur chaque ligne, rejoue la production jour par jour et restitue le planning ci-dessous.
+      Tout le calcul se fait dans votre navigateur — aucun fichier n'est transmis.</p>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <section>
+    <div class="s-head"><h2 class="s-title">Données de calcul</h2></div>
+    <div class="loader">
+      <div class="loader-row">
+        <div class="drop" id="drop-xlsx" role="button" tabindex="0">
+          Charger le classeur (.xlsx / .xlsm)
+          <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</small>
+        </div>
+        <div class="drop" id="drop-plan" role="button" tabindex="0">
+          Charger un plan de fond (optionnel)
+          <small>JPG ou PNG, placé sous le schéma de mouvement</small>
+        </div>
+      </div>
+      <div class="loader-row">
+        <label class="champ">Date de référence <input type="date" id="p-dateref"></label>
+        <label class="champ">Seuil parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
+        <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
+        <label class="champ">Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
+        <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
+        <button id="relancer" type="button" disabled>Relancer le calcul</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="verdict" id="verdict" hidden></div>
+
+
+  <section>
+    <div class="s-head"><h2 class="s-title">Vue d'ensemble</h2></div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Cadence par ligne dans le temps</h2>
+      <p class="s-note">Le rythme retenu par le solveur, ligne par ligne. Chaque bande porte sa cadence en
+        semaines par segment béton ; le trait vertical marque la date de bascule à communiquer aux équipes.
+        PL-5 change cinq fois — c'est la ligne la plus contrainte, coincée entre ses propres échéances et
+        les règles du Basin C. PL-1, PL-3 et PL-4 ne bougent qu'une fois sur toute la période.</p>
+    </div>
+    <div class="panel">
+      <div class="scroll">
+        <div style="min-width:640px">
+          <div class="tl-axis" id="tl-axis"></div>
+          <div id="tl-rows"></div>
+        </div>
+      </div>
+      <div class="legend" id="tl-legend"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Mouvement des éléments sur le site</h2>
+      <p class="s-note">Le site reconstruit à partir des coordonnées du dossier de référence, les éléments
+        placés au jour près. Faites glisser le curseur ou lancez la lecture : la coulée béton grandit sur
+        son point d'entrée à l'est, l'élément traverse la halle d'outfitting, flotte jusqu'au Lower Basin,
+        stationne en épi au parking, puis rejoint le Ballast Jetty avant immersion.</p>
+    </div>
+    <div class="panel">
+      <div class="plan-head">
+        <button id="plan-play" type="button" aria-label="Lancer ou mettre en pause l'animation">▶</button>
+        <input type="range" id="plan-slider" min="0" max="100" value="0" aria-label="Date de la simulation">
+        <select id="plan-speed" aria-label="Vitesse de lecture">
+          <option value="1">1 j/img</option>
+          <option value="3" selected>3 j/img</option>
+          <option value="7">1 sem/img</option>
+          <option value="14">2 sem/img</option>
+        </select>
+        <output id="plan-date">—</output>
+      </div>
+      <div class="scroll"><svg id="plan" viewBox="4 42 60 42" role="img"
+           aria-label="Plan schématique du site de production avec la position des éléments"></svg></div>
+      <div class="legend" id="plan-legend" style="margin-left:0"></div>
+      <p class="plan-caveat">Schéma reconstruit d'après les coordonnées relatives du dossier de référence
+        (lignes PL-1 à PL-5 et SPE, bassins, parking en épi à −75°). Chargez une image de plan ci-dessus
+        pour la placer en fond et superposer le mouvement au plan d'installation réel.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Changements de cadence à appliquer</h2>
+      <p class="s-note">Le plan d'action pour les opérateurs. L'élément déclencheur est celui dont l'entrée
+        en zone béton impose la bascule : c'est à son lancement que la nouvelle cadence prend effet.</p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-changes">
+        <thead><tr>
+          <th>Ligne</th><th class="num">Date de bascule</th><th>Cadence</th>
+          <th>Élément déclencheur</th><th>Remarque</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Éléments manquant leur date cible</h2>
+      <p class="s-note">Retard mesuré entre la date d'immersion contractuelle et la date d'immersion
+        réellement atteinte. Aucun élément avant septembre 2028 n'y figure : le glissement est entièrement
+        concentré sur la seconde moitié du programme.</p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-late">
+        <thead><tr>
+          <th>Élément</th><th>Ligne</th><th class="num">Date cible</th><th class="num">Date réelle</th>
+          <th class="num">Retard</th><th class="bar-cell"></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Écoulement de la production</h2>
+      <p class="s-note">Chaque barre suit un élément de la coulée béton jusqu'au Ballast Jetty. Le trait rouge
+        marque sa date d'immersion contractuelle : quand la barre le dépasse, l'élément est en retard.
+        Les barres qui démarrent après le 05/08/2026 sont les éléments non encore lancés ; les autres
+        reprennent l'avancement réel saisi dans le classeur.</p>
+    </div>
+    <div class="panel">
+      <div class="scroll"><div style="min-width:640px" id="gantt"></div></div>
+      <div class="legend" id="g-legend"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head"><h2 class="s-title">Journal du calcul</h2>
+      <p class="s-note">Ce que le solveur a lu dans le classeur et les points qu'il signale.
+        Les avertissements pointent en général une saisie manquante.</p></div>
+    <div id="journal"></div>
+  </section>
+
+  <footer id="pied"></footer>
+</div>
+
+<script>/*__XLSX__*/</script>
+<script>
+'use strict';
+(function () {
+
+/*__SOLVEUR__*/
+
+  const day = 86400000;
+  const t = s => s ? Date.parse(s) : null;
+  const fr = s => { if (!s) return '—'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+  let planRedessiner = () => {};
+
+  function toutRendre(nomFichier, dateRef) {
+    document.getElementById('verdict').hidden = false;
+    rendreEnTete(nomFichier, dateRef);
+    afficherJournal(lastJournal);
+
+  "use strict";
+
+  /* ---------- horizon ---------- */
+  const starts = D.elements.map(e => t(e.bD)).filter(Boolean);
+  const ends = D.elements.map(e => t(e.im) || t(e.bl)).filter(Boolean);
+  const T0 = Math.min(...starts), T1 = Math.max(...ends);
+  const pc = ms => ((ms - T0) / (T1 - T0)) * 100;
+
+  /* ---------- KPI ---------- */
+  const nLate = D.retards.length, nTot = D.elements.length;
+  const worst = D.retards[0] || {retardJours: 0, id: '—'};
+  const kpis = [
+    ['Éléments en retard', `${nLate}`, `sur ${nTot} · ${Math.round(nLate/nTot*100)} %`, nLate ? 'is-crit' : 'is-ok'],
+    ['Retard maximum', nLate ? `${worst.retardJours} j` : '—', nLate ? worst.id : 'toutes les dates tenues', nLate ? 'is-crit' : 'is-ok'],
+    ['Changements de cadence', `${D.changements.length}`, 'sur 5 lignes, en 3 ans et demi', ''],
+    ['Fin de production', fr(D.elements.map(e => e.im).filter(Boolean).sort().pop()), 'dernière immersion planifiée', ''],
+    ['Éléments bloqués', '0', 'aucun deadlock dans le flux', 'is-ok'],
+  ];
+  ['kpis','tl-axis','tl-rows','tl-legend','gantt','g-legend','plan-legend'].forEach(id => {
+    const n = document.getElementById(id); if (n) n.textContent = '';
+  });
+  document.querySelector('#t-changes tbody').textContent = '';
+  document.querySelector('#t-late tbody').textContent = '';
+  document.getElementById('plan').textContent = '';
+
+  const kBox = document.getElementById('kpis');
+  kpis.forEach(([lab, val, sub, cls]) => {
+    const c = el('div', 'kpi');
+    c.append(el('div', 'k-label', lab), el('div', 'k-val ' + cls, val), el('div', 'k-sub', sub));
+    kBox.append(c);
+  });
+
+  /* ---------- axe temporel ---------- */
+  const axis = document.getElementById('tl-axis');
+  const ticks = [];
+  for (let y = new Date(T0).getUTCFullYear(); y <= new Date(T1).getUTCFullYear(); y++) {
+    for (const m of [0, 6]) {
+      const ms = Date.UTC(y, m, 1);
+      if (ms >= T0 && ms <= T1) ticks.push([ms, m === 0 ? String(y) : 'juil.']);
+    }
+  }
+  ticks.forEach(([ms, lab]) => {
+    const n = el('div', 'tl-tick', lab);
+    n.style.left = pc(ms) + '%';
+    axis.append(n);
+  });
+
+  /* ---------- cadence par ligne ---------- */
+  const R_COLOR = { 1: 'var(--r-1)', 1.5: 'var(--r-15)', 2: 'var(--r-2)', 2.5: 'var(--r-25)' };
+  const LINES = ['PL-1', 'PL-2', 'PL-3', 'PL-4', 'PL-5'];
+  const rowsBox = document.getElementById('tl-rows');
+
+  LINES.forEach(L => {
+    const chgs = D.changements.filter(c => c.ligne === L).sort((a, b) => t(a.date) - t(b.date));
+    const segs = [];
+    let cur = D.ancre[L], from = T0;
+    chgs.forEach(c => { segs.push([from, t(c.date), cur, false]); from = t(c.date); cur = c.to; });
+    segs.push([from, T1, cur, false]);
+
+    const row = el('div', 'tl-row');
+    row.append(el('div', 'tl-name', L));
+    const track = el('div', 'tl-track');
+    ticks.forEach(([ms]) => { const g = el('div', 'tl-grid'); g.style.left = pc(ms) + '%'; track.append(g); });
+    segs.forEach(([a, b, r]) => {
+      const s = el('div', 'tl-seg', (b - a) / day > 150 ? String(r).replace('.', ',') : '');
+      s.style.left = pc(a) + '%';
+      s.style.width = Math.max(0, pc(b) - pc(a)) + '%';
+      s.style.background = R_COLOR[r] || 'var(--ink-3)';
+      s.title = `${L} — ${String(r).replace('.', ',')} sem/segment, du ${fr(new Date(a).toISOString().slice(0,10))} au ${fr(new Date(b).toISOString().slice(0,10))}`;
+      track.append(s);
+    });
+    chgs.forEach(c => { const m = el('div', 'tl-mark'); m.style.left = pc(t(c.date)) + '%'; m.title = `${fr(c.date)} : ${c.from} → ${c.to}`; track.append(m); });
+    row.append(track);
+    rowsBox.append(row);
+  });
+
+  const lg = document.getElementById('tl-legend');
+  [[1, 'Cadence 1,0 sem/segment'], [1.5, '1,5 sem'], [2, '2,0 sem']].forEach(([r, lab]) => {
+    const s = el('span'); const sw = el('i', 'sw'); sw.style.background = R_COLOR[r]; s.append(sw, document.createTextNode(lab)); lg.append(s);
+  });
+  { const s = el('span'); const sw = el('i', 'sw'); sw.style.background = 'var(--ink)'; sw.style.width = '2px'; sw.style.height = '13px';
+    s.append(sw, document.createTextNode('Date de bascule')); lg.append(s); }
+
+  /* ---------- table changements ---------- */
+  const tb = document.querySelector('#t-changes tbody');
+  D.changements.slice().sort((a, b) => t(a.date) - t(b.date)).forEach(c => {
+    const tr = el('tr');
+    tr.append(el('td', 'id', c.ligne));
+    tr.append(el('td', 'num', fr(c.date)));
+    const cell = el('td');
+    const p = el('span', 'pill ' + (c.to > c.from ? 'up' : 'down'),
+      `${String(c.from).replace('.', ',')} → ${String(c.to).replace('.', ',')} sem`);
+    cell.append(p); tr.append(cell);
+    tr.append(el('td', 'id', c.declencheur || '—'));
+    tr.append(el('td', '', c.atRisk ? 'Délai non tenable même au maximum autorisé par la pente' : ''));
+    if (c.atRisk) tr.querySelector('td:last-child').style.color = 'var(--crit)';
+    tb.append(tr);
+  });
+
+  /* ---------- table retards ---------- */
+  const lb = document.querySelector('#t-late tbody');
+  const maxR = D.retards.length ? D.retards[0].retardJours : 1;
+  D.retards.forEach(r => {
+    const tr = el('tr');
+    tr.append(el('td', 'id', r.id));
+    tr.append(el('td', '', r.ligne));
+    tr.append(el('td', 'num', fr(r.cible)));
+    tr.append(el('td', 'num', fr(r.reel)));
+    tr.append(el('td', 'num', r.retardJours + ' j'));
+    const bc = el('td', 'bar-cell'); const bar = el('div', 'bar'); const fill = el('i');
+    fill.style.width = (r.retardJours / maxR * 100) + '%';
+    bar.append(fill); bc.append(bar); tr.append(bc);
+    lb.append(tr);
+  });
+
+  /* ---------- gantt ---------- */
+  const PH = [
+    ['bD', 'oD', 'var(--ph-beton)', 'Béton'],
+    ['oD', 'fu', 'var(--ph-outfit)', 'Outfitting'],
+    ['fu', 'ba', 'var(--ph-fu)', 'Float-up'],
+    ['ba', 'pk', 'var(--ph-basin)', 'Lower Basin'],
+    ['pk', 'bl', 'var(--ph-park)', 'Parking'],
+    ['bl', 'im', 'var(--ph-ballast)', 'Ballast Jetty'],
+  ];
+  const gBox = document.getElementById('gantt');
+  ['PL-1', 'PL-2', 'PL-3', 'PL-4', 'PL-5', 'SPE'].forEach(L => {
+    const list = D.elements.filter(e => e.l === L && e.bD);
+    if (!list.length) return;
+    const grp = el('div', 'g-group');
+    grp.append(el('p', 'g-group-title', `${L} — ${list.length} éléments`));
+    list.forEach(e => {
+      const row = el('div', 'g-row');
+      row.append(el('div', 'g-name', e.id));
+      const track = el('div', 'g-track');
+      ticks.forEach(([ms]) => { const g = el('div', 'tl-grid'); g.style.left = pc(ms) + '%'; track.append(g); });
+      // fallback chain: each phase runs to the next known date
+      const keys = ['bD', 'oD', 'fu', 'ba', 'pk', 'bl', 'im'];
+      PH.forEach(([ka, kb, col]) => {
+        const a = t(e[ka]); if (!a) return;
+        let b = null;
+        for (let i = keys.indexOf(kb); i < keys.length && !b; i++) b = t(e[keys[i]]);
+        if (!b || b <= a) return;
+        const s = el('div', 'g-seg');
+        s.style.left = pc(a) + '%'; s.style.width = Math.max(0.15, pc(b) - pc(a)) + '%';
+        s.style.background = col;
+        track.append(s);
+      });
+      if (e.im) { const m = el('div', 'g-miss'); m.style.left = pc(t(e.im)) + '%'; track.append(m); }
+      row.title = `${e.id} — béton dès le ${fr(e.bD)}, immersion cible ${fr(e.im)}${e.r ? `, cadence ${String(e.r).replace('.', ',')} sem/segment` : ''}`;
+      row.append(track);
+      grp.append(row);
+    });
+    gBox.append(grp);
+  });
+
+  const gl = document.getElementById('g-legend');
+  PH.forEach(([, , col, lab]) => {
+    const s = el('span'); const sw = el('i', 'sw'); sw.style.background = col;
+    s.append(sw, document.createTextNode(lab)); gl.append(s);
+  });
+  { const s = el('span'); const sw = el('i', 'sw'); sw.style.background = 'var(--crit)'; sw.style.width = '2px'; sw.style.height = '13px';
+    s.append(sw, document.createTextNode("Date d'immersion cible")); gl.append(s); }
+
+  /* ================================================================
+     Vue plan animée — géométrie du dossier de référence (coordonnées %)
+     ================================================================ */
+  const GEO = {
+    xEntry: 58.40, xHallEnd: 50.98, xOutfitEnd: 42.68, xBasin: 37.01,
+    y: { 'PL-1':71.71, 'PL-2':69.29, 'PL-3':60.66, 'PL-4':58.38, 'PL-5':51.83, 'SPE':48.23 },
+    lenStd: 7.42, lenSpe: 1.66, ep: 2.21,
+    park: { a:{x:16.31,y:80.97}, b:{x:10.25,y:47.13}, rot:-75, slots:6 },
+  };
+  GEO.ballast = { x: GEO.park.b.x + 0.3*(GEO.park.b.x-GEO.park.a.x),
+                  y: GEO.park.b.y + 0.3*(GEO.park.b.y-GEO.park.a.y) };
+  const lenOf = l => l === 'SPE' ? GEO.lenSpe : GEO.lenStd;
+  const NS = 'http://www.w3.org/2000/svg';
+  const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+
+  const PHASE_COLOR = {
+    beton: 'var(--ph-beton)', outfitting: 'var(--ph-outfit)', floatup: 'var(--ph-fu)',
+    basin: 'var(--ph-basin)', parking: 'var(--ph-park)', ballast: 'var(--ph-ballast)',
+  };
+  const PHASE_LABEL = { beton:'Béton', outfitting:'Outfitting', floatup:'Float-up',
+    basin:'Lower Basin', parking:'Parking', ballast:'Ballast Jetty' };
+
+  const plan = document.getElementById('plan');
+
+  /* ---- décor fixe ---- */
+  const decor = svgEl('g', {});
+  plan.append(decor);
+
+  // zones de production, de l'entrée est jusqu'au bassin
+  for (const [name, yc] of Object.entries(GEO.y)) {
+    const L = lenOf(name), h = GEO.ep;
+    decor.append(svgEl('rect', { x: GEO.xEntry - L, y: yc - h/2, width: L, height: h,
+      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.12 }));
+    decor.append(svgEl('rect', { x: GEO.xOutfitEnd, y: yc - h/2, width: GEO.xHallEnd - GEO.xOutfitEnd,
+      height: h, fill: 'var(--surface-2)', stroke: 'var(--line)', 'stroke-width': 0.1 }));
+    decor.append(svgEl('line', { x1: GEO.xBasin, y1: yc, x2: GEO.xOutfitEnd, y2: yc,
+      stroke: 'var(--line)', 'stroke-width': 0.1, 'stroke-dasharray': '0.6 0.5' }));
+    const t = svgEl('text', { x: GEO.xEntry + 0.7, y: yc + 0.6, 'font-size': 1.5,
+      fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
+    t.textContent = name; decor.append(t);
+  }
+
+  // bassins : A = PL1+2, B = PL3+4, C = PL5+SPE
+  [['A','PL-1','PL-2'], ['B','PL-3','PL-4'], ['C','PL-5','SPE']].forEach(([nom, l1, l2]) => {
+    const top = Math.min(GEO.y[l1], GEO.y[l2]) - GEO.ep, bot = Math.max(GEO.y[l1], GEO.y[l2]) + GEO.ep;
+    decor.append(svgEl('rect', { x: GEO.xBasin - lenOf(l1)/2 - 0.6, y: top, width: lenOf(l1) + 1.2,
+      height: bot - top, fill: 'none', stroke: 'var(--ph-basin)', 'stroke-width': 0.13, 'stroke-dasharray': '0.7 0.4' }));
+    const t = svgEl('text', { x: GEO.xBasin, y: top - 0.5, 'font-size': 1.3, 'text-anchor': 'middle',
+      fill: 'var(--ph-basin)', 'font-family': 'var(--mono)' });
+    t.textContent = 'Basin ' + nom; decor.append(t);
+  });
+
+  // parking en épi et point de ballast
+  decor.append(svgEl('line', { x1: GEO.park.a.x, y1: GEO.park.a.y, x2: GEO.park.b.x, y2: GEO.park.b.y,
+    stroke: 'var(--ph-park)', 'stroke-width': 0.12, 'stroke-dasharray': '0.8 0.5' }));
+  for (let i = 0; i < GEO.park.slots; i++) {
+    const r = i / (GEO.park.slots - 1);
+    const px = GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r;
+    const py = GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r;
+    decor.append(svgEl('rect', { x: px - GEO.lenStd/2, y: py - GEO.ep/2, width: GEO.lenStd, height: GEO.ep,
+      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.08,
+      transform: `rotate(${GEO.park.rot} ${px} ${py})` }));
+  }
+  {
+    const t = svgEl('text', { x: GEO.park.a.x + 2, y: GEO.park.a.y + 1.8, 'font-size': 1.3,
+      fill: 'var(--ph-park)', 'font-family': 'var(--mono)' });
+    t.textContent = 'Parking'; decor.append(t);
+    decor.append(svgEl('circle', { cx: GEO.ballast.x, cy: GEO.ballast.y, r: 0.8,
+      fill: 'none', stroke: 'var(--ph-ballast)', 'stroke-width': 0.15 }));
+    const t2 = svgEl('text', { x: GEO.ballast.x + 1.4, y: GEO.ballast.y + 0.5, 'font-size': 1.3,
+      fill: 'var(--ph-ballast)', 'font-family': 'var(--mono)' });
+    t2.textContent = 'Ballast Jetty'; decor.append(t2);
+    const t3 = svgEl('text', { x: GEO.xEntry - GEO.lenStd/2, y: 45.6, 'font-size': 1.3,
+      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
+    t3.textContent = '◄ coulée béton'; decor.append(t3);
+    const t4 = svgEl('text', { x: (GEO.xHallEnd + GEO.xOutfitEnd)/2, y: 45.6, 'font-size': 1.3,
+      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
+    t4.textContent = 'outfitting'; decor.append(t4);
+  }
+
+  const couche = svgEl('g', {});
+  plan.append(couche);
+  appliquerFondPlan();
+
+  /* ---- position d'un élément à une date donnée ---- */
+  function poser(e, ms) {
+    const A = k => t(e[k]);
+    const y = GEO.y[e.l], L = lenOf(e.l);
+    const seg = (a, b) => (a && b && b > a) ? (ms - a) / (b - a) : 0;
+
+    if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF'))
+      return { ph:'beton', x: GEO.xEntry, y, w: L * Math.max(0, Math.min(1, seg(A('bD'), A('bF')))), anchor:'right' };
+    if (A('oD') && ms >= A('oD') && A('oF') && ms < A('oF')) {
+      const p = Math.max(0, Math.min(1, seg(A('oD'), A('oF'))));
+      return { ph:'outfitting', x: GEO.xHallEnd + (GEO.xOutfitEnd - GEO.xHallEnd) * p, y, w: L, anchor:'center' };
+    }
+    if (A('oF') && ms >= A('oF') && A('fu') && ms < A('fu'))
+      return { ph:'outfitting', x: GEO.xOutfitEnd, y, w: L, anchor:'center', attente:true };
+    if (A('fu') && ms >= A('fu') && A('ba') && ms < A('ba')) {
+      const p = Math.max(0, Math.min(1, seg(A('fu'), A('ba'))));
+      return { ph:'floatup', x: GEO.xOutfitEnd + (GEO.xBasin - GEO.xOutfitEnd) * p, y, w: L, anchor:'center' };
+    }
+    const finBasin = A('pk') || A('bl');
+    if (A('ba') && ms >= A('ba') && finBasin && ms < finBasin) {
+      const dy = e.bp === 2 ? GEO.ep * 0.6 : -GEO.ep * 0.6;
+      return { ph:'basin', x: GEO.xBasin, y: y + dy, w: L, anchor:'center' };
+    }
+    if (A('pk') && ms >= A('pk') && A('bl') && ms < A('bl')) {
+      const r = (Math.max(1, e.pn) - 1) / (GEO.park.slots - 1);
+      return { ph:'parking', x: GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r,
+               y: GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r, w: L, anchor:'center', rot: GEO.park.rot };
+    }
+    if (A('bl') && ms >= A('bl') && A('fb') && ms < A('fb'))
+      return { ph:'ballast', x: GEO.ballast.x, y: GEO.ballast.y, w: L * 0.55, anchor:'center' };
+    return null;
+  }
+
+  /* ---- horizon jour par jour ---- */
+  const bornes = D.elements.flatMap(e => [t(e.bD), t(e.ba), t(e.pk), t(e.fb), t(e.ir)]).filter(Boolean);
+  const P0 = Math.min(...bornes), P1 = Math.max(...bornes);
+  const nbJours = Math.round((P1 - P0) / day) + 1;
+  const slider = document.getElementById('plan-slider');
+  slider.max = nbJours - 1;
+
+  const dateOut = document.getElementById('plan-date');
+  function dessinerPlan(j) {
+    const ms = P0 + j * day;
+    dateOut.textContent = fr(new Date(ms).toISOString().slice(0, 10));
+    couche.textContent = '';
+    let n = 0;
+    D.elements.forEach(e => {
+      const p = poser(e, ms);
+      if (!p) return;
+      n++;
+      const enRetard = t(e.im) && ms > t(e.im) && (!t(e.ir) || ms <= t(e.ir));
+      const x = p.anchor === 'right' ? p.x - p.w : p.x - p.w / 2;
+      const g = svgEl('g', p.rot ? { transform: `rotate(${p.rot} ${p.x} ${p.y})` } : {});
+      g.append(svgEl('rect', { x, y: p.y - GEO.ep/2, width: Math.max(p.w, 0.25), height: GEO.ep,
+        fill: PHASE_COLOR[p.ph], opacity: p.attente ? 0.55 : 1,
+        stroke: enRetard ? 'var(--crit)' : 'var(--surface)', 'stroke-width': enRetard ? 0.28 : 0.08 }));
+      if (p.w > 3) {
+        const tx = svgEl('text', { x: x + p.w/2, y: p.y + 0.5, 'font-size': 1.15, 'text-anchor': 'middle',
+          fill: '#fff', 'font-family': 'var(--mono)', 'pointer-events': 'none' });
+        tx.textContent = e.id; g.append(tx);
+      }
+      const ti = svgEl('title');
+      ti.textContent = `${e.id} — ${e.l} — ${PHASE_LABEL[p.ph]}${p.attente ? ' (en attente)' : ''}`
+        + `\nImmersion cible ${fr(e.im)}${enRetard ? ' — en retard' : ''}`;
+      g.append(ti);
+      couche.append(g);
+    });
+    return n;
+  }
+
+  if (!slider.dataset.lie) {
+    slider.dataset.lie = '1';
+    slider.addEventListener('input', () => dessinerPlan(+slider.value));
+  }
+  slider.value = 0;
+  dessinerPlan(0);
+  planRedessiner = dessinerPlan;
+
+  const btn = document.getElementById('plan-play');
+  const vitesse = document.getElementById('plan-speed');
+  let timer = null;
+  const reduit = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (btn.dataset.lie) return;
+  btn.dataset.lie = '1';
+  btn.addEventListener('click', () => {
+    if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; return; }
+    btn.textContent = '❚❚';
+    timer = setInterval(() => {
+      let v = +slider.value + (+vitesse.value);
+      if (v > +slider.max) { v = +slider.max; clearInterval(timer); timer = null; btn.textContent = '▶'; }
+      slider.value = v; planRedessiner(v);
+    }, reduit ? 400 : 90);
+  });
+
+  const pl = document.getElementById('plan-legend');
+  Object.entries(PHASE_LABEL).forEach(([k, lab]) => {
+    const s = el('span'); const sw = el('i', 'sw'); sw.style.background = PHASE_COLOR[k];
+    s.append(sw, document.createTextNode(lab)); pl.append(s);
+  });
+  { const s = el('span'); const sw = el('i', 'sw');
+    sw.style.background = 'transparent'; sw.style.boxShadow = 'inset 0 0 0 2px var(--crit)';
+    s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
+
+  }
+
+/* ---- en-tête, verdict et pied de page, écrits d'après le résultat ---- */
+function rendreEnTete(nomFichier, dateRef) {
+  const n = D.retards.length, tot = D.elements.length;
+  const chg = D.changements.length;
+  const finales = [1,2,3,4,5].map(l => {
+    const der = [...D.changements].reverse().find(c => c.ligne === LIGNE_NOM[l]);
+    return der ? der.to : D.ancre[LIGNE_NOM[l]];
+  });
+  const finale = finales.every(v => v === finales[0])
+    ? `${String(finales[0]).replace('.', ',')} sem/segment` : 'variable selon la ligne';
+  const pire = n ? D.retards[0] : null;
+  const dJour = s => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const refISO = dateRef.toISOString().slice(0, 10);
+
+  document.getElementById('titre').textContent = n === 0
+    ? 'Toutes les dates d’immersion sont tenues'
+    : `${n} élément${n > 1 ? 's' : ''} sur ${tot} manque${n > 1 ? 'nt' : ''} ${n > 1 ? 'leur' : 'sa'} date d’immersion`;
+
+  document.getElementById('chapeau').textContent = n === 0
+    ? `Le solveur tient l’ensemble du programme avec ${chg} bascule${chg > 1 ? 's' : ''} de cadence, `
+      + `pour finir à ${finale}.`
+    : `Le solveur applique ${chg} bascule${chg > 1 ? 's' : ''} de cadence et termine à ${finale}, `
+      + `mais ${n} élément${n > 1 ? 's' : ''} arrive${n > 1 ? 'nt' : ''} après ${n > 1 ? 'leur' : 'sa'} date cible — `
+      + `jusqu’à ${pire.retardJours} jours pour ${pire.id}.`;
+
+  const meta = [
+    ['Fichier', nomFichier || '—'],
+    ['Date de référence', dJour(refISO)],
+    ['Éléments', String(tot)],
+    ['Cadence de départ', [1,2,3,4,5].map(l => D.ancre[LIGNE_NOM[l]]).every((v,_,a) => v === a[0])
+      ? `${String(D.ancre['PL-1']).replace('.', ',')} sem/segment` : 'variable'],
+    ['Cadence finale', finale],
+  ];
+  const m = document.getElementById('meta');
+  m.textContent = '';
+  meta.forEach(([k, v]) => {
+    const s = el('span'); s.append(document.createTextNode(k + ' '));
+    const b = el('b', null, v); s.append(b); m.append(s);
+  });
+
+  const v = document.getElementById('verdict');
+  v.textContent = '';
+  v.style.borderLeftColor = n === 0 ? 'var(--ok)' : 'var(--crit)';
+  const h = el('h2', null, n === 0
+    ? `Les ${tot} éléments s’immergent à l’heure`
+    : `Retard maximum de ${pire.retardJours} jours, sur ${pire.id} (${pire.ligne})`);
+  const p = el('p');
+  const parLigne = {};
+  D.retards.forEach(r => { parLigne[r.ligne] = (parLigne[r.ligne] || 0) + 1; });
+  const detail = Object.entries(parLigne).sort((a, b) => b[1] - a[1])
+    .map(([l, c]) => `${l} : ${c}`).join(', ');
+  p.textContent = n === 0
+    ? `Aucun élément n’arrive après sa date d’immersion contractuelle. `
+      + `${chg} bascule${chg > 1 ? 's' : ''} de cadence suffi${chg > 1 ? 'sent' : 't'} à tenir le programme.`
+    : `Répartition des retards par ligne — ${detail}. Le retard se mesure entre la date d’immersion `
+      + `contractuelle et la date réellement atteinte ; l’ordre d’immersion imposé fait qu’un élément `
+      + `en retard décale tous ceux qui le suivent, même prêts à temps.`;
+  v.append(h, p);
+
+  const jours = D.elements.filter(e => e.bD).length;
+  document.getElementById('pied').textContent =
+    `Calcul du ${dJour(refISO)} sur ${nomFichier || 'le classeur chargé'} — ${tot} éléments, `
+    + `${jours} lancés en production sur l’horizon. Moteur identique à celui de index.html ; `
+    + `tout s’exécute dans le navigateur, aucun fichier n’est transmis.`;
+}
+
+/* ================================================================
+   Liaison : lecture du classeur, exécution du solveur, rendu
+   ================================================================ */
+const $ = id => document.getElementById(id);
+let planURL = null;
+
+// Date de référence par défaut : aujourd'hui.
+$('p-dateref').value = new Date().toISOString().slice(0, 10);
+
+function brancherDepot(zone, input) {
+  const n = $(zone), f = $(input);
+  n.addEventListener('click', () => f.click());
+  n.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f.click(); }
+  });
+}
+brancherDepot('drop-xlsx', 'file-xlsx');
+brancherDepot('drop-plan', 'file-plan');
+
+$('file-plan').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (planURL) URL.revokeObjectURL(planURL);
+  planURL = URL.createObjectURL(f);
+  $('drop-plan').classList.add('ok');
+  $('drop-plan').textContent = f.name;
+  appliquerFondPlan();
+});
+
+$('file-xlsx').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const nom = f.name;
+  const lecteur = new FileReader();
+  lecteur.onload = ev => {
+    try {
+      wb = XLSX.read(new Uint8Array(ev.target.result), {type: 'array', cellDates: true, bookVBA: true});
+      $('drop-xlsx').classList.add('ok');
+      $('drop-xlsx').textContent = nom;
+      $('relancer').disabled = false;
+      calculer(nom);
+    } catch (err) {
+      afficherJournal([{msg: 'Lecture impossible : ' + err.message, cls: 'err'}]);
+    }
+  };
+  lecteur.readAsArrayBuffer(f);
+});
+
+$('relancer').addEventListener('click', () => calculer($('drop-xlsx').textContent.trim()));
+
+function calculer(nomFichier) {
+  const btn = $('relancer');
+  const avant = btn.textContent;
+  btn.textContent = 'Calcul…'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const dateRef = new Date($('p-dateref').value);
+      parseWorkbook($('p-dateref').value);
+      if (!elements.length) { afficherJournal(lastJournal); return; }
+      const nb = parseFloat;
+      runSimulation({
+        dateRef,
+        seuilParkingSem: nb($('p-seuilparking').value) || 4,
+        floatUpSem: nb($('p-floatup').value) || 1,
+        hookupSem: nb($('p-hookup').value) || 0.5,
+        ballastSem: nb($('p-ballast').value) || 1,
+      });
+      construireD();
+      toutRendre(nomFichier, dateRef);
+    } catch (err) {
+      afficherJournal(lastJournal.concat([{msg: 'Erreur de calcul : ' + err.message, cls: 'err'}]));
+      console.error(err);
+    } finally {
+      btn.textContent = avant; btn.disabled = false;
+    }
+  }, 30);
+}
+
+// Traduit l'état du solveur dans la forme attendue par le rendu.
+let D = null;
+function construireD() {
+  const iso = d => d ? new Date(d).toISOString().slice(0, 10) : null;
+  D = {
+    elements: elements.map(e => ({
+      id: e.id, l: LIGNE_NOM[e.ligne], ln: e.ligne, r: e.rythme,
+      bD: iso(e.dateDebutBeton), bF: iso(e.dateFinBeton),
+      oD: iso(e.dateDebutOut), oF: iso(e.dateFinOut),
+      fu: iso(e.dateDebutFU), ba: iso(e.dateDebutBasin), pk: iso(e.dateDebutParking),
+      bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),
+      im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche),
+      pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
+    })),
+    changements: lastChangements.map(c => ({
+      ligne: c.ligne, date: iso(c.date), from: c.from, to: c.to,
+      atRisk: c.atRisk, declencheur: c.declencheur,
+    })),
+    risques: lastRisques.map(r => ({ligne: r.ligne, date: iso(r.date), rythme: r.rythme, element: r.element})),
+    retards: lastRetards.map(r => ({
+      id: r.id, ligne: r.ligne, cible: iso(r.cible), reel: iso(r.reel), retardJours: r.retardJours,
+    })),
+    ancre: Object.fromEntries([1,2,3,4,5].map(l => [LIGNE_NOM[l], anchorRhythm(l)])),
+  };
+}
+
+function afficherJournal(entrees) {
+  const j = $('journal');
+  j.textContent = '';
+  entrees.forEach(({msg, cls}) => {
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = msg;
+    j.append(d);
+  });
+}
+
+function appliquerFondPlan() {
+  const svg = $('plan');
+  if (!svg || !planURL) return;
+  let img = svg.querySelector('image.fond');
+  if (!img) {
+    img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    img.setAttribute('class', 'fond');
+    img.setAttribute('x', 0); img.setAttribute('y', 0);
+    img.setAttribute('width', 100); img.setAttribute('height', 100);
+    img.setAttribute('preserveAspectRatio', 'none');
+    img.setAttribute('opacity', 0.45);
+    svg.prepend(img);
+  }
+  img.setAttribute('href', planURL);
+}
+
+})();
+</script>

@@ -195,6 +195,11 @@
 <script>
 'use strict';
 
+/* ==== SOLVEUR-CORE-DEBUT ====
+   Bloc réutilisable : géométrie, parsing du classeur et moteur de simulation.
+   Le script de construction de la page de restitution extrait ce bloc tel quel,
+   pour qu'il n'existe qu'une seule implémentation du solveur. */
+
 /* ================================================================
    1. GEOMETRIE DU SITE — coordonnées relatives (%) "pixel perfect"
    ================================================================ */
@@ -293,7 +298,12 @@ let lastRisques = [];        // alertes de délai non tenable relevées par le s
 let lastRetards = [];        // éléments ratant leur date d'immersion cible
 let logEl = document.getElementById('log');
 
+// Le panneau de journal peut être absent (page de restitution réutilisant ce moteur) :
+// on retombe alors sur la console, et les messages restent collectés dans lastJournal.
+let lastJournal = [];
 function log(msg, cls) {
+  lastJournal.push({msg, cls});
+  if (!logEl) { (cls === 'err' ? console.error : console.log)(msg); return; }
   const d = document.createElement('div');
   if (cls) d.className = cls;
   d.textContent = msg;
@@ -302,54 +312,8 @@ function log(msg, cls) {
 }
 
 /* ================================================================
-   5. CHARGEMENT IMAGE DE FOND
+   5. LECTURE DES FEUILLES DU CLASSEUR
    ================================================================ */
-const dropImg = document.getElementById('drop-img');
-const fileImg = document.getElementById('file-img');
-dropImg.onclick = () => fileImg.click();
-fileImg.onchange = (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const url = URL.createObjectURL(f);
-  const img = document.getElementById('plan-img');
-  img.src = url;
-  img.style.display = 'block';
-  document.getElementById('placeholder').style.display = 'none';
-  dropImg.classList.add('loaded');
-  dropImg.textContent = '✅ ' + f.name;
-  checkReady();
-};
-
-/* ================================================================
-   6. CHARGEMENT EXCEL
-   ================================================================ */
-const dropXlsx = document.getElementById('drop-xlsx');
-const fileXlsx = document.getElementById('file-xlsx');
-dropXlsx.onclick = () => fileXlsx.click();
-fileXlsx.onchange = (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    try {
-      const data = new Uint8Array(ev.target.result);
-      wb = XLSX.read(data, {type:'array', cellDates:true, bookVBA:true});
-      parseWorkbook();
-      dropXlsx.classList.add('loaded');
-      dropXlsx.textContent = '✅ ' + f.name;
-      checkReady();
-    } catch (err) {
-      log('Erreur lecture fichier : ' + err.message, 'err');
-    }
-  };
-  reader.readAsArrayBuffer(f);
-};
-
-function checkReady() {
-  const imgOk = document.getElementById('plan-img').style.display === 'block';
-  const xlsxOk = elements.length > 0;
-  document.getElementById('btn-run').disabled = !(imgOk && xlsxOk);
-}
 
 function sheetRows(name) {
   const s = wb.Sheets[name];
@@ -357,10 +321,11 @@ function sheetRows(name) {
   return XLSX.utils.sheet_to_json(s, {header:1, raw:true, defval:''});
 }
 
-function parseWorkbook() {
+function parseWorkbook(dateRefArg) {
   elements = [];
-  logEl.innerHTML = '';
-  const dateRef = new Date(document.getElementById('p-dateref').value);
+  lastJournal = [];
+  if (logEl) logEl.innerHTML = '';
+  const dateRef = dateRefArg ? new Date(dateRefArg) : new Date(document.getElementById('p-dateref').value);
 
   // --- Inputs ---
   const rowsIn = sheetRows('Inputs');
@@ -573,13 +538,17 @@ function parseAsBuiltCode(raw) {
    retient le premier qui respecte à la fois la pente d'inertie de la
    ligne (vs. son dernier changement réel) et la date d'immersion cible.
    ================================================================ */
-function runSimulation() {
-  PARAMS = {
+function runSimulation(paramsArg) {
+  const champ = (id, def) => {
+    const n = document.getElementById(id);
+    return n ? (parseFloat(n.value) || def) : def;
+  };
+  PARAMS = paramsArg || {
     dateRef: new Date(document.getElementById('p-dateref').value),
-    seuilParkingSem: parseFloat(document.getElementById('p-seuilparking').value) || 4,
-    floatUpSem: parseFloat(document.getElementById('p-floatup').value) || 1,
-    hookupSem: parseFloat(document.getElementById('p-hookup').value) || 0.5,
-    ballastSem: parseFloat(document.getElementById('p-ballast').value) || 1,
+    seuilParkingSem: champ('p-seuilparking', 4),
+    floatUpSem: champ('p-floatup', 1),
+    hookupSem: champ('p-hookup', 0.5),
+    ballastSem: champ('p-ballast', 1),
   };
   const REF = PARAMS.dateRef;
 
@@ -1134,8 +1103,8 @@ function runSimulation() {
   if (bloquesParOrdre.size) log(`${bloquesParOrdre.size} élément(s) prêts mais retenus par l'ordre d'immersion (attente max ${Math.max(...bloquesParOrdre.values())} j).`, 'warn');
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
-  renderChangeTable(changements);
-  renderStats();
+  if (document.getElementById('change-table')) renderChangeTable(changements);
+  if (document.getElementById('stats')) renderStats();
   return jourCourant;
 }
 
@@ -1201,6 +1170,8 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
       return null;
   }
 }
+
+/* ==== SOLVEUR-CORE-FIN ==== */
 
 /* ================================================================
    9. RENDU VISUEL
@@ -1273,6 +1244,55 @@ function renderChangeTable(changements) {
 /* ================================================================
    10. CONTROLES UI
    ================================================================ */
+/* ================================================================
+   5. CHARGEMENT IMAGE DE FOND
+   ================================================================ */
+const dropImg = document.getElementById('drop-img');
+const fileImg = document.getElementById('file-img');
+dropImg.onclick = () => fileImg.click();
+fileImg.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = document.getElementById('plan-img');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('placeholder').style.display = 'none';
+  dropImg.classList.add('loaded');
+  dropImg.textContent = '✅ ' + f.name;
+  checkReady();
+};
+
+/* ================================================================
+   6. CHARGEMENT EXCEL
+   ================================================================ */
+const dropXlsx = document.getElementById('drop-xlsx');
+const fileXlsx = document.getElementById('file-xlsx');
+dropXlsx.onclick = () => fileXlsx.click();
+fileXlsx.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      wb = XLSX.read(data, {type:'array', cellDates:true, bookVBA:true});
+      parseWorkbook();
+      dropXlsx.classList.add('loaded');
+      dropXlsx.textContent = '✅ ' + f.name;
+      checkReady();
+    } catch (err) {
+      log('Erreur lecture fichier : ' + err.message, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(f);
+};
+
+function checkReady() {
+  const imgOk = document.getElementById('plan-img').style.display === 'block';
+  const xlsxOk = elements.length > 0;
+  document.getElementById('btn-run').disabled = !(imgOk && xlsxOk);
+}
 document.getElementById('btn-run').onclick = () => {
   document.getElementById('btn-run').textContent = '⏳ Calcul en cours…';
   document.getElementById('btn-run').disabled = true;
