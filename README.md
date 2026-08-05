@@ -86,8 +86,8 @@ Le staggering se désactive depuis l'interface.
 ## Optimiseur de séquence
 
 Le solveur de cadence prend la séquence de l'onglet `Inputs` telle quelle. L'optimiseur,
-lui, choisit **l'ordre des éléments sur chaque ligne** — l'affectation d'un élément à une
-ligne, elle, reste celle du classeur. Objectif, dans cet ordre :
+lui, choisit **l'ordre des éléments sur chaque ligne** et, si on le lui demande, **la ligne
+sur laquelle produire chaque élément**. Objectif, dans cet ordre :
 
 1. **zéro inversion** entre séquence de production et ordre d'immersion ;
 2. **minimisation des retards** : éléments bloqués, puis éléments en retard, puis retard
@@ -99,9 +99,17 @@ là où le premier laisse le choix — les éléments sans date d'immersion, qui
 et ceux qui partagent la même date. L'optimiseur explore ces cas par descente locale, chaque
 candidat étant évalué par une simulation complète, sous budget de temps borné.
 
+**Affectation aux lignes.** Les cinq lignes PL sont interchangeables : un élément standard se
+produit sur n'importe laquelle. La ligne SPE, elle, ne produit que ses éléments spéciaux — sa
+chaîne de 7 zones ne convient à rien d'autre — et rien d'autre ne s'y produit. L'optimiseur
+part d'une répartition par ordonnancement de liste (chaque élément sur la ligne dont le
+créneau se libère le plus tôt), puis déplace un à un les éléments qui posent problème —
+bloqués ou en retard — vers les lignes les moins chargées. Chaque candidat étant évalué par
+une simulation complète, le voisinage exploré est ciblé plutôt qu'énuméré.
+
 Un élément déjà engagé — statut as-built saisi, ou date d'immersion déjà passée — garde sa
-place en tête de file : sa production est commencée. Et l'optimiseur ne rend jamais un plan
-pire que celui de l'utilisateur : à égalité, la séquence du classeur est conservée.
+place et sa ligne : sa production est commencée. Et l'optimiseur ne rend jamais un plan pire
+que celui de l'utilisateur : à égalité, la séquence du classeur est conservée.
 
 La séquence retenue est celle que l'on peut recopier dans `Inputs` : la simuler donne
 exactement ce que donnerait le même ordre saisi dans le classeur. Elle est exportée telle
@@ -260,7 +268,12 @@ colonne F.
 
 3. **Le SPE n'est évacué qu'avant son utilisation finale** : il reste en Basin C
    jusqu'au démarrage de son Ballast Jetty (date d'immersion − durée Ballast), bien
-   au-delà de la fin de son hook-up.
+   au-delà de la fin de son hook-up. **Sauf s'il retient un SPE qui doit s'immerger avant
+   lui** : la place SPE du Basin C étant unique, l'attendre bloquerait toute la file
+   d'immersion. Il part alors en **zone de stockage SPE**, dédiée aux éléments spéciaux et
+   distincte du parking, d'où il revient pour son propre ballast. Sortir du Basin C imposant
+   de l'inonder, l'évacuation attend que tout SPE encore en zone UB soit étanche. Chaque
+   évacuation anticipée est signalée dans le journal.
 4. **Les éléments normaux sont évacués au fur et à mesure**, sans attendre le SPE.
 5. **Porte outfitting** : un élément normal ne passe en outfitting que si celui-ci
    sera terminé avant l'évacuation du SPE suivant.
@@ -276,13 +289,10 @@ place 2 = SPE).
 
 ## À venir
 
-- **Affectation des éléments aux lignes.** L'optimiseur choisit l'ordre sur chaque ligne,
-  pas la ligne sur laquelle un élément est produit. Rééquilibrer les files entre lignes est
-  le levier suivant sur les retards.
-- **Évacuation anticipée d'un SPE.** Si un SPE doit quitter le Basin C avant son immersion,
-  deux éléments non étanches peuvent se retrouver simultanément dans les zones UB. Ce cas
-  reste exceptionnel et n'est pas modélisé ; la structure par zone de la colonne F le
-  permettra une fois la règle spécifiée.
+- **Capacité réelle de la zone de stockage SPE.** Une place par défaut, réglable dans
+  l'interface. La position sur le plan est estimée.
+- **Pentes progressives de cadence.** Un changement de rythme se fait graduellement dans la
+  réalité, pas d'un jour à l'autre.
 
 ## Limites connues
 

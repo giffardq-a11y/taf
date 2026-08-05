@@ -259,6 +259,8 @@
         <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
         <label class="champ">Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
         <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
+        <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
+          Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
         <label class="champ" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
           Staggering entre halls <input type="checkbox" id="p-stagger" checked></label>
         <label class="champ" title="Remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards">
@@ -927,6 +929,7 @@ function calculer(nomFichier) {
         floatUpSem: nb($('p-floatup').value) || 1,
         hookupSem: nb($('p-hookup').value) || 0.5,
         ballastSem: nb($('p-ballast').value) || 1,
+        placesStockageSPE: nb($('p-stockagespe').value) || 0,
       };
       STAGGER.actif = $('p-stagger').checked;
       // L'optimiseur enchaîne des simulations d'essai avant de retenir une séquence ; la

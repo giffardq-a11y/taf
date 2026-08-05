@@ -15,27 +15,41 @@ S'y ajoutent désormais le **staggering entre halls**, l'**optimiseur de séquen
 solveur de cadence et l'optimiseur de séquence se pilotent séparément depuis l'étape 5 de
 l'interface, et le choix de la séquence du classeur y est exposé.
 
-## Le blocage de départ est levé
+## Le blocage de départ : diagnostic et levée
 
-Aucune des trois séquences de production du classeur n'était réalisable : chacune contient
-des inversions — un élément produit avant un autre qu'il doit immerger après — et les places
-en aval étant uniques, la ligne se bloque.
+Mesures faites sur `target_schedule_programme.xlsm`, date de référence 05/08/2026,
+staggering actif, 1 place de stockage SPE.
 
-| Variante | Inversions | Bloqués | Retards | Retard max |
-|---|---|---|---|---|
-| 1 (originale) | 4 | 38 | 47 | 140 j |
-| 2 | 2 | 38 | 47 | 140 j |
-| 3 | 6 | 51 | 34 | 70 j |
+Les 38 éléments bloqués de la variante 1 ne venaient **pas** des inversions de séquence.
+Ils tenaient à un seul verrou physique : `SPE-06` doit s'immerger le 16/10/2028, `SPE-02`
+le 30/11/2028, mais `SPE-02` est produit avant et occupait la place SPE du Basin C jusqu'à
+son propre ballast. `SPE-06` finissait sa chaîne dès mars 2027 sans jamais pouvoir entrer,
+et l'ordre d'immersion imposé gelait derrière lui 37 éléments pourtant tous prêts.
 
-Inversions de la variante 1, signalées au chargement :
-PL-3 `STE-12`/`STE-47`, PL-4 `STE-11`/`STE-48`, PL-5 `STE-29`/`STE-34`,
-SPE `SPE-02`/`SPE-06`.
+Vérifié par l'expérience : corriger les trois inversions des lignes PL ne changeait rien
+(38 bloqués) ; échanger les deux dates d'immersion débloquait tout (0 bloqué).
 
-L'optimiseur les résout sans intervention : cocher *Optimiser la séquence* remet chaque
-ligne dans l'ordre d'immersion. Le comparatif chiffre l'écart sur les indicateurs
-ci-dessus. **Ces trois lignes sont à réétablir sur le classeur réel** — elles datent
-d'avant l'optimiseur, et les colonnes *Bloqués/Retards/Retard max* ont été mesurées sur un
-moteur qui contenait le défaut d'ordre corrigé depuis (voir plus bas).
+**La zone de stockage SPE lève ce verrou**, sans toucher aux dates : `SPE-02` part en
+stockage quatre jours après son hook-up, `SPE-06` prend la place et s'immerge, `SPE-02`
+revient pour son ballast. Une seule place suffit — en essayer deux ne change rien.
+
+| Variante | Inversions | Bloqués | Retards | Retard max | Retard cumulé |
+|---|---|---|---|---|---|
+| 1 (classeur) | 4 | 0 | 85 | 140 j | 1993 j |
+| 1 optimisée | 1 | 0 | 85 | 140 j | **896 j** |
+| 2 (classeur) | 2 | 5 | 80 | 140 j | 1751 j |
+| 2 optimisée | 1 | 0 | 85 | 140 j | **935 j** |
+| 3 (classeur) | 6 | 51 | 34 | 70 j | 559 j |
+| 3 optimisée | 0 | 0 | 85 | 70 j | 609 j |
+
+Lecture : la variante 3 paraît meilleure sur *Retards* parce que 51 de ses éléments ne
+sortent jamais et ne comptent donc pas comme retardataires. C'est l'inverse d'un bon plan,
+et c'est pourquoi *Bloqués* passe avant *Retards* dans les critères.
+
+L'inversion résiduelle est `SPE-02`/`SPE-06` : elle ne se corrige plus par la séquence —
+`SPE-02` est déjà en zone CP1 à la date de référence — et n'a plus à l'être, le stockage
+l'absorbe. Le journal la distingue désormais des inversions de lignes PL, qui, elles,
+bloquent vraiment.
 
 ## Ce qui a été construit
 
@@ -60,18 +74,22 @@ Deux points de conception qui ne sont pas des réglages arbitraires :
 - Le déphasage cesse de s'appliquer dès que le **hall A n'a plus rien à lancer** : sans
   départ à venir il n'y a plus de phase, et attendre bloquerait la fin de programme.
 
-### 2. Optimiseur de séquence — fait
+### 2. Optimiseur de séquence — fait, affectation aux lignes comprise
 
 Objectif respecté : zéro inversion d'abord, retards ensuite, staggering en contrainte dure
 à 1 semaine. Activable et désactivable depuis l'interface, comme le staggering.
 
-**Constat à connaître avant d'y retoucher** : une file sans inversion est une file triée par
-date d'immersion — l'ordre est **unique aux ex æquo près**. Le second objectif ne s'exerce
-donc que là où le premier laisse le choix : éléments sans date d'immersion, et dates
-partagées. Sur un classeur où toutes les dates sont renseignées et distinctes, l'optimiseur
-se réduit au tri et l'affinage ne trouve rien à déplacer — ce n'est pas un défaut
-d'implémentation, c'est le degré de liberté disponible. Le vrai levier suivant sur les
-retards est l'**affectation des éléments aux lignes**, aujourd'hui figée par le classeur.
+**Constat qui a guidé la suite** : une file sans inversion est une file triée par date
+d'immersion — l'ordre est **unique aux ex æquo près**. Or les 89 éléments du classeur ont
+tous une date, toutes distinctes : à lignes figées, l'optimiseur se réduisait au tri et
+n'avait plus aucune marge. D'où l'affectation aux lignes, qui est le vrai levier.
+
+**Affectation aux lignes** : les 5 lignes PL sont interchangeables, la ligne SPE non. Le
+classeur porte 17/17/17/17/11 éléments. L'optimiseur essaie une répartition équilibrée par
+ordonnancement de liste, puis déplace un à un les éléments en retard vers les lignes les
+moins chargées. Sur la variante 1, le rééquilibrage global n'a pas battu la répartition du
+classeur, mais **un seul déplacement ciblé** (`STE-04` : PL-3 → PL-5) fait passer le retard
+cumulé de 1365 à 896 jours. Sur la variante 2, 7 déplacements font 1751 → 935 j.
 
 ### 3. Comparatif — fait
 
@@ -90,7 +108,7 @@ Inchangé : l'utilisateur fournira un PDF de coupe avec le positionnement des é
 remplir au fil des immersions, comme le plan d'installation l'est déjà pour le mouvement en
 surface.
 
-## Défaut corrigé au passage
+## Défauts corrigés au passage
 
 Quand deux éléments d'une même ligne attendaient ensemble — l'outfitting peut se libérer
 avant que le float-up n'ait eu lieu — le moteur prenait **le premier du tableau `elements`,
@@ -101,14 +119,30 @@ Le choix se fait désormais sur `ordreSeq` (`premierDeLigne` dans `index.html`),
 la simulation indépendante de la disposition du classeur — condition pour que la séquence
 proposée par l'optimiseur, une fois recopiée dans `Inputs`, donne exactement le même plan.
 
+**Une simulation modifiait ses propres données d'entrée.** Un élément sans date d'immersion
+s'en voyait attribuer une au ballast, et cette date survivait à l'exécution : deux essais de
+la même séquence ne partaient donc pas des mêmes données. L'optimiseur comparait des
+candidats évalués sur des bases différentes, et comptait comme inversions des couples dont
+la date avait été inventée par la simulation elle-même. La date cible est désormais
+restaurée à chaque exécution, et tout ce qui décide de la séquence passe par `dateCible()`,
+qui ne lit que la donnée d'entrée.
+
+**Le rang de production lu ne valait pas le rang renuméroté.** `ordreSeq` reprenait le numéro
+de ligne du classeur, qui saute dès qu'une colonne est vide, alors que l'optimiseur
+renumérote de 1 à n par ligne. Les deux donnaient des plans légèrement différents (1,6 % sur
+le retard cumulé), l'ordre du tableau départageant les lignes qui se disputent une place de
+parking le même jour. La lecture normalise désormais comme l'optimiseur.
+
 ## Évolutions notées, non planifiées
 
-- **Affectation des éléments aux lignes** par le solveur (cf. ci-dessus).
+- **Départage des lignes concurrentes.** Quand deux lignes se disputent la même place de
+  parking ou de bassin le même jour, c'est l'ordre du tableau des éléments qui tranche, non
+  l'urgence. Départager par rang d'immersion serait plus juste — et rendrait le plan
+  totalement indépendant de la disposition du classeur.
 - **Pentes progressives de cadence.** Un changement de rythme se fait
   graduellement dans la réalité, pas d'un jour à l'autre.
-- **Évacuation anticipée d'un SPE**, qui peut laisser deux éléments non étanches
-  simultanément dans les UB. La colonne F de `Config_SPE` est saisie par zone
-  précisément pour permettre ce cas.
+- **Capacité et position réelles de la zone de stockage SPE** : une place par défaut,
+  réglable dans l'interface ; la position sur le plan est estimée, à recalibrer.
 
 ## Réserves connues
 
@@ -118,8 +152,8 @@ proposée par l'optimiseur, une fois recopiée dans `Inputs`, donne exactement l
 - Le solveur ne modélise ni les deux portes du Basin C ni le déphasage entre halls quand il
   choisit la cadence : ses estimations de délai restent optimistes sur PL-3, PL-4 et PL-5.
   La simulation, elle, applique les deux.
-- L'affinage de l'optimiseur tourne sous budget de temps (5 s par défaut, chaque candidat
-  coûtant une simulation complète). Sur un très gros classeur il peut s'arrêter avant
+- L'optimiseur tourne sous budget de temps (8 s par défaut, chaque candidat coûtant une
+  simulation complète — environ 100 candidats sur le classeur réel). Il peut s'arrêter avant
   d'avoir épuisé le voisinage ; la meilleure séquence trouvée est alors retenue.
 - `Config_Outfitting` ne pilote plus le calendrier ; l'onglet ne sert plus qu'aux
   noms de phases. Il est conservé pour ne pas casser les classeurs existants.
