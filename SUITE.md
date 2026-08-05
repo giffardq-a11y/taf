@@ -62,29 +62,32 @@ La question a été posée : le planning P6 prouve que ces dates sont tenables, 
 solveur n'y arrive-t-il pas ? Réponse mesurée, en désactivant les règles une à une
 (variante 1, staggering actif) :
 
+Mesures refaites une fois la ligne SPE pilotée par le planning P6, sur la séquence du
+classeur :
+
 | Configuration | Retards | Retard max | Retard cumulé |
 |---|---|---|---|
-| Référence | 33 | 141 j | 1999 j |
-| Sans porte d'étanchéité du Basin C | 19 | 104 j | 1116 j |
-| Ancre de cadence à 1 sem/segment | 26 | 141 j | 1218 j |
-| Étanchéité levée + ancre 1 sem | 12 | 65 j | 335 j |
-| Sans ordre d'immersion imposé | 5 | 141 j | 314 j |
+| Référence | 22 | 104 j | 1145 j |
+| Sans staggering | 24 | 128 j | 1509 j |
+| Sans ordre d'immersion imposé | 3 | 104 j | 170 j |
+| Ancre de cadence à 1 sem/segment | 23 | 65 j | 761 j |
 | Toutes règles levées | 3 | 49 j | 69 j |
 
-Trois enseignements :
+Deux enseignements :
 
 1. **L'ordre d'immersion imposé est le premier amplificateur** : à lui seul il fait passer le
-   retard cumulé de 314 à 1999 jours. Il ne crée presque aucun retard, il les propage — un
+   retard cumulé de 170 à 1145 jours. Il ne crée presque aucun retard, il les propage — un
    élément retenu bloque tous ceux qui le suivent, même prêts. Ce n'est donc pas la séquence
-   de production qui pèche : la réordonner ne change pas la cause.
-2. **La porte d'étanchéité du Basin C est le premier générateur.** `STE-70`, 141 jours de
-   retard, est en bassin dès la date de référence et n'en sort qu'en juillet 2027 : évacuer
-   un élément normal impose d'inonder, donc d'attendre l'étanchéité du SPE présent en UB.
-3. **L'ancre de cadence du classeur contredit le classeur lui-même.** `Config_Cycles`
-   déclare 3 semaines/segment ; l'onglet `Recap_Dates`, produit à partir du même planning,
-   montre 7 jours par segment sur tous les éléments — soit 1 semaine. Avec la pente d'inertie
-   (1 semaine de variation par 4 mois), partir de 3 coûte 8 mois avant d'atteindre 1. Corriger
-   cette seule saisie fait passer le cumul de 1999 à 1218 jours.
+   de production qui pèche : la réordonner ne change pas la cause. C'est une donnée d'entrée
+   P6, non modifiable, et le programme ne la modifie pas : la ligne ci-dessus est un
+   diagnostic, pas une proposition.
+2. **L'ancre de cadence mérite une vérification.** `Config_Cycles` déclare 3 semaines/segment
+   comme cadence actuelle. Avec la pente d'inertie (1 semaine de variation par 4 mois), partir
+   de 3 coûte 8 mois avant d'atteindre 1 — et la ramener à 1 divise le retard maximum par
+   deux (104 → 65 j). Question ouverte, à confirmer par le chantier : quelle est la cadence
+   réellement en vigueur au 05/08/2026 ?
+
+Le staggering, lui, ne coûte rien : il *réduit* les retards (1145 j contre 1509 sans lui).
 
 **Le planning est tenable — mesuré.** Avec la séquence automatique et l'étanchéité avancée
 de 42 semaines : **5 éléments en retard, 1 jour au maximum, 5 jours de cumul**, aucun bloqué.
@@ -215,11 +218,29 @@ gain minimal qui l'annule, mesure des paliers intermédiaires, et ouvre une boî
 où l'utilisateur choisit le niveau d'accélération — ou le refuse. La page de rapport porte le
 même champ et signale le gain possible dans son journal.
 
-### 6. Coupe des éléments immergés — à faire
+### 6. Interface entièrement paramétrable — à faire, second temps
+
+Demandé par l'utilisateur : une interface HTML où l'**état actuel se définit à l'écran** au
+lieu d'être saisi dans le classeur (colonnes as-built de `Inputs`), avec des **icônes par
+élément portant leur statut**, et où **toutes les règles du modèle sont visibles et
+modifiables** — cadences autorisées, pente d'inertie, staggering, seuils d'étanchéité, places
+de bassin et de parking, durées de float-up et de ballast. Aujourd'hui une partie de ces
+règles est dans le classeur, une autre en constantes du code (`RYTHMES`, `SLOPE_*`, `STAGGER`,
+`SEUIL_ETANCHE_*`, `GEO`) : les remonter dans l'interface est le chantier suivant.
+
+### 7. Coupe des éléments immergés — à faire
 
 Inchangé : l'utilisateur fournira un PDF de coupe avec le positionnement des éléments. À
 remplir au fil des immersions, comme le plan d'installation l'est déjà pour le mouvement en
 surface.
+
+## Onglets du classeur devenus caducs
+
+`Recap_Dates` est le résultat de l'ancienne macro, pas une donnée d'entrée : il n'a plus lieu
+d'être et le solveur ne le lit pas. J'en avais tiré à tort que la cadence réelle était d'une
+semaine par segment (7 jours entre chaque segment béton) contre les 3 semaines déclarées dans
+`Config_Cycles` — c'était lire le résultat d'un calcul, pas le chantier. La question de la
+cadence de départ reste posée, mais elle ne se tranche pas là.
 
 ## Défauts corrigés au passage
 
