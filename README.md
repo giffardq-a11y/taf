@@ -412,6 +412,44 @@ Les arrêts annuels de l'usine sont hachurés en travers de toutes les lignes, l
 modélisées gardent leur ligne en gris, et **chaque barre ouvre la fiche de l'élément** au clic.
 Une case permet de masquer les lignes non modélisées pour un tirage plus dense.
 
+## Travaux marins et finitions, repris du planning P6
+
+`extraire_p6.py` lit l'export P6 `TUXERev2LinkedActivities.xlsx` et en tire les seules
+activités qui remplissent des lignes du Gantt que le solveur laissait vides :
+
+```bash
+python3 extraire_p6.py TUXERev2LinkedActivities.xlsx donnees_p6.txt
+python3 planning_cible.py plan.json Target_schedule_solveur.xlsx donnees_p6.txt
+```
+
+**Le solveur n'en voit rien.** Ces dates ne servent qu'à l'affichage : le plan de production
+reste entièrement calculé, et aucune de ces activités n'entre dans une contrainte. C'est une
+consigne explicite, et elle vaut aussi pour les dates *ready for float-up*, dont le raccord
+existe pourtant dans le parseur.
+
+Dix familles, à la maille de WBS demandée — une ligne par famille, non une par élément, ce qui
+en ferait 79 :
+
+| Ligne du Gantt | Source dans le P6 | Éléments |
+|---|---|---|
+| Trench rectification (leveling layer) | activités « Leveling Layer Installation » | 12 |
+| Gravel bed | « Gravel Bed » | 89 |
+| Locking fill & Backfill | « Locking fill » et « Backfill » | 89 |
+| Immersion joint removal (bulkheads) | WBS `Immersion Joint Removal` | 87 |
+| Immersion joint infill concrete | WBS `Immersion Joint infill Concrete` | 87 |
+| Omega seal installation | WBS `Omega seal installation` | 87 |
+| Removal of TE system | WBS `Removal of TE System` | 79 |
+| Drainage installation | WBS `Drainage Installation` | 89 |
+| Walkways | WBS `Walkways` | 89 |
+| Element ready for float-up (SPE) | « Element ready for floatup » | 10 |
+
+Ces lignes portent des **teintes sourdes** et pas d'étiquette : elles se lisent comme une bande
+d'activité, non comme une suite de barres. C'est délibéré — les finitions de 89 éléments se
+recouvrent largement, et une ligne unique ne peut pas les empiler. On voit d'un coup d'œil ce
+que le solveur calcule et ce qu'il ne fait que recopier.
+
+`Trench verification` a été retirée : le P6 n'a aucune activité sous ce nom.
+
 ## Relevé des contraintes
 
 La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**

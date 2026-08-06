@@ -16,8 +16,19 @@ from openpyxl.cell.cell import MergedCell
 from openpyxl.utils import get_column_letter
 
 SRC, DST = sys.argv[1], sys.argv[2]
+P6 = sys.argv[3] if len(sys.argv) > 3 else None
 D = json.load(open(SRC))
 ELEMENTS = D['elements']
+
+# Travaux marins et finitions, lus du planning P6 par `extraire_p6.py`. Le solveur ne les
+# calcule pas et n'en sait rien : ils ne font que remplir des lignes du planning qu'il laissait
+# vides. Format « id|catégorie|début|fin ».
+BARRES_P6 = []
+if P6:
+    for t in open(P6).read().strip().split(';'):
+        if not t: continue
+        i, c, d, f = t.split('|')
+        BARRES_P6.append((i, c, date.fromisoformat(d), date.fromisoformat(f)))
 
 # --- Ressources du planning, dans l'ordre de l'original ---------------------------------
 # ('libellé', source, paramètre). source vaut None quand la ressource n'est pas modélisée :
@@ -44,20 +55,35 @@ GRILLE += [
 GRILLE += [(f'Lower basin {p}', 'basin', p) for p in range(1, 7)]
 GRILLE += [('Harbour Parking SPE', 'stockageSPE', None)]
 GRILLE += [(f'Harbour Parking {p}', 'parking', p) for p in range(1, 7)]
+# Les lignes ci-dessous ne viennent pas du solveur mais du planning P6 : travaux marins, puis
+# finitions à la maille du WBS demandée. Elles remplissent des lignes jusque-là vides et en
+# ajoutent six, une par famille de finition — non une par élément, ce qui en ferait 79.
 GRILLE += [
     ('Hookup', 'hookup', None),
     ('Ballast jetty', 'ballast', None),
-    ('Trench verification', None, None),
-    ('Trench rectification (leveling layer)', None, None),
-    ('Gravel bed', None, None),
+    ('Trench rectification (leveling layer)', 'p6:level', None),
+    ('Gravel bed', 'p6:gravel', None),
     ('Immersion', 'immersion', None),
-    ('Locking fill & Backfill', None, None),
+    ('Locking fill & Backfill', 'p6:lock', None),
+    ('Immersion joint removal (bulkheads)', 'p6:bhrem', None),
+    ('Immersion joint infill concrete', 'p6:infill', None),
+    ('Omega seal installation', 'p6:omega', None),
+    ('Removal of TE system', 'p6:tesys', None),
+    ('Drainage installation', 'p6:drain', None),
+    ('Walkways', 'p6:walk', None),
+    ('Element ready for float-up (SPE)', 'p6:readyfu', None),
 ]
 
 COULEURS = {
     'beton': 'FFFF00', 'outfitting': '00B050', 'zone': 'A39FE9', 'basin': '9DC3E6',
     'stockageSPE': 'C9B6EC', 'parking': 'D9D9D9', 'hookup': '7FC6CE', 'ballast': 'ED9B33',
     'immersion': 'FF0000',
+    # Le P6 a ses propres teintes, plus sourdes : on doit voir d'un coup d'œil ce que le
+    # solveur calcule et ce qu'il ne fait que recopier.
+    'p6:level': 'BFA58A', 'p6:gravel': '8C7B6B', 'p6:lock': 'C8B79E',
+    'p6:bhrem': 'A8C4D8', 'p6:infill': '90AFC6', 'p6:omega': '6E93B5',
+    'p6:tesys': 'B9C9A8', 'p6:drain': '9FBA8C', 'p6:walk': '86A472',
+    'p6:readyfu': 'D9A5C0',
 }
 POLICE = 'Arial'
 TRAIT = Side(style='thin', color='BFBFBF')
@@ -105,6 +131,12 @@ def occupations():
         if e['immersion']:
             d = jour(e['immersion'])
             out.append(('Immersion', d, d + timedelta(days=1), lab))
+    # Barres du P6 : chaque catégorie a sa ligne, l'étiquette reste l'élément concerné.
+    par_cat = {g[1].split(':')[1]: g[0] for g in GRILLE if g[1] and str(g[1]).startswith('p6:')}
+    for ident, cat, d, f in BARRES_P6:
+        libelle = par_cat.get(cat)
+        if libelle and f > d:
+            out.append((libelle, d, f, etiquette(ident)))
     return out
 
 OCC = occupations()
@@ -201,6 +233,15 @@ for libelle, d, f, lab in sorted(OCC, key=lambda o: (o[0], o[1])):
     if not r:
         continue
     source = next(g[1] for g in GRILLE if g[0] == libelle)
+    # Une famille de finition ou de travaux marins occupe sa ligne pour beaucoup d'éléments à la
+    # fois : les barres se recouvrent par nature. On peint alors une bande continue, sans
+    # fusion ni étiquette — la ligne dit quand la famille est active, ce qu'elle est censée dire.
+    if str(source).startswith('p6:'):
+        for c in range(colonne(d), max(colonne(d), colonne(f - timedelta(days=1))) + 1):
+            cel = ws.cell(r, c)
+            cel.fill = PatternFill('solid', fgColor=COULEURS[source])
+            cel.border = BORDURE
+        continue
     c1 = colonne(d)
     c2 = max(c1, colonne(f - timedelta(days=1)))
     pris = occupe.setdefault(r, set())
@@ -250,6 +291,8 @@ for cle, lib in LIB.items():
     c += 9
 ws.cell(rl + 2, 1, 'Lignes en gris : ressources que le solveur ne modélise pas — '
                    + ', '.join(hors)).font = Font(name=POLICE, size=8, italic=True, color='999999')
+ws.cell(rl + 3, 1, 'Teintes sourdes : travaux marins et finitions repris du planning P6, non '
+                   'calculés par le solveur.').font = Font(name=POLICE, size=8, italic=True, color='999999')
 
 ws.column_dimensions['A'].width = 34
 for s in range(NB_SEM * 2):
