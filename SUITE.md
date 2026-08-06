@@ -364,16 +364,33 @@ granularité fine devient nécessaire, c'est `raccourcirEnCours` qu'il faudra re
 
 74 contraintes en 12 familles dans la page de restitution, avec seuil, origine et statut
 (réglable / donnée / figé / à trancher). Tenu à la main d'après le solveur, avec les seuils lus
-dans `REGLES` et `PARAMS`. Deux points sortis de l'audit :
+dans `REGLES` et `PARAMS`. Les deux points sortis de l'audit sont réglés :
 
-- **Corrigé** — la date d'entrée au Ballast Jetty était écrite quatre fois à l'identique ;
+- **Doublon** — la date d'entrée au Ballast Jetty était écrite quatre fois à l'identique ;
   tout passe désormais par `dateDebutBallastDe`. Résultat de référence inchangé.
-- **En attente de décision** — `Config_Outfitting` (6 phases × 2 séquences) est lu et
-  journalisé mais n'entre dans aucun calcul : la durée d'outfitting vaut
-  `segmentsOutfitting × rythme × 7 j`. Soit on applique les phases, soit on retire l'onglet.
-  Rien n'a été changé sans arbitrage, la règle est marquée « à trancher » dans le relevé.
+- **Règle morte** — `Config_Outfitting` (6 phases × 2 séquences) était lu et journalisé sans
+  entrer dans aucun calcul. Sur décision de l'utilisateur, l'onglet est retiré : lecture,
+  valeurs par défaut, génération du modèle et date `Seq2_Debut` de `Inputs` avec. Le calcul
+  est inchangé, par construction — la durée d'outfitting vaut `segmentsOutfitting × rythme × 7 j`.
 
 Trois autres points relevés, sans conséquence pour l'instant mais à garder en tête :
+
+### 11. Départage des lignes concurrentes, icônes et fiche d'élément — fait
+
+Le départage se fait par **rang d'immersion** puis ordre de production, au lieu de l'ordre du
+tableau : sur la séquence brute du classeur, la variante 1 passe de 18 bloqués à 0 et la
+variante 2 de 7 retards à 0. Avec l'optimiseur, le résultat était déjà à zéro et le reste.
+
+Les éléments portent leur **icône de statut** sur les deux vues en plan, avec légende, et
+l'icône subsiste quand l'élément devient trop court pour son identifiant. Dans la page de
+restitution, **tout élément représenté ouvre sa fiche au clic** — grille de séquence, coupe du
+tunnel, plan animé : toutes ses dates, ses places de bassin et de parking, son écart à la cible.
+
+**Reste sur la partie graphique** (repoussé par l'utilisateur) : la vue en plan et la coupe
+demandent encore du travail de fond — position réelle du Ballast Jetty et de la zone de
+stockage SPE, abscisses de la coupe, et un rendu des éléments plus proche du plan réel.
+
+## Points relevés, sans conséquence aujourd'hui
 
 - `REGLES.basins` est réglable, mais `groupeId` fige à 3 le nombre de groupes de lignes :
   réduire le nombre de bassins n'affecte que la soupape de stockage croisé, pas l'affectation.
@@ -438,10 +455,6 @@ parking le même jour. La lecture normalise désormais comme l'optimiseur.
 
 ## Évolutions notées, non planifiées
 
-- **Départage des lignes concurrentes.** Quand deux lignes se disputent la même place de
-  parking ou de bassin le même jour, c'est l'ordre du tableau des éléments qui tranche, non
-  l'urgence. Départager par rang d'immersion serait plus juste — et rendrait le plan
-  totalement indépendant de la disposition du classeur.
 - **Pentes progressives de cadence.** Un changement de rythme se fait
   graduellement dans la réalité, pas d'un jour à l'autre.
 - **Position de la zone de stockage SPE** sur le plan : extrapolée à l'ouest du Basin C,
@@ -458,5 +471,3 @@ parking le même jour. La lecture normalise désormais comme l'optimiseur.
 - L'optimiseur tourne sous budget de temps (8 s par défaut, chaque candidat coûtant une
   simulation complète — environ 100 candidats sur le classeur réel). Il peut s'arrêter avant
   d'avoir épuisé le voisinage ; la meilleure séquence trouvée est alors retenue.
-- `Config_Outfitting` ne pilote plus le calendrier ; l'onglet ne sert plus qu'aux
-  noms de phases. Il est conservé pour ne pas casser les classeurs existants.

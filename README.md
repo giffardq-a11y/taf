@@ -260,6 +260,34 @@ C'est la première étape de l'interface entièrement paramétrable : les règle
 code. Restent à y remonter l'état as-built, aujourd'hui saisi dans les colonnes de `Inputs`,
 et la capacité des bassins.
 
+## Icônes de statut et fiche d'un élément
+
+Sur la vue en plan, chaque élément porte l'**icône de son statut** — ▣ béton, ◆ outfitting,
+≈ float-up, ● bassin, ▪ parking, ▼ Ballast Jetty, ▤ béton fini en attente, ○ attente de place,
+★ zone de stockage SPE — avec une légende sous le plan. L'icône survit au rétrécissement de
+l'élément : à cadence rapide, une coulée naissante ne fait que quelques pixels et son
+identifiant ne tient plus, mais son symbole reste lisible.
+
+Dans la page de restitution, **tout élément représenté est cliquable** — jeton de la grille de
+séquence, bloc de la coupe du tunnel, élément sur le plan animé. Le clic ouvre sa **fiche** :
+rythme appliqué, dates de début et de fin de béton et d'outfitting avec leurs durées, float-up,
+entrée en bassin avec son numéro et sa place, fin de hook-up, zone de stockage SPE le cas
+échéant, entrée au parking et place occupée, hook-up de jetée, ballast, immersion cible et
+simulée, écart à la cible, date d'étanchéité pour un SPE, et l'avance entre la sortie
+d'outfitting et l'immersion.
+
+## Départage des lignes concurrentes
+
+Quand deux lignes se disputent la même place de bassin ou de parking le même jour, c'est
+l'élément traité en premier qui l'emporte. Le départage se fait par **rang d'immersion** — le
+plus urgent d'abord — puis par ordre de production à rang égal. Auparavant c'était l'ordre du
+tableau des éléments, c'est-à-dire la disposition du classeur.
+
+Le gain est net sur la séquence brute du classeur, à séquence et paramètres identiques :
+la variante 1 passe de **18 éléments bloqués à 0**, et la variante 2 de 7 retards à 0. Avec
+l'optimiseur, le résultat était déjà à zéro et le reste. Le plan ne dépend donc plus de la
+mise en page du classeur, et la priorité va à qui en a besoin.
+
 ## Relevé des contraintes
 
 La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**
@@ -272,7 +300,7 @@ simulation. Chaque ligne donne son seuil, son origine, et son statut :
 | **Réglable** | modifiable depuis l'interface | 26 |
 | **Donnée** | vient du classeur ou du planning P6 | 10 |
 | **Figé** | structurel, ou codé en dur et non exposé | 37 |
-| **À trancher** | incohérence relevée à l'audit | 1 |
+| **À trancher** | incohérence relevée à l'audit | 0 |
 
 Le relevé est **tenu à la main** d'après le solveur : c'est une relecture du code, pas une
 extraction. C'est précisément ce qui lui permet de servir de contrôle — une extraction
@@ -282,15 +310,16 @@ valeurs réellement en vigueur.
 
 ### Ce que l'audit a relevé
 
+Les deux points sont réglés.
+
 - **Doublon corrigé.** La date d'entrée au Ballast Jetty (date d'immersion cible moins la durée
   de ballast) était réécrite à **quatre endroits** : évacuation d'un SPE du Basin C, ouverture
   de la réserve de parking, départ depuis le parking, et la fonction dédiée. Les quatre sont
   ramenées à `dateDebutBallastDe`. Résultat de référence inchangé, vérifié.
-- **Règle lue mais jamais appliquée.** `Config_Outfitting` fournit 6 phases × 2 séquences ; le
-  solveur les lit, les journalise, et ne s'en sert pas — la durée d'outfitting vaut
-  `segmentsOutfitting × rythme × 7 j`, quelles que soient les phases. Deux issues possibles :
-  appliquer les phases, ou retirer l'onglet. **Décision à prendre**, c'est pourquoi la règle est
-  marquée « à trancher » plutôt que corrigée d'office.
+- **Règle lue mais jamais appliquée, retirée.** `Config_Outfitting` fournissait 6 phases ×
+  2 séquences que le solveur lisait, journalisait, et n'utilisait pas — la durée d'outfitting
+  vaut `segmentsOutfitting × rythme × 7 j`. L'onglet, sa lecture, ses valeurs par défaut et la
+  date `Seq2_Debut` de `Inputs` sont supprimés. Le calcul est inchangé, par construction.
 
 ## Classeur réduit
 
@@ -310,9 +339,8 @@ Ce qui reste — 4 onglets :
 | `Config_SPE` | les 7 zones, 7 colonnes | — |
 
 Ce qui disparaît entièrement : `Feuil1`, `Planning_Final`, `Dashboard`, `Recap_Dates` (sortie de
-l'ancienne macro) et `Config_Outfitting` (lu mais jamais appliqué — cf. le relevé des
-contraintes). Le fichier passe de **149 Ko à 24 Ko**, et n'a plus besoin d'être un `.xlsm` :
-la macro n'existe plus.
+l'ancienne macro) et `Config_Outfitting` (retiré du modèle). Le fichier passe de **149 Ko à
+24 Ko**, et n'a plus besoin d'être un `.xlsm` : la macro n'existe plus.
 
 **Équivalence vérifiée**, pas supposée : les deux classeurs ont été simulés côte à côte sur les
 **3 variantes de séquence** de `Inputs`, et comparés élément par élément sur 13 champs — ligne,
@@ -320,19 +348,14 @@ rang, rythme, début et fin de béton, fin d'outfitting, entrée bassin, entrée
 immersion cible, immersion réelle, date d'étanchéité, état final. **Zéro écart sur les 89
 éléments, dans les 3 variantes.**
 
-Seule différence visible : le journal signale `Config_Outfitting absent — séquence par défaut
-appliquée`. C'est sans effet, puisque l'onglet n'entrait dans aucun calcul. Si vous décidez un
-jour d'appliquer les phases d'outfitting, il faudra le remettre.
-
 ## Structure du classeur
 
 | Onglet | Rôle |
 |---|---|
-| `Inputs` | Séquences de production. Colonnes B/D/F/H/J/L = PL-1..PL-5, SPE ; colonne A = ordre. Colonnes **C/E/G/I/K/M = statut as-built** (voir ci-dessous). Cellule `Seq2_Debut` en ligne 1/2 = bascule de séquence outfitting. |
+| `Inputs` | Séquences de production. Colonnes B/D/F/H/J/L = PL-1..PL-5, SPE ; colonne A = ordre. Colonnes **C/E/G/I/K/M = statut as-built** (voir ci-dessous). |
 | `Immersion` | `ID Element` / `Date Immersion` — les dates cibles que le solveur doit tenir, et **l'ordre d'immersion**, qui est une donnée d'entrée P6 que le programme ne modifie jamais. Les colonnes `Activity Name` / `Start` / `Finish` portent le planning P6 détaillé : dates d'immersion, activités de clamping, et **passages de zone de la ligne SPE** (voir ci-dessous). |
 | `Config_Cycles` | **Colonnes B/C (Date Seuil 1 / Cycle 1) = le rythme actuel**, saisi par vous. Les colonnes D à I (Seuils 2-4 / Cycles 2-4) sont **ignorées en entrée** : c'est le solveur qui les calcule et les réinjecte à l'export. |
 | `Config_SPE` | Les 7 zones de la ligne SPE (CPA→CP3 béton, UB1→UB3 outfitting). **Colonne F** = jalon d'étanchéité, en semaines après l'entrée en UB1, saisi sur chaque zone UB. **Colonne G** (optionnelle) = rythme SPE long, en semaines, remplaçant la durée standard de la colonne D dans les zones UB. |
-| `Config_Outfitting` | Sans effet sur le calendrier : la durée d'outfitting est dérivée de la production (voir ci-dessous). L'onglet ne fournit plus que les noms des phases. |
 
 ### Format des statuts as-built (colonnes C/E/G/I/K/M de `Inputs`)
 

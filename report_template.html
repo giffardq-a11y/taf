@@ -254,6 +254,29 @@
     color: var(--ink-3); font-family: var(--mono); }
   #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
   #coupe-compte b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  /* ---- fiche d'un élément ---- */
+  #fiche { border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 0; max-width: 560px; width: calc(100vw - 32px); box-shadow: 0 18px 48px rgba(0,0,0,.32); }
+  #fiche::backdrop { background: rgba(6,12,16,.55); }
+  .fiche-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 18px 8px; }
+  .fiche-tete h3 { margin: 0; font-family: var(--mono); font-size: 17px; letter-spacing: .04em; }
+  #fiche-fermer { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 5px 9px; }
+  #fiche-fermer:hover { color: var(--ink); }
+  .fiche-sous { margin: 0; padding: 0 18px 12px; font-size: 12.5px; color: var(--ink-3); }
+  #fiche-corps { padding: 0 18px 18px; max-height: 62vh; overflow-y: auto; }
+  .f-groupe { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+    border-top: 1px solid var(--line-soft); padding-top: 9px; margin-top: 11px; }
+  .f-ligne { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; font-size: 13px; }
+  .f-ligne span { color: var(--ink-2); }
+  .f-ligne b { font-family: var(--mono); font-weight: 500; text-align: right; }
+  .f-ligne b.vide { color: var(--ink-3); }
+  .f-ligne b.crit { color: var(--crit); }
+  .f-ligne b.ok { color: var(--ok); }
+  .seq-chip, .coupe-el { cursor: pointer; }
+  .seq-chip:focus-visible, .coupe-el:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
   /* ---- relevé des contraintes ---- */
   .c-fam { font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: 0 0 8px;
     color: var(--ink); text-transform: none; }
@@ -310,7 +333,7 @@
       <div class="loader-row">
         <div class="drop" id="drop-xlsx" role="button" tabindex="0">
           Charger le classeur (.xlsx / .xlsm)
-          <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</small>
+          <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE</small>
         </div>
         <div class="drop" id="drop-plan" role="button" tabindex="0">
           Remplacer le plan de fond
@@ -528,6 +551,15 @@
         Les avertissements pointent en général une saisie manquante.</p></div>
     <div id="journal"></div>
   </section>
+
+  <dialog id="fiche">
+    <div class="fiche-tete">
+      <h3 id="fiche-titre"></h3>
+      <button type="button" id="fiche-fermer" aria-label="Fermer la fiche">✕</button>
+    </div>
+    <p class="fiche-sous" id="fiche-sous"></p>
+    <div id="fiche-corps"></div>
+  </dialog>
 
   <footer id="pied"></footer>
 </div>
@@ -788,6 +820,8 @@
   };
   const PHASE_LABEL = { beton:'Béton', outfitting:'Outfitting', floatup:'Float-up',
     basin:'Lower Basin', parking:'Parking', ballast:'Ballast Jetty' };
+  // Icône de statut : un élément trop court pour porter son identifiant garde son symbole.
+  const PHASE_ICONE = { beton:'▣', outfitting:'◆', floatup:'≈', basin:'●', parking:'▪', ballast:'▼' };
 
   const plan = document.getElementById('plan');
 
@@ -929,11 +963,17 @@
       g.append(svgEl('rect', { x, y: p.y - GEO.ep/2, width: Math.max(p.w, 0.25), height: GEO.ep,
         fill: PHASE_COLOR[p.ph], opacity: p.attente ? 0.55 : 1,
         stroke: enRetard ? 'var(--crit)' : 'var(--surface)', 'stroke-width': enRetard ? 0.28 : 0.08 }));
+      const glyphe = svgEl('text', { x: p.w > 3 ? x + 1.1 : x + p.w/2, y: p.y + 0.5, 'font-size': 1.5,
+        'text-anchor': 'middle', fill: '#fff', 'pointer-events': 'none', opacity: 0.9 });
+      glyphe.textContent = PHASE_ICONE[p.ph] || '·';
+      g.append(glyphe);
       if (p.w > 3) {
-        const tx = svgEl('text', { x: x + p.w/2, y: p.y + 0.5, 'font-size': 1.15, 'text-anchor': 'middle',
+        const tx = svgEl('text', { x: x + p.w/2 + 0.8, y: p.y + 0.5, 'font-size': 1.15, 'text-anchor': 'middle',
           fill: '#fff', 'font-family': 'var(--mono)', 'pointer-events': 'none' });
         tx.textContent = e.id; g.append(tx);
       }
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => ouvrirFiche(e.id));
       const ti = svgEl('title');
       ti.textContent = `${e.id} — ${e.l} — ${PHASE_LABEL[p.ph]}${p.attente ? ' (en attente)' : ''}`
         + `\nImmersion cible ${fr(e.im)}${enRetard ? ' — en retard' : ''}`;
@@ -983,6 +1023,8 @@
   const pl = document.getElementById('plan-legend');
   Object.entries(PHASE_LABEL).forEach(([k, lab]) => {
     const s = el('span'); const sw = el('i', 'sw'); sw.style.background = PHASE_COLOR[k];
+    sw.style.color = '#fff'; sw.style.textAlign = 'center'; sw.style.fontSize = '9px';
+    sw.style.lineHeight = '13px'; sw.textContent = PHASE_ICONE[k] || '';
     s.append(sw, document.createTextNode(lab)); pl.append(s);
   });
   { const s = el('span'); const sw = el('i', 'sw');
@@ -990,6 +1032,88 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- Fiche d'un élément ----
+   Toute la vie d'un élément en une boîte : ses dates de zone en zone, ses places de bassin et
+   de parking, son ballast, son immersion. Ouverte depuis la grille de séquence ou depuis la
+   coupe du tunnel — partout où un élément est représenté, il est cliquable. */
+const PHASE_LISIBLE = {
+  EnAttente: 'en attente de lancement', Beton: 'en zone béton', AttenteOutfitting: 'attend l\'outfitting',
+  Outfitting: 'en outfitting', AttenteFloatUp: 'prêt pour le float-up', FloatUp: 'en float-up',
+  AttenteBasin: 'attend une place de bassin', Basin: 'en bassin', AttenteParking: 'attend une place de parking',
+  Parking: 'au parking', StockageSPE: 'en zone de stockage SPE', Ballast: 'au Ballast Jetty', Immerge: 'immergé',
+};
+
+function ouvrirFiche(id) {
+  const e = D.elements.find(x => x.id === id);
+  const boite = document.getElementById('fiche');
+  if (!e || !boite) return;
+  document.getElementById('fiche-titre').textContent = e.id;
+  const retard = D.retards.find(r => r.id === e.id);
+  document.getElementById('fiche-sous').textContent =
+    `${e.l} · rang de production ${e.ln === 6 ? '' : ''}${(D.sequence.apresSeq[e.ln] || []).indexOf(e.id) + 1}`
+    + ` · ${isFinite(e.ri) ? `${e.ri + 1}e à s'immerger` : 'hors séquence d\'immersion'}`
+    + ` · ${e.fini ? 'immergé' : PHASE_LISIBLE[e.st] || 'en cours'}`;
+
+  const corps = document.getElementById('fiche-corps');
+  corps.textContent = '';
+  const groupe = (titre) => corps.append(el('div', 'f-groupe', titre));
+  const ligne = (lib, val, cls) => {
+    const d = el('div', 'f-ligne');
+    d.append(el('span', '', lib));
+    d.append(el('b', val ? (cls || '') : 'vide', val || '—'));
+    corps.append(d);
+  };
+  const jours = (a, b) => (a && b) ? `${Math.round((t(b) - t(a)) / day)} j` : null;
+
+  groupe('Production');
+  ligne('Rythme appliqué', e.r ? `${String(e.r).replace('.', ',')} sem/segment` : null);
+  ligne('Béton — début', fr(e.bD));
+  ligne('Béton — fin', fr(e.bF));
+  ligne('Béton — durée', jours(e.bD, e.bF));
+  if (e.ln === 6) ligne('Zone SPE atteinte', e.zs ? `zone ${e.zs}` : null);
+  ligne('Outfitting — début', fr(e.oD));
+  ligne('Outfitting — fin', fr(e.oF));
+  ligne('Outfitting — durée', jours(e.oD, e.oF));
+
+  groupe('Mise à flot et stockage');
+  ligne('Float-up — début', fr(e.fu));
+  ligne('Float-up — fin', fr(e.fuF));
+  ligne('Bassin — entrée', fr(e.ba));
+  ligne('Bassin — place', e.bn ? `bassin ${e.bn}, place ${e.bp}` : null);
+  ligne('Hook-up terminé', fr(e.baF));
+  if (e.stk) {
+    ligne('Stockage SPE — entrée', fr(e.stk));
+    ligne('Stockage SPE — place', e.sp ? `place ${e.sp}` : null);
+  }
+  ligne('Parking — entrée', fr(e.pk));
+  ligne('Parking — place', e.pn ? `place ${e.pn}` : (e.ps ? 'parking sauté' : null));
+
+  groupe('Ballast et immersion');
+  ligne('Hook-up avant jetée', fr(e.hk));
+  ligne('Ballast — début', fr(e.bl));
+  ligne('Ballast — fin', fr(e.fb));
+  ligne('Ballast — durée', e.ln === 6 ? 'aucune (SPE)' : jours(e.bl, e.fb));
+  ligne('Immersion cible', fr(e.im));
+  ligne('Immersion simulée', fr(e.ir), retard ? 'crit' : (e.ir ? 'ok' : ''));
+  ligne('Écart à la cible', retard ? `${retard.retardJours} j de retard` : (e.ir && e.im ? 'à la date' : null),
+    retard ? 'crit' : 'ok');
+  if (e.ln === 6) ligne('Étanchéité retenue', fr(e.et));
+
+  groupe('Avance de production');
+  ligne('Sortie d\'outfitting → immersion', jours(e.oF, e.ir || e.im));
+  if (typeof boite.showModal === 'function') boite.showModal(); else boite.setAttribute('open', '');
+}
+
+// Rend cliquable tout élément représenté à l'écran : un clic, ou Entrée au clavier.
+function rendreCliquable(noeud, id) {
+  noeud.tabIndex = 0;
+  noeud.setAttribute('role', 'button');
+  noeud.addEventListener('click', () => ouvrirFiche(id));
+  noeud.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrirFiche(id); }
+  });
+}
 
 /* ---- Relevé exhaustif des contraintes du modèle ----
    Écrit à la main d'après le solveur, pas déduit du code : c'est une relecture, et son intérêt
@@ -1023,8 +1147,6 @@ function tableauContraintes() {
   ['Cadence de départ et date d\'ancre', '3 sem/segment', 'Config_Cycles', 'donnee',
    'Sert de point de départ à la pente d\'inertie quand aucune date de décision n\'est saisie.'],
   ['Jalon d\'étanchéité SPE', `${seuilEt} sem après la sortie de CP3`, 'Config_SPE', 'reglable', ''],
-  ['Phases d\'outfitting', '6 phases × 2 séquences', 'Config_Outfitting', 'anomalie',
-   'Lues et journalisées, mais jamais appliquées : la durée d\'outfitting vaut 7 × rythme, quelles que soient les phases. À trancher — soit les appliquer, soit retirer l\'onglet.'],
 ]],
 ['Cadence de production', [
   ['Rythmes autorisés', REGLES.rythmes.map(n).join(' / ') + ' sem/segment', 'Règle', 'reglable',
@@ -1070,7 +1192,7 @@ function tableauContraintes() {
   ['Fin d\'outfitting', `au segment ${REGLES.segmentsOutfitting} de l\'élément suivant`, 'Règle', 'reglable',
    'Le dernier élément d\'une ligne, lui, applique la durée nominale.'],
   ['Durée d\'outfitting nominale', `${REGLES.segmentsOutfitting} × rythme × 7 j`, 'Calcul', 'fige',
-   'Dérivée du rythme, jamais des phases de Config_Outfitting.'],
+   'Dérivée du rythme seul. Config_Outfitting a été retiré du modèle : il était lu sans jamais servir.'],
   ['Chaîne SPE', '7 zones, une seule occupée à la fois, avance en file', 'Config_SPE', 'donnee', ''],
 ]],
 ['Float-up', [
@@ -1099,6 +1221,8 @@ function tableauContraintes() {
   ['Saut du parking', `immersion à moins de ${n(p.seuilParkingSem ?? 4)} sem`, 'Paramètre', 'reglable',
    'Évite un mouvement coûteux quand l\'immersion est proche.'],
   ['Priorité de la production', 'le seuil ne retient jamais un élément dont la place est réclamée', 'Calcul', 'fige', ''],
+  ['Départage des lignes concurrentes', "rang d'immersion, puis ordre de production", 'Calcul', 'fige',
+   "Deux lignes qui se disputent la même place le même jour : la plus urgente l'emporte. Le plan ne dépend donc pas de la disposition du classeur."],
 ]],
 ['Basin C et ligne SPE', [
   ['Stockage SPE dédié', `${p.placesStockageSPE ?? 1} place`, 'Paramètre', 'reglable',
@@ -1233,6 +1357,7 @@ function construireCoupe() {
   ordreCoupe.forEach(e => {
     const bloc = el('div', 'coupe-el' + (e.ln === 6 ? ' spe' : ''));
     bloc.dataset.info = `${e.id} — ${e.l}`;
+    rendreCliquable(bloc, e.id);
     piste.append(bloc);
   });
   document.getElementById('coupe-gauche').textContent = ordreCoupe.length ? ordreCoupe[0].id : '';
@@ -1378,7 +1503,8 @@ function rendreGrilleSequence() {
     const chip = el('div', 'seq-chip' + (id.startsWith('SPE') ? ' spe' : ''), id);
     chip.style.width = GRILLE.colW + 'px';
     chip.style.height = GRILLE.ligneH + 'px';
-    chip.title = id;
+    chip.title = id + ' — cliquer pour la fiche complète';
+    rendreCliquable(chip, id);
     grille.append(chip);
     jetons.set(id, chip);
   });
@@ -1639,6 +1765,8 @@ function construireD() {
       bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),
       im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
       ri: e.rangImmersion,
+      fuF: iso(e.dateFinFU), baF: iso(e.dateFinBasin), hk: iso(e.dateHookup),
+      stk: iso(e.dateDebutStockageSPE), sp: e.stockageSPENum, st: e.statut, zs: e.zoneSPE,
       pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
     })),
     changements: lastChangements.map(c => ({
@@ -1699,6 +1827,14 @@ function appliquerFondPlan() {
   img.setAttribute('x', src.x); img.setAttribute('y', src.y);
   img.setAttribute('width', src.w); img.setAttribute('height', src.h);
   img.setAttribute('href', src.href);
+}
+
+{
+  const boite = document.getElementById('fiche');
+  const fermer = () => { if (typeof boite.close === 'function') boite.close(); else boite.removeAttribute('open'); };
+  document.getElementById('fiche-fermer').addEventListener('click', fermer);
+  // Un clic hors du cadre ferme aussi : la boîte occupe tout le fond quand elle est modale.
+  boite.addEventListener('click', ev => { if (ev.target === boite) fermer(); });
 }
 
 // Le relevé des contraintes ne dépend d'aucune donnée : il s'affiche dès l'ouverture de la

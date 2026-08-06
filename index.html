@@ -131,6 +131,18 @@
   .segment.ballast { background: var(--ballast); }
   .segment.stockage-spe { background: var(--stockage-spe); color: #fff; }
   .segment.late { animation: pulse-late 1s infinite; box-shadow: 0 0 0 2px var(--late); }
+  /* Icône de statut : elle survit au rétrécissement de l'élément, l'identifiant non. */
+  .segment .ico { flex: 0 0 auto; font-size: 9px; line-height: 1; margin-right: 3px; opacity: .9; }
+  .segment .nom { overflow: hidden; text-overflow: ellipsis; }
+  .segment.etroit .nom { display: none; }
+  .segment.etroit .ico { margin-right: 0; }
+  #plan-legende {
+    display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 20px; background: var(--panel);
+    border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); flex-shrink: 0;
+  }
+  #plan-legende span { display: inline-flex; align-items: center; gap: 4px; }
+  #plan-legende i { font-style: normal; width: 13px; height: 13px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 9px; color: #06121a; border-radius: 1px; }
   @keyframes pulse-late { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
   .segment.wait-state::after {
     content: ""; position: absolute; inset: 0;
@@ -180,7 +192,7 @@
     <input type="file" id="file-img" accept="image/*">
 
     <h4>2 — Données Excel</h4>
-    <div class="drop-zone" id="drop-xlsx">📁 Charger le classeur (.xlsx / .xlsm)<br><span style="font-size:10px;opacity:.7">Onglets : Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</span></div>
+    <div class="drop-zone" id="drop-xlsx">📁 Charger le classeur (.xlsx / .xlsm)<br><span style="font-size:10px;opacity:.7">Onglets : Inputs, Immersion, Config_Cycles, Config_SPE</span></div>
     <input type="file" id="file-xlsx" accept=".xlsx,.xls,.xlsm">
     <div id="log">En attente de fichiers…</div>
 
@@ -296,6 +308,7 @@
   </form>
 </dialog>
 
+<div id="plan-legende"></div>
 <div id="coupe-wrap">
   <div id="coupe-tete">
     <span>Coupe du tunnel — éléments posés à la date affichée</span>
@@ -448,12 +461,6 @@ function defaultSPEConfig() {
     {nom:'UB3', activite:'Commissioning', dureeJours:3*7, estBeton:false, etancheSem:null, dureeSPEJours:null},
   ];
 }
-function defaultOutfittingConfig() {
-  return {
-    seq1: [['Electricite',2],['Peinture',1.5],['Plomberie',1],['Menuiserie',1.5],['Isolation',0.5],['CVC',1]].map(p=>({nom:p[0],duree:p[1]})),
-    seq2: [['Peinture',1.5],['Electricite',2],['Plomberie',1],['Menuiserie',1.5],['CVC',1],['Isolation',0.5]].map(p=>({nom:p[0],duree:p[1]})),
-  };
-}
 
 /* ================================================================
    3. UTILITAIRES DATE
@@ -489,8 +496,6 @@ let sequenceOrigine = null;  // séquence telle que lue dans le classeur, avant 
 // État as-built réglé à l'écran, par id. Il prime sur les colonnes de `Inputs` — sans quoi la
 // moindre relecture du classeur (changement de séquence, mode automatique) l'effacerait.
 let asbuiltSaisi = null;
-let outfittingConfig = null;
-let dateSeq2Debut = null;
 let PARAMS = {};
 let simTimeline = {};        // { 'YYYY-MM-DD': [renderItem, ...] }
 let dateKeys = [];
@@ -636,21 +641,6 @@ function parseWorkbook(dateRefArg) {
   }
 
   log(`Inputs : ${elements.length} éléments chargés (${new Set(elements.map(e=>e.ligne)).size} lignes), ${nbStatuts} statut(s) as-built renseigné(s).`);
-
-  // Seq2_Debut
-  const headerRow0 = rowsIn[0] || [];
-  let seqCol = -1;
-  for (let c = 0; c < Math.min(30, headerRow0.length); c++) {
-    if (String(headerRow0[c]).trim() === 'Seq2_Debut') { seqCol = c; break; }
-  }
-  if (seqCol >= 0 && rowsIn[1] && rowsIn[1][seqCol]) {
-    dateSeq2Debut = excelDate(rowsIn[1][seqCol]) || addDays(dateRef, 365);
-  } else {
-    // Les deux séquences d'outfitting ont la même durée totale : la date de bascule ne
-    // change que le libellé des phases, jamais le planning. Non renseignée, on reste en
-    // Séquence 1 sur tout l'horizon.
-    dateSeq2Debut = new Date(8640000000000000);
-  }
 
   // --- Immersion ---
   const sImm = wb.Sheets['Immersion'] || wb.Sheets['Utilisation'];
@@ -867,22 +857,6 @@ function parseWorkbook(dateRefArg) {
     log('Config_SPE absent — valeurs par défaut appliquées (CPA..CP3 béton, UB1..UB3 outfitting).', 'warn');
   }
 
-  // --- Config_Outfitting ---
-  const rowsOut = sheetRows('Config_Outfitting');
-  if (rowsOut) {
-    const seq1 = [], seq2 = [];
-    for (let i = 1; i < rowsOut.length; i++) {
-      const row = rowsOut[i];
-      if (!row || row[1] === undefined || row[1] === '') continue;
-      seq1.push({nom: String(row[1]).trim(), duree: typeof row[2]==='number'?row[2]:1});
-      seq2.push({nom: String(row[3]).trim(), duree: typeof row[4]==='number'?row[4]:1});
-    }
-    outfittingConfig = {seq1, seq2};
-    log(`Config_Outfitting chargé (${seq1.length} phases).`);
-  } else {
-    outfittingConfig = defaultOutfittingConfig();
-    log('Config_Outfitting absent — séquence par défaut (6 phases génériques) appliquée.', 'warn');
-  }
 }
 
 /* ================================================================
@@ -892,8 +866,7 @@ function parseWorkbook(dateRefArg) {
 // l'élément suivant a terminé son 7e segment. Comme le suivant entre en zone béton au
 // moment où celui-ci en sort, cela vaut SEGMENTS_OUTFITTING segments de cycle — plus court
 // que les 9 du béton, le battement de 2 segments absorbant les deux transferts (béton vers
-// outfitting, puis outfitting vers bassin). Les durées de Config_Outfitting ne servent
-// plus qu'à nommer les phases.
+// outfitting, puis outfitting vers bassin).
 
 
 function dureeOutfittingJoursForR(ligne, dStart, R) {
@@ -1969,6 +1942,18 @@ function runSimulation(paramsArg) {
     avancerFileImmersion();
   }
 
+  /* ---- Départage des lignes concurrentes ----
+     Quand deux lignes se disputent la même place de bassin ou de parking le même jour, c'est
+     l'élément traité en premier qui l'emporte. Trancher par l'ordre du tableau reviendrait à
+     laisser la disposition du classeur décider ; on tranche donc par rang d'immersion —
+     le plus urgent d'abord — puis par ordre de production à rang égal. Le plan devient ainsi
+     indépendant de la mise en page du classeur, et la priorité va à qui en a besoin. */
+  const ordreTraitement = elements.slice().sort((a, b) => {
+    const ra = isFinite(a.rangImmersion) ? a.rangImmersion : Infinity;
+    const rb = isFinite(b.rangImmersion) ? b.rangImmersion : Infinity;
+    return ra !== rb ? ra - rb : a.ordreSeq - b.ordreSeq;
+  });
+
   let jourCourant = 0;
   for (; jourCourant <= joursMax; jourCourant++) {
     const dCur = addDays(REF, jourCourant);
@@ -1991,7 +1976,7 @@ function runSimulation(paramsArg) {
       if (e && (!entree || dCur >= entree)) demarrerZoneSPE(e, 1, dCur, jourCourant);
     }
 
-    for (const e of elements) {
+    for (const e of ordreTraitement) {
       if (e.termine) continue;
       if (e.ligne === 6) traiterElementSPE(e, dCur, jourCourant);
       else traiterElementPL(e, dCur);
@@ -2548,6 +2533,23 @@ function elementsDeplaces(avant, apres) {
 
 function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 
+/* ---- Icônes de statut sur la vue en plan ----
+   Un élément trop court pour porter son identifiant garde son icône : à cadence rapide, la
+   coulée béton naissante ne fait que quelques pixels. Les symboles sont géométriques, pas des
+   émojis — ils se rendent partout et suivent la couleur du texte. */
+const ICONES = {
+  'concrete':      ['▣', 'Béton en cours'],
+  'concrete-wait': ['▤', 'Béton fini, attend l\'outfitting'],
+  'outfitting':    ['◆', 'Outfitting en cours'],
+  'outfitting-wait': ['◇', 'Prêt pour le float-up'],
+  'floatup':       ['≈', 'Float-up'],
+  'basin':         ['●', 'En bassin'],
+  'basin-wait':    ['○', 'Attend une place'],
+  'parking':       ['▪', 'Au parking'],
+  'stockage-spe':  ['★', 'Zone de stockage SPE'],
+  'ballast':       ['▼', 'Ballast Jetty'],
+};
+
 function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
   const ligne = e.ligne;
   const len = lenOf(ligne);
@@ -2681,6 +2683,17 @@ function majCoupe(dCur) {
   document.getElementById('coupe-compte').innerHTML = `<b>${poses}</b> / ${ordreCoupe.length} posés`;
 }
 
+// Légende des icônes : construite une fois depuis la table, pour qu'elle ne puisse pas
+// diverger de ce qui est réellement dessiné.
+function rendrePlanLegende() {
+  const box = document.getElementById('plan-legende');
+  if (!box || box.dataset.faite) return;
+  box.dataset.faite = '1';
+  box.innerHTML = Object.entries(ICONES).map(([type, [glyphe, libelle]]) =>
+    `<span><i class="segment ${type}" style="position:static">${glyphe}</i>${libelle}</span>`).join('')
+    + '<span><i style="box-shadow:0 0 0 2px var(--late)"></i>Date cible dépassée</span>';
+}
+
 function render(idx) {
   const key = dateKeys[idx];
   const items = simTimeline[key];
@@ -2689,14 +2702,22 @@ function render(idx) {
   document.getElementById('date-display').textContent = fmt(d);
   document.getElementById('current-date-val').textContent = fmt(d);
   majCoupe(d);
+  rendrePlanLegende();
   const layer = document.getElementById('production-layer');
   layer.innerHTML = '';
   items.forEach(el => {
     const div = document.createElement('div');
     const waitClass = el.type.endsWith('-wait') ? ' wait-state' : '';
     div.className = `segment ${el.type}${waitClass}${el.late ? ' late' : ''}`;
-    div.title = `${el.id} — ${LIGNE_NOM[el.ligne]} — ${el.type}`;
-    div.textContent = el.id;
+    const ico = ICONES[el.type] || ['·', el.type];
+    div.title = `${el.id} — ${LIGNE_NOM[el.ligne]} — ${ico[1]}${el.late ? ' — date cible dépassée' : ''}`;
+    const i = document.createElement('i');
+    i.className = 'ico'; i.textContent = ico[0];
+    const nom = document.createElement('span');
+    nom.className = 'nom'; nom.textContent = el.id;
+    div.append(i, nom);
+    // Sous ~2 % de largeur, l'identifiant ne tient plus : l'icône seule porte l'information.
+    if (el.w < 2) div.classList.add('etroit');
     div.style.height = GEO.thickness + '%';
     div.style.width = el.w + '%';
     if (el.rot) {
@@ -3234,8 +3255,8 @@ document.getElementById('btn-template').onclick = () => {
 
   // --- Inputs (colonnes C/E/G/I/K/M = statut as-built, laissées vides dans le modèle) ---
   const inAoa = [];
-  inAoa[0] = ['Sequence Production']; inAoa[0][14] = 'Seq2_Debut';
-  inAoa[1] = []; inAoa[1][14] = addDays(dateRef, 365);
+  inAoa[0] = ['Sequence Production'];
+  inAoa[1] = [];
   inAoa[2] = [];
   inAoa[2][1] = 'PL-1'; inAoa[2][3] = 'PL-2'; inAoa[2][5] = 'PL-3';
   inAoa[2][7] = 'PL-4'; inAoa[2][9] = 'PL-5'; inAoa[2][11] = 'SPE';
@@ -3272,13 +3293,6 @@ document.getElementById('btn-template').onclick = () => {
   wsSpe['!cols'] = [{wch:10},{wch:14},{wch:18},{wch:20},{wch:24},{wch:32},{wch:30}];
   XLSX.utils.book_append_sheet(outWb, wsSpe, 'Config_SPE');
 
-  // --- Config_Outfitting ---
-  const oc = defaultOutfittingConfig();
-  const outAoa = [['No Phase', 'Nom Sequence 1', 'Duree Seq 1 (sem)', 'Nom Sequence 2', 'Duree Seq 2 (sem)']];
-  for (let i = 0; i < oc.seq1.length; i++) outAoa.push([i+1, oc.seq1[i].nom, oc.seq1[i].duree, oc.seq2[i].nom, oc.seq2[i].duree]);
-  const wsOut = XLSX.utils.aoa_to_sheet(outAoa);
-  wsOut['!cols'] = Array(5).fill({wch: 16});
-  XLSX.utils.book_append_sheet(outWb, wsOut, 'Config_Outfitting');
 
   XLSX.writeFile(outWb, 'Lolland_Planning_Modele.xlsx');
 };
