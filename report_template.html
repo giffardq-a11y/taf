@@ -237,6 +237,23 @@
   .seq-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .seq-hint { font-size: 12.5px; color: var(--ink-3); }
   .seq-hint b { color: var(--accent); font-weight: 600; font-family: var(--mono); }
+  /* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
+  #coupe-piste { display: flex; align-items: flex-end; gap: 1px; padding: 10px 0 6px; min-height: 46px; }
+  .coupe-el { flex: 0 0 auto; width: 15px; height: 26px; border: 1px solid var(--line);
+    background: var(--surface-2); position: relative;
+    transition: background-color .25s, border-color .25s, height .25s; }
+  .coupe-el.spe { width: 9px; border-style: dashed; }
+  .coupe-el.pose { background: var(--ph-basin); border-color: var(--ph-basin); }
+  .coupe-el.encours { background: var(--ph-ballast); border-color: var(--ph-ballast); height: 34px; }
+  .coupe-el.late { border-color: var(--crit); border-width: 2px; }
+  .coupe-el:hover::after { content: attr(data-info); position: absolute; bottom: 38px; left: 50%;
+    transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line);
+    padding: 4px 7px; font-size: 11px; white-space: nowrap; z-index: 5; color: var(--ink);
+    font-family: var(--mono); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  #coupe-axe { display: flex; justify-content: space-between; font-size: 10.5px;
+    color: var(--ink-3); font-family: var(--mono); }
+  #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
+  #coupe-compte b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
   .seq-grid { position: relative; }
   .seq-col { position: absolute; top: 0; font-family: var(--mono); font-size: 11px; font-weight: 600;
     color: var(--ink-2); text-align: center; letter-spacing: .06em; }
@@ -298,6 +315,8 @@
           <input type="checkbox" id="p-etanche-critique-ok"> Autoriser le seuil critique</label>
         <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
           Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
+        <label class="champ bascule" title="Chaque ligne tourne au rythme le plus rapide que la pente autorise et s'éteint dès sa file vidée, quitte à produire longtemps avant l'immersion. Décoché : production à flux tendu.">
+          <input type="checkbox" id="p-arret-tot" checked> Arrêt de l'usine au plus tôt</label>
         <label class="champ bascule" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
           <input type="checkbox" id="p-stagger" checked> Staggering entre halls</label>
         <label class="champ bascule" title="Remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards">
@@ -394,6 +413,38 @@
 
   <section>
     <div class="s-head">
+      <h2 class="s-title">Coupe du tunnel</h2>
+      <p class="s-note">Les éléments côte à côte dans l'ordre de pose, TE-01 à gauche et TE-79 à droite, les
+        SPE en trait pointillé. La coupe suit le curseur du plan ci-dessus : un élément se remplit quand il
+        est immergé, s'élève pendant son ballastage, et se borde de rouge s'il est posé après sa date cible.</p>
+    </div>
+    <div class="panel">
+      <div id="coupe-compte"></div>
+      <div class="scroll"><div id="coupe-piste"></div></div>
+      <div id="coupe-axe"><span id="coupe-gauche"></span><span id="coupe-droite"></span></div>
+      <p class="plan-caveat">Positions provisoires : l'ordre de pose sert d'abscisse en attendant le plan de
+        coupe. L'ordre est juste, les distances ne le sont pas encore.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Arrêt de l'usine</h2>
+      <p class="s-note" id="arret-note"></p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-arret">
+        <thead><tr>
+          <th>Ligne</th><th class="num">Éléments</th><th class="num">Dernier départ béton</th>
+          <th class="num">Halle libérée</th><th class="num">Avance moyenne</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
       <h2 class="s-title">Changements de cadence à appliquer</h2>
       <p class="s-note">Le plan d'action pour les opérateurs. L'élément déclencheur est celui dont l'entrée
         en zone béton impose la bascule : c'est à son lancement que la nouvelle cadence prend effet.</p>
@@ -483,11 +534,14 @@
   const nLate = D.retards.length, nTot = D.elements.length;
   const nBloques = D.elements.filter(e => !e.fini).length;
   const worst = D.retards[0] || {retardJours: 0, id: '—'};
+  const finsHalles = D.elements.map(e => t(e.oF) || t(e.bF)).filter(Boolean);
+  const arretUsine = finsHalles.length ? new Date(Math.max(...finsHalles)).toISOString().slice(0, 10) : null;
   const kpis = [
     ['Éléments en retard', `${nLate}`, `sur ${nTot} · ${Math.round(nLate/nTot*100)} %`, nLate ? 'is-crit' : 'is-ok'],
     ['Retard maximum', nLate ? `${worst.retardJours} j` : '—', nLate ? worst.id : 'toutes les dates tenues', nLate ? 'is-crit' : 'is-ok'],
     ['Changements de cadence', `${D.changements.length}`, 'sur 5 lignes, en 3 ans et demi', ''],
     ['Fin de production', fr(D.elements.map(e => e.im).filter(Boolean).sort().pop()), 'dernière immersion planifiée', ''],
+    ['Arrêt de l\'usine', fr(arretUsine), 'dernière halle libérée', ''],
     ['Éléments bloqués', `${nBloques}`, nBloques ? 'jamais immergés sur l\'horizon' : 'aucun blocage dans le flux',
       nBloques ? 'is-crit' : 'is-ok'],
   ];
@@ -495,6 +549,7 @@
     const n = document.getElementById(id); if (n) n.textContent = '';
   });
   document.querySelector('#t-changes tbody').textContent = '';
+  document.querySelector('#t-arret tbody').textContent = '';
   document.querySelector('#t-late tbody').textContent = '';
   document.getElementById('plan').textContent = '';
 
@@ -555,6 +610,43 @@
   });
   { const s = el('span'); const sw = el('i', 'sw'); sw.style.background = 'var(--ink)'; sw.style.width = '2px'; sw.style.height = '13px';
     s.append(sw, document.createTextNode('Date de bascule')); lg.append(s); }
+
+  /* ---------- arrêt de l'usine ---------- */
+  // Ligne par ligne : quand sa halle se libère pour de bon, et de combien elle produit en
+  // avance sur l'immersion. Un arrêt étalé libère les moyens au fur et à mesure ; un arrêt
+  // groupé les immobilise tous jusqu'au dernier jour.
+  {
+    const tb = document.querySelector('#t-arret tbody');
+    const maxT = liste => liste.length ? Math.max(...liste) : null;
+    const rangs = [];
+    [...new Set(D.elements.map(e => e.l))].forEach(L => {
+      const els = D.elements.filter(e => e.l === L);
+      const fin = maxT(els.map(e => t(e.oF) || t(e.bF)).filter(Boolean));
+      const dernierBeton = maxT(els.map(e => t(e.bD)).filter(Boolean));
+      const av = els.map(e => (t(e.oF) && (t(e.ir) || t(e.im)))
+        ? Math.round(((t(e.ir) || t(e.im)) - t(e.oF)) / day) : null).filter(v => v !== null);
+      rangs.push({L, n: els.length, fin, dernierBeton,
+        avance: av.length ? Math.round(av.reduce((s, v) => s + v, 0) / av.length) : null});
+    });
+    rangs.sort((a, b) => (a.fin || 0) - (b.fin || 0));
+    rangs.forEach(r => {
+      const tr = el('tr');
+      tr.append(el('td', 'id', r.L));
+      tr.append(el('td', 'num', String(r.n)));
+      tr.append(el('td', 'num', r.dernierBeton ? fr(new Date(r.dernierBeton).toISOString().slice(0,10)) : '—'));
+      tr.append(el('td', 'num', r.fin ? fr(new Date(r.fin).toISOString().slice(0,10)) : '—'));
+      tr.append(el('td', 'num', r.avance === null ? '—' : `${r.avance} j`));
+      tb.append(tr);
+    });
+    const fins = rangs.map(r => r.fin).filter(Boolean);
+    const etalement = fins.length ? Math.round((Math.max(...fins) - Math.min(...fins)) / day) : 0;
+    document.getElementById('arret-note').textContent = fins.length
+      ? `La dernière halle se libère le ${fr(new Date(Math.max(...fins)).toISOString().slice(0,10))}, `
+        + `la première ${etalement} jours plus tôt — l'extinction du site s'étale sur cette durée. `
+        + `L'avance moyenne est le temps qu'un élément passe entre sa sortie d'outfitting et son immersion : `
+        + `c'est le stockage à flot que coûte un arrêt anticipé.`
+      : '';
+  }
 
   /* ---------- table changements ---------- */
   const tb = document.querySelector('#t-changes tbody');
@@ -780,10 +872,12 @@
 
   const dateOut = document.getElementById('plan-date');
   const curseur = document.getElementById('g-cursor');
+  construireCoupe();
   function dessinerPlan(j) {
     const ms = P0 + j * day;
     const iso = new Date(ms).toISOString().slice(0, 10);
     dateOut.textContent = fr(iso);
+    majCoupe(ms);
     // Le trait vertical de l'écoulement de production suit la même date que le plan.
     if (ms >= T0 && ms <= T1) {
       curseur.hidden = false;
@@ -863,6 +957,62 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
+// TE-01 à gauche, TE-79 à droite : les standard se rangent par numéro. Les SPE n'ont pas de
+// numéro comparable — on les glisse à la place que leur donne l'ordre d'immersion, juste
+// derrière le standard qui les précède dans la file.
+let ordreCoupe = [];
+function construireCoupe() {
+  const num = e => { const m = e.id.match(/(\d+)/); return m ? parseInt(m[1], 10) : 0; };
+  const liste = D.elements.filter(e => e.ln !== 6).sort((a, b) => num(a) - num(b));
+  D.elements.filter(e => e.ln === 6)
+    .sort((a, b) => (a.ri || 0) - (b.ri || 0))
+    .forEach(sp => {
+      let voisin = null;
+      for (const e of liste) {
+        if (e.ln === 6 || !isFinite(e.ri) || !isFinite(sp.ri) || e.ri >= sp.ri) continue;
+        if (!voisin || e.ri > voisin.ri) voisin = e;
+      }
+      liste.splice(voisin ? liste.indexOf(voisin) + 1 : 0, 0, sp);
+    });
+  ordreCoupe = liste;
+
+  const piste = document.getElementById('coupe-piste');
+  piste.textContent = '';
+  ordreCoupe.forEach(e => {
+    const bloc = el('div', 'coupe-el' + (e.ln === 6 ? ' spe' : ''));
+    bloc.dataset.info = `${e.id} — ${e.l}`;
+    piste.append(bloc);
+  });
+  document.getElementById('coupe-gauche').textContent = ordreCoupe.length ? ordreCoupe[0].id : '';
+  document.getElementById('coupe-droite').textContent = ordreCoupe.length ? ordreCoupe[ordreCoupe.length - 1].id : '';
+}
+
+// Met la coupe à la date affichée : posé, en cours de ballast, ou pas encore.
+function majCoupe(ms) {
+  const piste = document.getElementById('coupe-piste');
+  if (!piste || !ordreCoupe.length) return;
+  let poses = 0;
+  ordreCoupe.forEach((e, i) => {
+    const bloc = piste.children[i];
+    if (!bloc) return;
+    // Un élément immergé avant la date de référence n'a pas de date simulée : il est posé
+    // depuis toujours, et doit apparaître comme tel dès la première image.
+    const pose = t(e.ir) ? ms >= t(e.ir) : !!e.fini;
+    const encours = !pose && t(e.bl) && ms >= t(e.bl);
+    bloc.classList.toggle('pose', !!pose);
+    bloc.classList.toggle('encours', !!encours);
+    bloc.classList.toggle('late', !!(pose && t(e.im) && t(e.ir) > t(e.im)));
+    if (pose) poses++;
+    bloc.dataset.info = `${e.id} — ${e.l} — ` +
+      (pose ? (e.ir ? `posé le ${fr(e.ir)}` : 'posé avant la date de référence')
+            : encours ? 'ballast en cours'
+            : `pose prévue le ${fr(e.ir || e.im)}`);
+  });
+  document.getElementById('coupe-compte').innerHTML =
+    `<b>${poses}</b> / ${ordreCoupe.length} éléments posés`;
+}
 
 /* ---- séquence de production : ce que le résolveur a changé, et ce que ça vaut ---- */
 function rendreSequence() {
@@ -1192,6 +1342,7 @@ function calculer(nomFichier) {
         placesStockageSPE: nb($('p-stockagespe').value) || 0,
         etancheCritiqueSem: nb($('p-etanche-critique').value) || 8,
         autoriserEtancheCritique: $('p-etanche-critique-ok').checked,
+        arretAuPlusTot: $('p-arret-tot').checked,
       };
       STAGGER.actif = $('p-stagger').checked;
       OPTIM.reaffecterLignes = $('p-reaffecter').checked;
@@ -1235,6 +1386,7 @@ function construireD() {
       fu: iso(e.dateDebutFU), ba: iso(e.dateDebutBasin), pk: iso(e.dateDebutParking),
       bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),
       im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
+      ri: e.rangImmersion,
       pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
     })),
     changements: lastChangements.map(c => ({

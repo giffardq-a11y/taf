@@ -207,6 +207,8 @@
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+    <label class="check"><input type="checkbox" id="p-arret-tot" checked>
+      <span><b>Arrêt de l'usine au plus tôt</b> — chaque ligne tourne au rythme le plus rapide que la pente d'inertie autorise et s'éteint dès sa file vidée, quitte à produire des éléments longtemps avant leur immersion. Décoché, le solveur tient la cadence la plus lente qui respecte les dates (production à flux tendu).</span></label>
     <label class="check"><input type="checkbox" id="p-ralentir">
       <span><b>Autoriser un relâchement de cadence</b> — une fois par paire, en fin de programme. Économique sur le papier, mais le solveur juge la faisabilité sans modéliser l'aval : sur le classeur de référence, cela coûte des retards.</span></label>
     <label class="check"><input type="checkbox" id="p-etanche-critique-ok">
@@ -372,6 +374,7 @@ const REGLES = {
   parkingPlaces: 5,         // places de parking sans limite de durée
   parkingReserveJours: 30,  // la 6e place ne s'ouvre que pour un départ dans ce délai
   basins: 3, basinPlaces: 2,
+  arretAuPlusTot: true,     // vider les halles au plus tôt plutôt que produire à flux tendu
 };
 REGLES.defaut = JSON.parse(JSON.stringify(REGLES));
 function penteJours() { return REGLES.pentePeriodeMois * 30.44; }
@@ -956,6 +959,12 @@ function lireParamsUI() {
     const n = document.getElementById(id);
     return n ? (parseFloat(n.value) || def) : def;
   };
+  // Case cochée par défaut : hors navigateur (essais, page de restitution), c'est la règle
+  // qui fait foi, pas l'absence de case.
+  const caseCochee = (id, def) => {
+    const n = document.getElementById(id);
+    return n ? !!n.checked : !!def;
+  };
   const dref = document.getElementById('p-dateref');
   return {
     dateRef: dref ? new Date(dref.value) : new Date(),
@@ -965,6 +974,7 @@ function lireParamsUI() {
     ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
     autoriserRalentissement: !!(document.getElementById('p-ralentir') || {}).checked,
+    arretAuPlusTot: caseCochee('p-arret-tot', REGLES.arretAuPlusTot),
     etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
   };
@@ -1226,13 +1236,25 @@ function runSimulation(paramsArg) {
       && ((ligne === 5) || (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1);
     const slopeOk = RYTHMES.filter(R => (ralentirPermis || R <= state.rhythm + 1e-9)
       && Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9);
-    let chosen = slopeOk.find(tenable) ?? null;
+    let chosen = null;
     let atRisk = false;
-    if (chosen === null) {
-      // Aucun rythme conforme à la pente ne tient les délais : on prend le plus rapide que la pente
-      // autorise (la moins mauvaise option) et on signale le risque dans le rapport.
+    if (PARAMS.arretAuPlusTot) {
+      // Arrêt au plus tôt : l'usine ne cherche plus la cadence la plus lente qui tienne les
+      // dates, elle prend la plus rapide que la pente d'inertie autorise. Les halles se vident
+      // au plus tôt, quitte à produire des éléments longtemps avant leur immersion, et chaque
+      // ligne s'éteint dès sa file terminée — l'arrêt du site s'étale ligne par ligne au lieu
+      // d'être brutal. Le stockage aval (bassins, parking) reste la limite : un élément qui n'a
+      // pas où aller attend en halle, et la ligne ralentit d'elle-même.
       chosen = slopeOk.length ? Math.min(...slopeOk) : state.rhythm;
-      atRisk = true;
+      atRisk = !tenable(chosen);
+    } else {
+      chosen = slopeOk.find(tenable) ?? null;
+      if (chosen === null) {
+        // Aucun rythme conforme à la pente ne tient les délais : on prend le plus rapide que la pente
+        // autorise (la moins mauvaise option) et on signale le risque dans le rapport.
+        chosen = slopeOk.length ? Math.min(...slopeOk) : state.rhythm;
+        atRisk = true;
+      }
     }
 
     if (chosen > state.rhythm && ligne !== 5) {
@@ -1930,8 +1952,27 @@ function runSimulation(paramsArg) {
     const d = e.dateImmersionReelle || e.dateBallast;
     return (d && (!m || d > m)) ? d : m;
   }, null);
+  // Arrêt de l'usine : dernière sortie d'outfitting de chaque ligne — la date à laquelle sa
+  // halle se libère pour de bon. L'écart entre la première et la dernière extinction mesure
+  // si l'arrêt s'étale ou s'il est brutal.
+  const arretLignes = {};
+  for (let l = 1; l <= 6; l++) {
+    const fins = elements.filter(e => e.ligne === l)
+      .map(e => e.dateFinOut || e.dateFinBeton).filter(Boolean).map(d => d.getTime());
+    if (fins.length) arretLignes[l] = new Date(Math.max(...fins));
+  }
+  const arrets = Object.values(arretLignes).map(d => d.getTime());
+  // Avance de production : jours entre la fin d'outfitting d'un élément et son immersion.
+  // C'est le prix du mode « au plus tôt » — du stockage à flot, payé pour éteindre les halles.
+  const avances = elements.map(e => (e.dateFinOut && (e.dateImmersionReelle || e.dateImmersion))
+    ? diffDays(e.dateImmersionReelle || e.dateImmersion, e.dateFinOut) : null).filter(v => v !== null);
   lastKPI = {
     jours: jourCourant,
+    arretLignes,
+    finProduction: arrets.length ? Math.max(...arrets) : 0,
+    etalementArretJours: arrets.length ? Math.round((Math.max(...arrets) - Math.min(...arrets)) / 86400000) : 0,
+    avanceMoyJours: avances.length ? Math.round(avances.reduce((s, v) => s + v, 0) / avances.length) : 0,
+    avanceMaxJours: avances.length ? Math.round(Math.max(...avances)) : 0,
     inversions: inversionsSequence().filter(i => i.ligne !== 6).length,
     inversionsSPE: inversionsSequence().filter(i => i.ligne === 6).length,
     nonImmerges: nonTermines,
@@ -2071,9 +2112,18 @@ function affectationEquilibree(dateRef, taktJoursEstime) {
 // Les inversions viennent ensuite — elles ne comptent que sur les lignes PL, où elles bloquent
 // vraiment ; sur la ligne SPE la zone de stockage les absorbe, et les ranger au même niveau
 // ferait préférer une variante sans inversion SPE mais bien plus en retard.
+// En mode « arrêt au plus tôt », vider les halles tôt devient un objectif à part entière :
+// il s'intercale après les retards et avant le nombre de changements de cadence, qui reste
+// le critère de départage. En flux tendu il n'a rien à faire là — produire tôt y est un coût.
 const CRITERES_KPI = ['nonImmerges', 'inversions', 'nbRetards', 'retardTotal', 'retardMax', 'nbChangements'];
+function criteresKPI() {
+  if (!PARAMS || !PARAMS.arretAuPlusTot) return CRITERES_KPI;
+  const l = CRITERES_KPI.slice();
+  l.splice(l.indexOf('nbChangements'), 0, 'finProduction');
+  return l;
+}
 function comparerKPI(a, b) {
-  for (const c of CRITERES_KPI) {
+  for (const c of criteresKPI()) {
     if (a[c] !== b[c]) return a[c] - b[c];
   }
   return 0;
@@ -2561,6 +2611,20 @@ function renderStats() {
   }).join('');
   const bloques = total - done;
   const inversions = inversionsSequence().length;
+  // Arrêt de l'usine : quand chaque halle se libère pour de bon. renderStats tourne avant
+  // le calcul des indicateurs, on remesure donc ici sur les éléments.
+  const arret = l => {
+    const fins = elements.filter(e => e.ligne === l)
+      .map(e => e.dateFinOut || e.dateFinBeton).filter(Boolean).map(d => d.getTime());
+    return fins.length ? new Date(Math.max(...fins)) : null;
+  };
+  const arrets = [1,2,3,4,5,6].map(l => ({l, d: arret(l)})).filter(a => a.d)
+    .sort((a, b) => a.d - b.d);
+  const lignesArret = arrets.map(a =>
+    `<div class="stat-row"><span>Arrêt ${LIGNE_NOM[a.l]}</span><b>${fmt(a.d)}</b></div>`).join('');
+  const avances = elements.map(e => (e.dateFinOut && (e.dateImmersionReelle || e.dateImmersion))
+    ? diffDays(e.dateImmersionReelle || e.dateImmersion, e.dateFinOut) : null).filter(v => v !== null);
+  const avanceMoy = avances.length ? Math.round(avances.reduce((s, v) => s + v, 0) / avances.length) : 0;
   document.getElementById('stats').innerHTML = `
     <div class="stat-row"><span>Total éléments</span><b>${total}</b></div>
     <div class="stat-row"><span>Immergés (fin de simulation)</span><b>${done}</b></div>
@@ -2573,6 +2637,12 @@ function renderStats() {
     <div class="stat-row"><span>Alertes de délai non tenable</span><b style="${risk?'color:var(--late)':''}">${risk}</b></div>
     <div class="stat-row"><span>Changements de rythme planifiés</span><b>${lastChangements.length}</b></div>
     ${rythmesLignes}
+    <div class="stat-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
+      <span>Arrêt de l'usine (dernière halle)</span><b>${arrets.length ? fmt(arrets[arrets.length-1].d) : '—'}</b></div>
+    <div class="stat-row"><span>Extinction étalée sur</span><b>${arrets.length
+      ? Math.round(diffDays(arrets[arrets.length-1].d, arrets[0].d)) + ' j' : '—'}</b></div>
+    <div class="stat-row"><span>Avance moyenne production / immersion</span><b>${avanceMoy} j</b></div>
+    ${lignesArret}
   `;
 }
 

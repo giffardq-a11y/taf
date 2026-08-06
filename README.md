@@ -23,8 +23,27 @@ aucune donnée n'est envoyée sur un serveur) qui :
 
 ## Ce que fait le solveur
 
+Deux économies possibles, choisies par la case **« Arrêt de l'usine au plus tôt »** :
+
+- **Cochée (défaut)** — chaque ligne tourne au **rythme le plus rapide** que la pente
+  d'inertie autorise et **s'éteint dès sa file vidée**, quitte à produire des éléments
+  longtemps avant leur immersion. Les halles se libèrent au plus tôt, l'une après l'autre.
+- **Décochée** — production à flux tendu : le solveur retient la **cadence la plus lente**
+  qui tienne les dates, et l'usine tourne jusqu'au dernier élément.
+
+Sur le classeur de référence, séquence optimisée dans les deux cas et **zéro retard des deux
+côtés** : l'arrêt au plus tôt libère la dernière halle le **11/07/2029** contre le
+**14/10/2029** à flux tendu — trois mois de moins — et l'extinction s'étale sur **292 jours**
+(PL-5 le 22/09/2028, PL-1/PL-2 le 17/04/2029, SPE et PL-3/PL-4 en juillet 2029) au lieu de
+180. Le prix est du stockage à flot : **208 jours** d'avance moyenne entre la sortie
+d'outfitting et l'immersion, contre 187, et un changement de cadence de plus.
+
+Le stockage aval reste la limite : un élément qui n'a pas où aller attend en halle et la ligne
+ralentit d'elle-même. Le mode « au plus tôt » ne peut donc pas produire n'importe quand.
+
 Pour chaque élément au moment où il entre en zone béton, le solveur teste les rythmes
-autorisés **du plus lent (économique) au plus rapide** et retient le premier qui respecte
+autorisés — **du plus lent (économique) au plus rapide** à flux tendu, en prenant directement
+le plus rapide autorisé en mode « arrêt au plus tôt » — et retient celui qui respecte
 simultanément :
 
 - **la pente d'inertie de la ligne** — 1 semaine de variation par tranche de 4 mois
@@ -134,6 +153,22 @@ Les éléments standard se rangent par numéro ; les SPE, qui n'ont pas de numé
 se glissent à la place que leur donne l'ordre d'immersion, juste derrière l'élément standard
 qui les précède. **Les positions sont donc provisoires** : l'ordre est juste, les distances
 non. Elles seront reprises du plan de coupe quand il sera disponible.
+
+La coupe figure dans les **deux** pages : l'outil `index.html`, sous la vue en plan, et la
+page de restitution, où elle suit le curseur du plan animé.
+
+## Arrêt de l'usine
+
+Le panneau de statistiques et la page de restitution donnent, ligne par ligne, la date du
+**dernier départ béton**, celle où la **halle se libère** pour de bon, et l'**avance moyenne**
+de la ligne — le temps qu'un élément y passe entre sa sortie d'outfitting et son immersion.
+L'écart entre la première et la dernière extinction mesure si l'arrêt s'étale ou s'il est
+brutal : un arrêt étalé rend les moyens au fur et à mesure, un arrêt groupé les immobilise
+tous jusqu'au dernier jour.
+
+En mode « arrêt au plus tôt », vider les halles tôt devient aussi un **critère de
+l'optimiseur** : il s'intercale après les retards et avant le nombre de changements de
+cadence. À flux tendu il n'y figure pas — produire tôt y est un coût, pas un gain.
 
 ## État as-built, réglé à l'écran
 

@@ -10,7 +10,15 @@ actif, ligne SPE sur planning P6, séquence automatique :
 
 **Aucun retard. Les 89 éléments s'immergent à leur date cible, au jour près.** Aucun bloqué,
 aucune inversion sur les lignes PL, une seule fermeture provisoire de SPE à programmer.
-Répartition retenue : 18/17/17/17/10 sur les lignes PL.
+Répartition retenue : 17/17/17/17/11 sur les lignes PL, en mode « arrêt de l'usine au plus
+tôt » (18/17/17/17/10 à flux tendu).
+
+L'usine s'éteint ligne par ligne, la dernière halle libérée le **11/07/2029** : PL-5 le
+22/09/2028, PL-1 et PL-2 le 17/04/2029, SPE le 10/07/2029, PL-3 et PL-4 le 11/07/2029 —
+**292 jours** d'extinction étalée. À flux tendu, mêmes zéro retard mais la dernière halle ne
+se libère que le 14/10/2029 et l'étalement tombe à 180 jours. Le prix de l'arrêt anticipé est
+du stockage à flot : 208 jours d'avance moyenne sur l'immersion contre 187, et un changement
+de cadence de plus (15 contre 14).
 
 Cinq corrections y ont conduit, toutes mesurées :
 
@@ -313,11 +321,26 @@ de bassin et de parking, durées de float-up et de ballast. Aujourd'hui une part
 règles est dans le classeur, une autre en constantes du code (`RYTHMES`, `SLOPE_*`, `STAGGER`,
 `SEUIL_ETANCHE_*`, `GEO`) : les remonter dans l'interface est le chantier suivant.
 
-### 7. Coupe des éléments immergés — à faire
+### 7. Coupe des éléments immergés — faite, positions provisoires
 
-Inchangé : l'utilisateur fournira un PDF de coupe avec le positionnement des éléments. À
-remplir au fil des immersions, comme le plan d'installation l'est déjà pour le mouvement en
-surface.
+Les 89 éléments côte à côte dans l'ordre de pose, `STE-01` à gauche et `STE-79` à droite,
+dans **les deux pages** : sous la vue en plan de `index.html`, et dans la page de restitution
+où elle suit le curseur du plan animé. Elle n'existait d'abord que dans `index.html`, ce qui
+la rendait invisible depuis le rapport publié — corrigé.
+
+Reste l'attente initiale : le PDF de coupe, pour remplacer l'ordre de pose par les abscisses
+réelles. Le rendu ne changera pas, seulement l'échelle horizontale.
+
+### 8. Arrêt progressif de l'usine — fait
+
+Règle `REGLES.arretAuPlusTot`, cochée par défaut, exposée dans les deux pages. Elle inverse
+l'économie du solveur : au lieu de tenir la cadence la plus lente qui respecte les dates, la
+ligne prend la plus rapide que la pente autorise et s'arrête dès sa file vidée. Le critère
+« fin de production » entre aussi dans l'ordre lexicographique de l'optimiseur, entre les
+retards et le nombre de changements de cadence.
+
+Le stockage aval reste la limite physique : un élément sans place attend en halle et la ligne
+ralentit d'elle-même. C'est pourquoi le gain est de trois mois et non davantage.
 
 ## Onglets du classeur devenus caducs
 
