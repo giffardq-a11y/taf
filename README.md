@@ -121,6 +121,20 @@ La séquence retenue est celle que l'on peut recopier dans `Inputs` : la simuler
 exactement ce que donnerait le même ordre saisi dans le classeur. Elle est exportée telle
 quelle dans l'onglet `Sequence_Solveur`.
 
+## Coupe du tunnel
+
+Sous la vue en plan, une bande montre les 89 éléments côte à côte, `STE-01` à gauche et
+`STE-79` à droite, et la pose qui progresse avec le **même curseur temporel** que la
+production : un élément s'allume quand il est immergé, se distingue pendant son ballast, et
+porte un liseré rouge s'il a manqué sa date. Le compteur donne le nombre d'éléments posés à la
+date affichée. Sur le classeur de référence, on y voit le tunnel se fermer par ses deux
+extrémités vers le milieu — c'est ce que fait l'ordre d'immersion.
+
+Les éléments standard se rangent par numéro ; les SPE, qui n'ont pas de numéro comparable,
+se glissent à la place que leur donne l'ordre d'immersion, juste derrière l'élément standard
+qui les précède. **Les positions sont donc provisoires** : l'ordre est juste, les distances
+non. Elles seront reprises du plan de coupe quand il sera disponible.
+
 ## État as-built, réglé à l'écran
 
 L'étape 3 affiche un tableau d'une ligne par élément : son identifiant, sa ligne de
@@ -141,8 +155,8 @@ Tout ce qui était figé dans le code est regroupé dans l'objet `REGLES` et exp
 de l'interface, sous son libellé métier : segments béton par élément, segment de fin
 d'outfitting, pente d'inertie (variation autorisée et période), déphasages du hall B et de
 PL-5 et cadence à partir de laquelle ils deviennent contraignants, seuils d'étanchéité normal
-et critique, places de parking et délai d'ouverture de la réserve, et la liste des rythmes
-autorisés. Les valeurs saisies s'appliquent au lancement suivant ; un bouton rétablit les
+et critique, nombre de bassins et de places par bassin, places de parking et délai d'ouverture
+de la réserve, et la liste des rythmes autorisés. Les valeurs saisies s'appliquent au lancement suivant ; un bouton rétablit les
 valeurs de référence.
 
 C'est la première étape de l'interface entièrement paramétrable : les règles sont sorties du

@@ -47,6 +47,28 @@
   #log div.err { color: var(--late); }
   #log div.warn { color: var(--warn); }
   label.field { display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin: 4px 0; color: var(--text-dim); }
+  /* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
+  #coupe-wrap { background: var(--panel); border-top: 1px solid var(--border); padding: 8px 12px 10px; flex-shrink: 0; }
+  #coupe-tete { display: flex; align-items: baseline; gap: 12px; font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  #coupe-tete b { color: var(--accent); font-family: monospace; }
+  #coupe-piste { display: flex; align-items: flex-end; gap: 1px; overflow-x: auto; padding-bottom: 4px; }
+  .coupe-el {
+    flex: 0 0 auto; width: 15px; height: 26px; border: 1px solid var(--border);
+    background: var(--panel2); border-radius: 1px; position: relative;
+    transition: background-color .25s, border-color .25s, height .25s;
+  }
+  .coupe-el.spe { width: 9px; border-style: dashed; }
+  .coupe-el.pose { background: var(--basin); border-color: var(--accent); }
+  .coupe-el.encours { background: var(--ballast); border-color: var(--ballast); height: 32px; }
+  .coupe-el.late { border-color: var(--late); }
+  .coupe-el:hover::after {
+    content: attr(data-info); position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 3px;
+    padding: 3px 6px; font-size: 10px; white-space: nowrap; z-index: 5; color: var(--text);
+  }
+  #coupe-axe { display: flex; justify-content: space-between; font-size: 9.5px;
+    color: var(--text-dim); font-family: monospace; margin-top: 2px; }
+
   #asbuilt-box { max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; }
   table.asbuilt { width: 100%; border-collapse: collapse; font-size: 10.5px; }
   table.asbuilt th { position: sticky; top: 0; background: var(--panel2); color: var(--text-dim);
@@ -268,6 +290,16 @@
     </menu>
   </form>
 </dialog>
+
+<div id="coupe-wrap">
+  <div id="coupe-tete">
+    <span>Coupe du tunnel — éléments posés à la date affichée</span>
+    <span id="coupe-compte"></span>
+    <span style="margin-left:auto">Positions provisoires : ordre de pose, en attendant le plan de coupe.</span>
+  </div>
+  <div id="coupe-piste"></div>
+  <div id="coupe-axe"><span id="coupe-gauche"></span><span id="coupe-droite"></span></div>
+</div>
 
 <div id="controls">
   <button id="play-btn">▶</button>
@@ -969,7 +1001,13 @@ function runSimulation(paramsArg) {
   const zonesSPE = speConfig.map(z => ({...z, occupee:false, idOccupant:'', jourEntree:0,
     dureeEff: (!z.estBeton && z.dureeSPEJours) ? z.dureeSPEJours : z.dureeJours}));
   const premiereUB = speConfig.findIndex(z => !z.estBeton) + 1; // n° de zone du 1er UB (0 si aucune)
-  const basinOccupee = {1:{1:false,2:false}, 2:{1:false,2:false}, 3:{1:false,2:false}};
+  // Les bassins et leurs places viennent des règles : trois bassins de deux places sur ce
+  // chantier, mais rien dans le moteur ne l'impose.
+  const basinOccupee = {};
+  for (let b = 1; b <= REGLES.basins; b++) {
+    basinOccupee[b] = {};
+    for (let pl = 1; pl <= REGLES.basinPlaces; pl++) basinOccupee[b][pl] = false;
+  }
   const parkingOccupee = {1:false,2:false,3:false,4:false,5:false,6:false};
   // Dernier démarrage de béton par ligne : c'est l'ancre de phase du staggering entre halls.
   const dernierDebutBeton = {1:null,2:null,3:null,4:null,5:null};
@@ -1072,7 +1110,7 @@ function runSimulation(paramsArg) {
       case 'attentebasin': e.statut = 'AttenteBasin'; break;
       case 'basin': case 'hookup': {
         const g = groupeId(ligne);
-        const place = (ligne === 1 || ligne === 3 || ligne === 5) ? 1 : 2;
+        const place = Math.min((ligne === 1 || ligne === 3 || ligne === 5) ? 1 : 2, REGLES.basinPlaces);
         if (basinOccupee[g][place]) log(`As-built ${e.id} : place Basin ${g}/${place} déjà occupée — conflit à vérifier.`, 'warn');
         basinOccupee[g][place] = true; e.basinNum = g; e.basinPlace = place;
         e.dateDebutBasin = code.date || REF;
@@ -1430,17 +1468,19 @@ function runSimulation(paramsArg) {
 
   function tenterEntreeBasin(e, dCur) {
     const g = groupeId(e.ligne);
-    const place = (e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2;
+    // Chaque ligne a sa place attitrée dans le bassin de son groupe. Si le bassin compte
+    // moins de places que de lignes, elles se partagent la dernière.
+    const place = Math.min((e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2, REGLES.basinPlaces);
     const dureeHookup = PARAMS.hookupSem * 7;
 
     // Basin C : les deux places sont indépendantes. Le SPE y stationne longtemps (jusqu'à son
     // immersion) pendant que les éléments normaux de PL-5 défilent au fur et à mesure — une
     // entrée synchronisée par paire y serait impossible.
     if (g === 3) {
-      if (basinOccupee[3][place]) return;
-      basinOccupee[3][place] = true;
+      if (basinOccupee[g][place]) return;
+      basinOccupee[g][place] = true;
       e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup);
-      e.basinNum = 3; e.basinPlace = place;
+      e.basinNum = g; e.basinPlace = place;
       return;
     }
 
@@ -1449,7 +1489,9 @@ function runSimulation(paramsArg) {
     // Si la ligne partenaire est épuisée, l'élément entre seul plutôt que de rester bloqué
     // indéfiniment en attente d'un partenaire qui n'arrivera jamais.
     if (!idxPart && elements.some(x => x.ligne === part && EN_AMONT_BASIN.includes(x.statut))) return;
-    if (basinOccupee[g][1] || basinOccupee[g][2]) return;
+    // Entrée par paire : les deux lignes du groupe entrent ensemble, donc il faut le bassin
+    // entièrement libre.
+    if (Object.values(basinOccupee[g] || {}).some(Boolean)) return;
     const place2 = place === 1 ? 2 : 1;
     basinOccupee[g][place] = true;
     e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place;
@@ -1773,11 +1815,11 @@ function runSimulation(paramsArg) {
   }
 
   function stockerEnBassin(e, dCur) {
-    for (let b = 1; b <= 3; b++) {
+    for (let b = 1; b <= REGLES.basins; b++) {
       // Occuper la place d'un groupe encore en production le bloquerait : la soupape doit
       // soulager la production, pas la gêner ailleurs.
       if (groupeEncoreActif(b)) continue;
-      for (let pl = 1; pl <= 2; pl++) {
+      for (let pl = 1; pl <= REGLES.basinPlaces; pl++) {
         if (basinOccupee[b][pl]) continue;
         basinOccupee[b][pl] = true;
         e.basinNum = b; e.basinPlace = pl;
@@ -2410,6 +2452,70 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
 /* ================================================================
    9. RENDU VISUEL
    ================================================================ */
+/* ================================================================
+   9bis. COUPE DU TUNNEL
+   Les éléments côte à côte dans l'ordre où ils sont posés, TE-01 à gauche, TE-79 à droite,
+   et la pose qui progresse avec le curseur temporel de la vue en plan.
+   Les abscisses réelles viendront du plan de coupe ; en attendant, l'ordre de pose sert de
+   position — c'est l'information dont on dispose, et elle est juste sur l'ordre sinon sur
+   les distances.
+   ================================================================ */
+let ordreCoupe = [];
+
+// TE-01 à gauche, TE-79 à droite : les éléments standard se rangent par numéro. Les SPE
+// n'ont pas de numéro comparable — on les glisse à la place que leur donne l'ordre
+// d'immersion, juste derrière l'élément standard qui les précède dans la file.
+function construireOrdreCoupe() {
+  const num = e => { const m = e.id.match(/(\d+)/); return m ? parseInt(m[1], 10) : 0; };
+  const std = elements.filter(e => e.ligne !== 6).sort((a, b) => num(a) - num(b));
+  const spe = elements.filter(e => e.ligne === 6);
+  const liste = std.slice();
+  spe.sort((a, b) => (a.rangImmersion || 0) - (b.rangImmersion || 0)).forEach(sp => {
+    // Voisin de gauche : le standard qui s'immerge juste avant lui — celui dont le rang
+    // d'immersion est le plus grand parmi ceux qui le précèdent. Prendre le dernier
+    // rencontré en parcourant la liste rangerait selon les numéros, pas selon la pose.
+    let voisin = null;
+    for (const e of liste) {
+      if (e.ligne === 6 || !isFinite(e.rangImmersion) || !isFinite(sp.rangImmersion)) continue;
+      if (e.rangImmersion >= sp.rangImmersion) continue;
+      if (!voisin || e.rangImmersion > voisin.rangImmersion) voisin = e;
+    }
+    liste.splice(voisin ? liste.indexOf(voisin) + 1 : 0, 0, sp);
+  });
+  ordreCoupe = liste;
+
+  const piste = document.getElementById('coupe-piste');
+  piste.innerHTML = ordreCoupe.map(e =>
+    `<div class="coupe-el${e.ligne === 6 ? ' spe' : ''}" data-id="${e.id}" data-info="${e.id} — ${LIGNE_NOM[e.ligne]}"></div>`
+  ).join('');
+  document.getElementById('coupe-gauche').textContent = ordreCoupe.length ? ordreCoupe[0].id : '';
+  document.getElementById('coupe-droite').textContent = ordreCoupe.length ? ordreCoupe[ordreCoupe.length - 1].id : '';
+}
+
+// Met la coupe à la date affichée : posé, en cours de ballast, ou pas encore.
+function majCoupe(dCur) {
+  const piste = document.getElementById('coupe-piste');
+  if (!piste || !ordreCoupe.length) return;
+  let poses = 0;
+  ordreCoupe.forEach((e, i) => {
+    const bloc = piste.children[i];
+    if (!bloc) return;
+    // Un élément immergé avant la date de référence n'a pas de date simulée : il est posé
+    // depuis toujours, et doit apparaître comme tel dès la première image.
+    const pose = e.dateImmersionReelle ? dCur >= e.dateImmersionReelle : !!e.termine;
+    const encours = !pose && e.dateBallast && dCur >= e.dateBallast;
+    bloc.classList.toggle('pose', !!pose);
+    bloc.classList.toggle('encours', !!encours);
+    bloc.classList.toggle('late', !!(pose && e.dateImmersion && e.dateImmersionReelle > e.dateImmersion));
+    if (pose) poses++;
+    bloc.dataset.info = `${e.id} — ${LIGNE_NOM[e.ligne]} — ` +
+      (pose ? (e.dateImmersionReelle ? `posé le ${fmt(e.dateImmersionReelle)}` : 'posé avant la date de référence')
+            : encours ? 'ballast en cours'
+            : `pose prévue le ${fmt(e.dateImmersionReelle || e.dateImmersion)}`);
+  });
+  document.getElementById('coupe-compte').innerHTML = `<b>${poses}</b> / ${ordreCoupe.length} posés`;
+}
+
 function render(idx) {
   const key = dateKeys[idx];
   const items = simTimeline[key];
@@ -2417,6 +2523,7 @@ function render(idx) {
   const d = new Date(key);
   document.getElementById('date-display').textContent = fmt(d);
   document.getElementById('current-date-val').textContent = fmt(d);
+  majCoupe(d);
   const layer = document.getElementById('production-layer');
   layer.innerHTML = '';
   items.forEach(el => {
@@ -2668,6 +2775,8 @@ const REGLES_CHAMPS = [
   ['staggerCadenceDure', 'Déphasage dur à partir de (sem/segment)', 0.5, 0],
   ['etancheSem', 'Étanchéité provisoire après CP3 (sem)', 1, 1],
   ['etancheCritiqueSem', 'Seuil critique d\'étanchéité (sem)', 1, 1],
+  ['basins', 'Nombre de bassins', 1, 1],
+  ['basinPlaces', 'Places par bassin', 1, 1],
   ['parkingPlaces', 'Places de parking (hors réserve)', 1, 0],
   ['parkingReserveJours', 'Réserve de parking : départ sous (j)', 1, 0],
 ];
@@ -2755,6 +2864,7 @@ function paramsUI() {
 // Rejoue la simulation retenue et rebranche le curseur temporel.
 function afficherSimulation(params) {
   runSimulation(params);
+  construireOrdreCoupe();
   const slider = document.getElementById('timeline');
   slider.disabled = false;
   slider.min = 0; slider.max = Math.max(0, dateKeys.length - 1); slider.value = 0;

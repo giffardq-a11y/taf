@@ -292,8 +292,16 @@ le tableau au chargement ; la saisie écran prime ensuite, y compris quand le cl
 (changement de séquence, mode automatique), ce qui demandait de porter la surcharge dans le
 moteur et non dans la page.
 
-**Reste** : la capacité des bassins (3 × 2, encore en dur) et les icônes par élément sur le
-plan lui-même — le tableau en porte déjà une par statut.
+**Fait aussi** : la **capacité des bassins** est paramétrable — nombre de bassins et places
+par bassin — comme le reste des règles. Plus rien du dimensionnement n'est en dur.
+
+**Fait aussi** : la **coupe du tunnel**, sous la vue en plan. Les 89 éléments côte à côte,
+`STE-01` à gauche, `STE-79` à droite, la pose progressant avec le même curseur temporel que
+la production. Positions provisoires — l'ordre est juste, les distances non — à reprendre du
+plan de coupe quand il sera disponible.
+
+**Reste** : les icônes par élément sur le plan de production lui-même ; le tableau as-built
+et la coupe en portent déjà une par statut.
 
 ### 6bis. Interface — spécification d'origine
 
