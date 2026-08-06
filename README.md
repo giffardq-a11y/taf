@@ -292,6 +292,38 @@ valeurs réellement en vigueur.
   appliquer les phases, ou retirer l'onglet. **Décision à prendre**, c'est pourquoi la règle est
   marquée « à trancher » plutôt que corrigée d'office.
 
+## Classeur réduit
+
+`reduire_classeur.py` produit un classeur ne contenant que ce que le solveur lit :
+
+```bash
+python3 reduire_classeur.py target_schedule_programme.xlsm target_schedule_reduit.xlsx
+```
+
+Ce qui reste — 4 onglets :
+
+| Onglet | Conservé | Retiré |
+|---|---|---|
+| `Inputs` | 51 lignes, 13 colonnes (n° d'ordre + identifiant et statut par ligne) | les colonnes de mise en forme |
+| `Immersion` | 405 lignes, 5 colonnes (`ID Element`, `Date Immersion`, `Activity Name`, `Start`, `Finish`) | 11 colonnes, et les activités du P6 qui n'entrent dans aucun calcul |
+| `Config_Cycles` | 5 lignes, 3 colonnes (ligne, date seuil 1, cycle 1) | les seuils 2 à 4, que le solveur détermine lui-même |
+| `Config_SPE` | les 7 zones, 7 colonnes | — |
+
+Ce qui disparaît entièrement : `Feuil1`, `Planning_Final`, `Dashboard`, `Recap_Dates` (sortie de
+l'ancienne macro) et `Config_Outfitting` (lu mais jamais appliqué — cf. le relevé des
+contraintes). Le fichier passe de **149 Ko à 24 Ko**, et n'a plus besoin d'être un `.xlsm` :
+la macro n'existe plus.
+
+**Équivalence vérifiée**, pas supposée : les deux classeurs ont été simulés côte à côte sur les
+**3 variantes de séquence** de `Inputs`, et comparés élément par élément sur 13 champs — ligne,
+rang, rythme, début et fin de béton, fin d'outfitting, entrée bassin, entrée parking, ballast,
+immersion cible, immersion réelle, date d'étanchéité, état final. **Zéro écart sur les 89
+éléments, dans les 3 variantes.**
+
+Seule différence visible : le journal signale `Config_Outfitting absent — séquence par défaut
+appliquée`. C'est sans effet, puisque l'onglet n'entrait dans aucun calcul. Si vous décidez un
+jour d'appliquer les phases d'outfitting, il faudra le remettre.
+
 ## Structure du classeur
 
 | Onglet | Rôle |
