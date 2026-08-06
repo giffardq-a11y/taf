@@ -266,8 +266,27 @@ se glissent à la place que leur donne l'ordre d'immersion, juste derrière l'é
 qui les précède. **Les positions sont donc provisoires** : l'ordre est juste, les distances
 non. Elles seront reprises du plan de coupe quand il sera disponible.
 
-La coupe figure dans les **deux** pages : l'outil `index.html`, sous la vue en plan, et la
-page de restitution, où elle suit le curseur du plan animé.
+### Dans la page de restitution : le profil réel, avec la descente
+
+La coupe du rapport n'est plus ordinale : c'est le **profil en long**, chaque élément à son
+**chaînage et à son niveau de pose réels**, relevés sur `TUX-DWG-ITP-GE-GE-GEN-COW-042012-B`.
+Les deux bandes du dessin ont été calées séparément sur leurs axes — chaînage R² > 0,998,
+niveaux R² = 1,000 — et donnent la **même échelle verticale**, ce qui les valide l'une par
+l'autre. L'échelle verticale est exagérée d'environ 40 fois, comme sur le dessin d'origine.
+
+Les SPE, dont le profil ne porte pas d'étiquette exploitable, sont placés au milieu de
+l'intervalle laissé entre deux standard : **un tous les huit**, après TE-03, TE-11, … TE-75.
+Deux sources indépendantes concordent — les écarts de chaînage anormalement larges tombent aux
+mêmes endroits, et l'ordre du graphique « Tunnel Progress » donne la même intercalation.
+
+**L'animation de descente** : chaque élément a un emplacement vide dessiné à sa position finale,
+et son caisson descend verticalement à sa place dans les six jours qui précèdent son immersion.
+La position est une **fonction de la date du curseur**, pas une transition déclenchée : le
+curseur se déplace donc dans les deux sens sans désynchroniser l'animation, et une date donnée
+redonne toujours la même image.
+
+Les gabarits — 217 m pour un standard, 39 m pour un spécial, 9 m de hauteur — sont ceux du
+programme, le profil ne les porte pas. C'est indiqué sous la coupe.
 
 ## Arrêt de l'usine
 

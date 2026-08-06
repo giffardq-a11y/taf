@@ -237,19 +237,13 @@
   .seq-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .seq-hint { font-size: 12.5px; color: var(--ink-3); }
   .seq-hint b { color: var(--accent); font-weight: 600; font-family: var(--mono); }
-  /* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
-  #coupe-piste { display: flex; align-items: flex-end; gap: 1px; padding: 10px 0 6px; min-height: 46px; }
-  .coupe-el { flex: 0 0 auto; width: 15px; height: 26px; border: 1px solid var(--line);
-    background: var(--surface-2); position: relative;
-    transition: background-color .25s, border-color .25s, height .25s; }
-  .coupe-el.spe { width: 9px; border-style: dashed; }
-  .coupe-el.pose { background: var(--ph-basin); border-color: var(--ph-basin); }
-  .coupe-el.encours { background: var(--ph-ballast); border-color: var(--ph-ballast); height: 34px; }
-  .coupe-el.late { border-color: var(--crit); border-width: 2px; }
-  .coupe-el:hover::after { content: attr(data-info); position: absolute; bottom: 38px; left: 50%;
-    transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line);
-    padding: 4px 7px; font-size: 11px; white-space: nowrap; z-index: 5; color: var(--ink);
-    font-family: var(--mono); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  /* ---- coupe du tunnel : profil en long, à l'échelle ---- */
+  #coupe-svg { width: 100%; min-width: 900px; height: 320px; display: block; }
+  #coupe-svg .coupe-el { fill: var(--surface-2); stroke: var(--ink-3); stroke-width: .4; }
+  #coupe-svg .coupe-el.descente { fill: var(--ph-ballast); stroke: var(--ph-ballast); }
+  #coupe-svg .coupe-el.pose { fill: var(--ok); stroke: var(--ok); }
+  #coupe-svg .coupe-el.late { stroke: var(--crit); stroke-width: 1.2; }
+  #coupe-svg g:hover .coupe-el { stroke: var(--ink); stroke-width: 1; }
   #coupe-axe { display: flex; justify-content: space-between; font-size: 10.5px;
     color: var(--ink-3); font-family: var(--mono); }
   #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
@@ -511,16 +505,21 @@
   <section>
     <div class="s-head">
       <h2 class="s-title">Coupe du tunnel</h2>
-      <p class="s-note">Les éléments côte à côte dans l'ordre de pose, TE-01 à gauche et TE-79 à droite, les
-        SPE en trait pointillé. La coupe suit le curseur du plan ci-dessus : un élément se remplit quand il
-        est immergé, s'élève pendant son ballastage, et se borde de rouge s'il est posé après sa date cible.</p>
+      <p class="s-note">Le profil en long du tunnel, chaque élément à son chaînage et à son niveau de
+        pose réels. La coupe suit le curseur du plan ci-dessus : un emplacement vide attend son caisson,
+        celui-ci <b>descend verticalement à sa place</b> dans les six jours qui précèdent son immersion, puis
+        s'y remplit. Un caisson posé après sa date cible se borde de rouge. Cliquez-en un pour sa fiche.</p>
     </div>
     <div class="panel">
       <div id="coupe-compte"></div>
-      <div class="scroll"><div id="coupe-piste"></div></div>
+      <div class="scroll"><svg id="coupe-svg" role="img"
+           aria-label="Profil en long du tunnel, éléments à leur chaînage et à leur niveau de pose"></svg></div>
       <div id="coupe-axe"><span id="coupe-gauche"></span><span id="coupe-droite"></span></div>
-      <p class="plan-caveat">Positions provisoires : l'ordre de pose sert d'abscisse en attendant le plan de
-        coupe. L'ordre est juste, les distances ne le sont pas encore.</p>
+      <p class="plan-caveat">Chaînages et niveaux relevés sur le profil en long
+        TUX-DWG-ITP-GE-GE-GEN-COW-042012-B, en mètres. L'échelle verticale est exagérée d'environ
+        40 fois, comme sur le dessin d'origine, sans quoi le tunnel serait un trait. Les gabarits —
+        217 m pour un élément standard, 39 m pour un spécial, 9 m de hauteur — sont ceux du
+        programme, le profil ne les porte pas.</p>
     </div>
   </section>
 
@@ -1622,61 +1621,131 @@ function rendreContraintes() {
   resume.append(av);
 }
 
-/* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
-// TE-01 à gauche, TE-79 à droite : les standard se rangent par numéro. Les SPE n'ont pas de
-// numéro comparable — on les glisse à la place que leur donne l'ordre d'immersion, juste
-// derrière le standard qui les précède dans la file.
+/* ---- Géométrie réelle du tunnel ----
+   Relevée sur le profil en long TUX-DWG-ITP-GE-GE-GEN-COW-042012-B : chaînage et niveau de
+   pose de chaque élément, en mètres. Les deux bandes du dessin ont été calées séparément sur
+   leurs axes — chaînage R² > 0,998, niveaux R² = 1,000 — et donnent la même échelle verticale,
+   ce qui les valide l'une par l'autre. Les SPE, dont le profil ne porte pas d'étiquette
+   exploitable, sont placés au milieu de l'intervalle laissé entre deux standard : un tous les
+   huit, après TE-03, TE-11, … TE-75. Les écarts de chaînage anormalement larges tombent aux
+   mêmes endroits, et l'ordre du graphique « Tunnel Progress » le confirme.
+   Format compact « id:chaînage:niveau ». */
+const TUNNEL_BRUT = 'STE-01:11089:-6.7;STE-02:11299:-9.5;STE-03:11522:-11.9;SPE-01:11645:-13.2;STE-04:11767:-14.4;STE-05:11991:-16.2;STE-06:12201:-17.6;STE-07:12424:-19.1;STE-08:12634:-20.7;STE-09:12858:-22.4;STE-10:13075:-24.0;STE-11:13292:-25.4;SPE-02:13418:-26.1;STE-12:13543:-26.8;STE-13:13739:-27.7;STE-14:13963:-28.5;STE-15:14173:-29.3;STE-16:14403:-30.2;STE-17:14613:-31.0;STE-18:14816:-31.8;STE-19:15054:-32.6;SPE-03:15173:-33.0;STE-20:15292:-33.4;STE-21:15508:-33.3;STE-22:15739:-33.6;STE-23:15949:-33.9;STE-24:16158:-34.1;STE-25:16375:-34.3;STE-26:16592:-34.5;STE-27:16802:-34.9;SPE-04:16931:-34.8;STE-28:17061:-34.7;STE-29:17291:-34.5;STE-30:17508:-34.3;STE-31:17718:-33.9;STE-32:17928:-34.0;STE-33:18151:-34.2;STE-34:18375:-34.5;STE-35:18592:-34.8;SPE-05:18714:-34.7;STE-36:18837:-34.7;STE-37:19054:-34.4;STE-38:19263:-34.2;STE-39:19466:-33.5;STE-40:19669:-33.4;STE-41:19900:-33.0;STE-42:20186:-32.8;STE-43:20398:-32.5;SPE-06:20528:-32.2;STE-44:20659:-31.8;STE-45:20877:-31.1;STE-46:21096:-30.4;STE-47:21308:-29.6;STE-48:21526:-28.7;STE-49:21738:-28.0;STE-50:21971:-27.1;STE-51:22190:-26.2;SPE-07:22313:-26.0;STE-52:22436:-25.7;STE-53:22655:-25.0;STE-54:22867:-24.4;STE-55:23086:-23.8;STE-56:23304:-23.1;STE-57:23516:-22.4;STE-58:23728:-21.8;STE-59:23967:-21.1;SPE-08:24098:-20.7;STE-60:24228:-20.4;STE-61:24433:-19.9;STE-62:24666:-19.6;STE-63:24870:-19.1;STE-64:25089:-18.7;STE-65:25315:-18.2;STE-66:25520:-17.8;STE-67:25752:-17.3;SPE-09:25883:-17.0;STE-68:26013:-16.6;STE-69:26232:-15.9;STE-70:26437:-14.9;STE-71:26655:-14.3;STE-72:26881:-13.7;STE-73:27107:-12.9;STE-74:27311:-12.3;STE-75:27530:-11.5;SPE-10:27661:-11.2;STE-76:27791:-10.8;STE-77:28010:-10.0;STE-78:28214:-8.7;STE-79:28433:-6.2';
+const TUNNEL = (() => {
+  const out = {};
+  TUNNEL_BRUT.split(';').forEach(t2 => { const [id, c, z] = t2.split(':'); out[id] = {c: +c, z: +z}; });
+  return out;
+})();
+// Gabarits : le profil ne les porte pas, ce sont les valeurs du programme. Signalés sous la coupe.
+const GABARIT = {std: 217, spe: 39, haut: 9};
+const TUN_X0 = 10900, TUN_X1 = 28700, TUN_Z0 = 9, TUN_Z1 = -42;
+const COUPE_L = 1160, COUPE_H = 300;
+const DESCENTE_JOURS = 6;   // fenêtre de descente animée, juste avant la date d'immersion
+const Z_SURFACE = 5;        // niveau où l'élément flotte avant d'être descendu
+
+// `svgEl` du module plan n'est pas visible d'ici : la coupe a le sien.
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svgN = (tag, attrs) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in (attrs || {})) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+const cx = c => (c - TUN_X0) / (TUN_X1 - TUN_X0) * COUPE_L;
+const cz = z => (TUN_Z0 - z) / (TUN_Z0 - TUN_Z1) * COUPE_H;
+
 let ordreCoupe = [];
 function construireCoupe() {
-  const num = e => { const m = e.id.match(/(\d+)/); return m ? parseInt(m[1], 10) : 0; };
-  const liste = D.elements.filter(e => e.ln !== 6).sort((a, b) => num(a) - num(b));
-  D.elements.filter(e => e.ln === 6)
-    .sort((a, b) => (a.ri || 0) - (b.ri || 0))
-    .forEach(sp => {
-      let voisin = null;
-      for (const e of liste) {
-        if (e.ln === 6 || !isFinite(e.ri) || !isFinite(sp.ri) || e.ri >= sp.ri) continue;
-        if (!voisin || e.ri > voisin.ri) voisin = e;
-      }
-      liste.splice(voisin ? liste.indexOf(voisin) + 1 : 0, 0, sp);
-    });
-  ordreCoupe = liste;
+  // L'ordre de pose est celui du chaînage : c'est le tunnel lui-même qui le donne.
+  ordreCoupe = D.elements.filter(e => TUNNEL[e.id])
+    .sort((a, b) => TUNNEL[a.id].c - TUNNEL[b.id].c);
+  const svg = document.getElementById('coupe-svg');
+  if (!svg) return;
+  svg.setAttribute('viewBox', `0 0 ${COUPE_L} ${COUPE_H}`);
+  svg.textContent = '';
 
-  const piste = document.getElementById('coupe-piste');
-  piste.textContent = '';
+  // Décor : surface de l'eau, et le fond suggéré par la ligne des niveaux de pose.
+  const eau = svgN('rect', {x: 0, y: 0, width: COUPE_L, height: cz(0),
+    fill: 'var(--ph-basin)', opacity: 0.10});
+  svg.append(eau);
+  const trait = svgN('line', {x1: 0, y1: cz(0), x2: COUPE_L, y2: cz(0),
+    stroke: 'var(--ph-basin)', 'stroke-width': 0.8, opacity: 0.6});
+  svg.append(trait);
+  for (let z = 0; z >= TUN_Z1; z -= 10) {
+    svg.append(svgN('line', {x1: 0, y1: cz(z), x2: COUPE_L, y2: cz(z),
+      stroke: 'var(--line)', 'stroke-width': 0.4, opacity: 0.5}));
+    const g = svgN('text', {x: 2, y: cz(z) - 1.5, 'font-size': 7, fill: 'var(--ink-3)'});
+    g.textContent = z + ' m'; svg.append(g);
+  }
+  for (let c = 11000; c <= 28500; c += 1000) {
+    svg.append(svgN('line', {x1: cx(c), y1: 0, x2: cx(c), y2: COUPE_H,
+      stroke: 'var(--line)', 'stroke-width': 0.3, opacity: 0.4}));
+    const g = svgN('text', {x: cx(c), y: COUPE_H - 2, 'font-size': 6.5, 'text-anchor': 'middle',
+      fill: 'var(--ink-3)'});
+    g.textContent = (c / 1000).toFixed(0) + '+000'; svg.append(g);
+  }
+
+  // Un emplacement vide par élément, puis le caisson lui-même par-dessus : c'est le caisson
+  // qui descend, l'emplacement reste en place et se remplit.
   ordreCoupe.forEach(e => {
-    const bloc = el('div', 'coupe-el' + (e.ln === 6 ? ' spe' : ''));
-    bloc.dataset.info = `${e.id} — ${e.l}`;
-    rendreCliquable(bloc, e.id);
-    piste.append(bloc);
+    const g = TUNNEL[e.id], L = (e.ln === 6 ? GABARIT.spe : GABARIT.std);
+    const w = Math.max(cx(TUN_X0 + L) - cx(TUN_X0), 1.4);
+    const h = cz(0) - cz(GABARIT.haut);
+    const grp = svgN('g', {'data-id': e.id});
+    grp.append(svgN('rect', {class: 'coupe-slot', x: cx(g.c) - w / 2, y: cz(g.z) - h / 2,
+      width: w, height: h, fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 0.4}));
+    const bloc = svgN('rect', {class: 'coupe-el', x: cx(g.c) - w / 2, y: cz(g.z) - h / 2,
+      width: w, height: h});
+    grp.append(bloc);
+    const ti = svgN('title'); ti.textContent = e.id; grp.append(ti);
+    grp.style.cursor = 'pointer';
+    grp.addEventListener('click', () => ouvrirFiche(e.id));
+    svg.append(grp);
   });
   document.getElementById('coupe-gauche').textContent = ordreCoupe.length ? ordreCoupe[0].id : '';
   document.getElementById('coupe-droite').textContent = ordreCoupe.length ? ordreCoupe[ordreCoupe.length - 1].id : '';
 }
 
-// Met la coupe à la date affichée : posé, en cours de ballast, ou pas encore.
+// Niveau auquel dessiner un caisson à la date affichée. C'est une fonction de la date, non une
+// transition déclenchée : le curseur peut donc être déplacé dans les deux sens sans casser
+// l'animation, et une image donnée est toujours la même.
+function niveauAffiche(e, ms) {
+  const g = TUNNEL[e.id];
+  const tIm = t(e.ir) || t(e.im);
+  if (!tIm) return null;                       // ni posé ni programmé : rien à dessiner
+  if (ms >= tIm) return g.z;                   // en place
+  const debut = tIm - DESCENTE_JOURS * day;
+  if (ms <= debut) return null;                // pas encore descendu
+  return Z_SURFACE + (g.z - Z_SURFACE) * (ms - debut) / (tIm - debut);
+}
+
 function majCoupe(ms) {
-  const piste = document.getElementById('coupe-piste');
-  if (!piste || !ordreCoupe.length) return;
-  let poses = 0;
-  ordreCoupe.forEach((e, i) => {
-    const bloc = piste.children[i];
-    if (!bloc) return;
-    // Un élément immergé avant la date de référence n'a pas de date simulée : il est posé
-    // depuis toujours, et doit apparaître comme tel dès la première image.
-    const pose = t(e.ir) ? ms >= t(e.ir) : !!e.fini;
-    const encours = !pose && t(e.bl) && ms >= t(e.bl);
-    bloc.classList.toggle('pose', !!pose);
-    bloc.classList.toggle('encours', !!encours);
-    bloc.classList.toggle('late', !!(pose && t(e.im) && t(e.ir) > t(e.im)));
-    if (pose) poses++;
-    bloc.dataset.info = `${e.id} — ${e.l} — ` +
-      (pose ? (e.ir ? `posé le ${fr(e.ir)}` : 'posé avant la date de référence')
-            : encours ? 'ballast en cours'
-            : `pose prévue le ${fr(e.ir || e.im)}`);
+  const svg = document.getElementById('coupe-svg');
+  if (!svg || !ordreCoupe.length) return;
+  let poses = 0, enDescente = 0;
+  ordreCoupe.forEach(e => {
+    const grp = svg.querySelector(`g[data-id="${e.id}"]`);
+    if (!grp) return;
+    const bloc = grp.querySelector('rect.coupe-el');
+    const g = TUNNEL[e.id];
+    const h = cz(0) - cz(GABARIT.haut);
+    // Un élément immergé avant la date de référence n'a pas de date simulée : il est en place
+    // depuis toujours et doit apparaître comme tel dès la première image.
+    const z = (e.fini && !t(e.ir)) ? g.z : niveauAffiche(e, ms);
+    if (z === null) { bloc.setAttribute('opacity', 0); return; }
+    bloc.setAttribute('opacity', 1);
+    bloc.setAttribute('y', cz(z) - h / 2);
+    const pose = Math.abs(z - g.z) < 0.01;
+    if (pose) poses++; else enDescente++;
+    bloc.setAttribute('class', 'coupe-el' + (pose ? ' pose' : ' descente')
+      + (pose && t(e.im) && t(e.ir) > t(e.im) ? ' late' : ''));
+    grp.querySelector('title').textContent = `${e.id} — ${e.l} — `
+      + (pose ? (e.ir ? `posé le ${fr(e.ir)}` : 'posé avant la date de référence')
+              : 'descente en cours');
   });
   document.getElementById('coupe-compte').innerHTML =
-    `<b>${poses}</b> / ${ordreCoupe.length} éléments posés`;
+    `<b>${poses}</b> / ${ordreCoupe.length} éléments posés`
+    + (enDescente ? ` · <b>${enDescente}</b> en descente` : '');
 }
 
 /* ---- séquence de production : ce que le résolveur a changé, et ce que ça vaut ---- */
