@@ -342,6 +342,24 @@ retards et le nombre de changements de cadence.
 Le stockage aval reste la limite physique : un élément sans place attend en halle et la ligne
 ralentit d'elle-même. C'est pourquoi le gain est de trois mois et non davantage.
 
+### 9. Accélération en cours de cycle et date de décision — fait
+
+Une cadence ne pouvait changer qu'au lancement d'un élément : la pente s'ouvrait et rien ne se
+passait jusqu'au prochain départ béton, 35 à 84 jours plus tard. Deux leviers ajoutés, tous
+deux facultatifs et sans effet sur le résultat de référence quand ils sont laissés au repos :
+
+- **Accélérer en cours de cycle** — revue quotidienne des cadences, et l'élément en coulée
+  finit ses segments restants au nouveau rythme (le segment entamé se termine à l'ancien).
+  Les cinq lignes PL s'éteignent sept semaines plus tôt, à zéro retard. La date d'arrêt du
+  site ne bouge pas pour autant : c'est la ligne SPE, réglée par le planning P6, qui devient
+  contraignante.
+- **Date de décision d'accélérer** — point de départ de la pente. Vide, comportement
+  inchangé. Le chiffrage du retard de décision est dans `README.md` : un an de retard à
+  décider coûte 63 éléments en retard.
+
+Reste ouvert : la montée en cadence réelle est continue, ce modèle s'arrête au segment. Si la
+granularité fine devient nécessaire, c'est `raccourcirEnCours` qu'il faudra reprendre.
+
 ## Onglets du classeur devenus caducs
 
 `Recap_Dates` est le résultat de l'ancienne macro, pas une donnée d'entrée : il n'a plus lieu

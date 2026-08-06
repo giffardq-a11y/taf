@@ -207,6 +207,9 @@
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+    <label class="field">Date de décision d'accélérer <input type="date" id="p-datedecision"></label>
+    <label class="check"><input type="checkbox" id="p-accel-cycle">
+      <span><b>Accélérer en cours de cycle</b> — la ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme, le segment entamé se termine à l'ancien. Décoché, une cadence ne change qu'au lancement d'un élément.</span></label>
     <label class="check"><input type="checkbox" id="p-arret-tot" checked>
       <span><b>Arrêt de l'usine au plus tôt</b> — chaque ligne tourne au rythme le plus rapide que la pente d'inertie autorise et s'éteint dès sa file vidée, quitte à produire des éléments longtemps avant leur immersion. Décoché, le solveur tient la cadence la plus lente qui respecte les dates (production à flux tendu).</span></label>
     <label class="check"><input type="checkbox" id="p-ralentir">
@@ -375,6 +378,7 @@ const REGLES = {
   parkingReserveJours: 30,  // la 6e place ne s'ouvre que pour un départ dans ce délai
   basins: 3, basinPlaces: 2,
   arretAuPlusTot: true,     // vider les halles au plus tôt plutôt que produire à flux tendu
+  accelererEnCoursCycle: false, // accélérer sans attendre le prochain départ béton
 };
 REGLES.defaut = JSON.parse(JSON.stringify(REGLES));
 function penteJours() { return REGLES.pentePeriodeMois * 30.44; }
@@ -492,6 +496,7 @@ let simTimeline = {};        // { 'YYYY-MM-DD': [renderItem, ...] }
 let dateKeys = [];
 let lastChangements = [];    // dernier rapport de rythmes calculé par le solveur
 let lastRisques = [];        // alertes de délai non tenable relevées par le solveur
+let lastAccelerations = [];  // éléments raccourcis en cours de coulée par une accélération
 let lastRetards = [];        // éléments ratant leur date d'immersion cible
 let lastKPI = null;          // indicateurs de la dernière simulation (cf. runSimulation)
 let logEl = document.getElementById('log');
@@ -965,6 +970,13 @@ function lireParamsUI() {
     const n = document.getElementById(id);
     return n ? !!n.checked : !!def;
   };
+  // Champ date facultatif : vide, il vaut null et la règle correspondante ne s'applique pas.
+  const dateChamp = (id) => {
+    const n = document.getElementById(id);
+    if (!n || !n.value) return null;
+    const d = new Date(n.value);
+    return isNaN(+d) ? null : d;
+  };
   const dref = document.getElementById('p-dateref');
   return {
     dateRef: dref ? new Date(dref.value) : new Date(),
@@ -975,6 +987,8 @@ function lireParamsUI() {
     placesStockageSPE: champ('p-stockagespe', 1),
     autoriserRalentissement: !!(document.getElementById('p-ralentir') || {}).checked,
     arretAuPlusTot: caseCochee('p-arret-tot', REGLES.arretAuPlusTot),
+    accelererEnCoursCycle: caseCochee('p-accel-cycle', REGLES.accelererEnCoursCycle),
+    dateDecision: dateChamp('p-datedecision'),
     etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
   };
@@ -1027,8 +1041,16 @@ function runSimulation(paramsArg) {
 
   // Etat du solveur par ligne PL : dernier rythme réellement en vigueur + date de ce changement.
   const lastRhythmState = {};
-  for (let l = 1; l <= 5; l++) lastRhythmState[l] = {rhythm: anchorRhythm(l), changeDate: anchorDate(l)};
+  // La pente d'inertie court à partir de la décision d'accélérer. Sans date de décision
+  // saisie, elle court depuis le dernier changement de cadence réellement appliqué —
+  // c'est-à-dire qu'il n'y a rien à décider, la ligne est déjà en régime.
+  for (let l = 1; l <= 5; l++) {
+    const ancre = anchorDate(l);
+    const depart = (PARAMS.dateDecision && PARAMS.dateDecision > ancre) ? PARAMS.dateDecision : ancre;
+    lastRhythmState[l] = {rhythm: anchorRhythm(l), changeDate: depart};
+  }
   const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
+  const accelerationsEnCours = []; // éléments dont la coulée a été raccourcie en cours de route
   const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
@@ -1301,13 +1323,59 @@ function runSimulation(paramsArg) {
       lignesPaire.forEach(l => {
         if (lastRhythmState[l].rhythm === chosen) return;
         changements.push({ligne: LIGNE_NOM[l], date: new Date(dConcreteStart),
-          from: lastRhythmState[l].rhythm, to: chosen, atRisk, declencheur: elemCourant.id});
+          from: lastRhythmState[l].rhythm, to: chosen, atRisk,
+          declencheur: elemCourant ? elemCourant.id : '(révision de cadence)'});
         lastRhythmState[l] = {rhythm: chosen, changeDate: new Date(dConcreteStart)};
+        raccourcirEnCours(l, chosen, dConcreteStart);
       });
     } else if (atRisk) {
-      risques.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), rythme: chosen, element: elemCourant.id});
+      risques.push({ligne: LIGNE_NOM[ligne], date: new Date(dConcreteStart), rythme: chosen,
+        element: elemCourant ? elemCourant.id : '(révision de cadence)'});
     }
     return {rhythm: chosen, atRisk};
+  }
+
+  /* ---- Accélération en cours de cycle ----
+     Par défaut, une cadence ne change qu'au lancement d'un élément : la pente s'ouvre et il
+     ne se passe rien jusqu'au prochain départ béton, un à trois mois plus tard sur le
+     classeur de référence. L'option lève cette attente — la ligne accélère le jour où la
+     pente le permet, et l'élément déjà en coulée finit ses segments restants au nouveau
+     rythme. Le segment entamé, lui, se termine à l'ancien : un segment ne se coule pas à
+     deux vitesses. */
+  function raccourcirEnCours(ligne, R, dCur) {
+    if (!PARAMS.accelererEnCoursCycle) return;
+    const e = premierDeLigne(ligne, 'Beton');
+    if (!e || !e.dateDebutBeton || !e.rythme || R >= e.rythme - 1e-9) return;
+    const dureeSeg = e.rythme * 7;
+    // Segments achevés à la fin du segment en cours (au moins 1, au plus tous).
+    const faits = Math.min(REGLES.segments, Math.floor(diffDays(dCur, e.dateDebutBeton) / dureeSeg) + 1);
+    if (faits >= REGLES.segments) return;
+    const nouvelle = addDays(addDays(e.dateDebutBeton, faits * dureeSeg), (REGLES.segments - faits) * R * 7);
+    if (nouvelle < e.dateFinBeton) {
+      accelerationsEnCours.push({id: e.id, ligne: LIGNE_NOM[ligne], date: new Date(dCur),
+        de: e.rythme, vers: R, segmentsFaits: faits,
+        gainJours: Math.round(diffDays(e.dateFinBeton, nouvelle))});
+      e.dateFinBeton = nouvelle;
+      e.rythme = R;
+    }
+  }
+
+  // Revue quotidienne des cadences : sans elle, l'accélération en cours de cycle n'aurait
+  // toujours lieu qu'au lancement suivant, puisque c'est le seul moment où le solveur
+  // s'interroge. En flux tendu on n'accélère que si la file l'exige ; en arrêt au plus tôt,
+  // dès que la pente l'ouvre.
+  function revoirCadences(dCur) {
+    if (!PARAMS.accelererEnCoursCycle) return;
+    const plusRapide = Math.min(...RYTHMES);
+    for (let ligne = 1; ligne <= 5; ligne++) {
+      const st = lastRhythmState[ligne];
+      if (st.rhythm <= plusRapide + 1e-9) continue;
+      const marge = (REGLES.penteSem * Math.max(0, diffDays(dCur, st.changeDate))) / penteJours();
+      const cible = Math.min(...RYTHMES.filter(R => R >= st.rhythm - marge - 1e-9 && R <= st.rhythm + 1e-9));
+      if (!(cible < st.rhythm - 1e-9)) continue;
+      if (!PARAMS.arretAuPlusTot && fileTenable(ligne, dCur, st.rhythm, null)) continue;
+      chooseRhythm(ligne, dCur, null);
+    }
   }
 
   /* ---- Staggering entre halls ----
@@ -1904,6 +1972,9 @@ function runSimulation(paramsArg) {
   for (; jourCourant <= joursMax; jourCourant++) {
     const dCur = addDays(REF, jourCourant);
 
+    // Accélérer dès que la pente l'autorise, sans attendre le prochain départ béton.
+    revoirCadences(dCur);
+
     // Le hall A est traité en premier : c'est sur son départ que se cale la phase du hall B
     // et de PL-5, y compris pour un départ pris le jour même.
     for (let l = 1; l <= 5; l++) {
@@ -1946,6 +2017,7 @@ function runSimulation(paramsArg) {
   dateKeys = Object.keys(simTimeline).sort();
   lastChangements = changements;
   lastRisques = risques;
+  lastAccelerations = accelerationsEnCours;
   // KPI de faisabilité : écart entre la date d'immersion contractuelle et la date réellement
   // atteinte. Un élément encore en cours est daté par son démarrage de Ballast Jetty, qui est
   // le plus tôt où il pourrait s'immerger.
@@ -1966,6 +2038,12 @@ function runSimulation(paramsArg) {
   if (evacuationsSPE.length) log(`Zone de stockage SPE : ${evacuationsSPE.length} évacuation(s) anticipée(s) du Basin C — ${evacuationsSPE.map(x=>`${x.id} le ${fmt(x.date)}`).join(', ')}.`);
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
+  if (accelerationsEnCours.length) {
+    const gain = accelerationsEnCours.reduce((s, a) => s + a.gainJours, 0);
+    log(`Accélération en cours de cycle : ${accelerationsEnCours.length} élément(s) raccourci(s) en cours de coulée, ${gain} jour(s) gagnés au total — `
+      + `${accelerationsEnCours.slice(0,5).map(a=>`${a.id} au segment ${a.segmentsFaits} (${a.de}→${a.vers} sem, −${a.gainJours} j)`).join(', ')}${accelerationsEnCours.length>5?'…':''}.`);
+  }
+  if (PARAMS.dateDecision) log(`Décision d'accélérer datée du ${fmt(PARAMS.dateDecision)} — la pente d'inertie court à partir de là.`);
   const joursStagger = staggerAttentes[3] + staggerAttentes[4] + staggerAttentes[5];
   if (STAGGER.actif && (joursStagger || staggerNonTenus.length)) {
     log(`Staggering entre halls : ${joursStagger} jour(s) de décalage appliqués au départ des lignes${staggerNonTenus.length ? `, ${staggerNonTenus.length} départ(s) pris hors phase` : ''}.`);

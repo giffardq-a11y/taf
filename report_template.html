@@ -315,6 +315,10 @@
           <input type="checkbox" id="p-etanche-critique-ok"> Autoriser le seuil critique</label>
         <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
           Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
+        <label class="champ" title="La pente d'inertie court à partir de cette date. Vide, elle court depuis le dernier changement de cadence réellement appliqué.">
+          Décision d'accélérer <input type="date" id="p-datedecision"></label>
+        <label class="champ bascule" title="La ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme">
+          <input type="checkbox" id="p-accel-cycle"> Accélérer en cours de cycle</label>
         <label class="champ bascule" title="Chaque ligne tourne au rythme le plus rapide que la pente autorise et s'éteint dès sa file vidée, quitte à produire longtemps avant l'immersion. Décoché : production à flux tendu.">
           <input type="checkbox" id="p-arret-tot" checked> Arrêt de l'usine au plus tôt</label>
         <label class="champ bascule" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
@@ -1345,6 +1349,8 @@ function calculer(nomFichier) {
         etancheCritiqueSem: nb($('p-etanche-critique').value) || 8,
         autoriserEtancheCritique: $('p-etanche-critique-ok').checked,
         arretAuPlusTot: $('p-arret-tot').checked,
+        accelererEnCoursCycle: $('p-accel-cycle').checked,
+        dateDecision: $('p-datedecision').value ? new Date($('p-datedecision').value) : null,
       };
       STAGGER.actif = $('p-stagger').checked;
       OPTIM.reaffecterLignes = $('p-reaffecter').checked;

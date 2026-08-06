@@ -72,7 +72,56 @@ qui attendent derrière lui. Regarder toute la file évite au solveur d'osciller
 cadence à faire appliquer aux opérateurs.
 
 Rythmes autorisés : **1,0 / 1,5 / 2,0 / 2,5 / 3,0 / 3,5 / 4,0** semaines par segment.
-Le rythme d'un élément est fixé à son lancement et ne change plus jusqu'à sa sortie.
+
+## Quand une accélération prend effet
+
+Par défaut, le rythme d'un élément est **fixé à son lancement** et ne change plus jusqu'à sa
+sortie : une accélération s'applique au prochain départ béton de la ligne, pas à l'élément qui
+coule. La contrainte effective est donc le maximum de deux choses — la pente d'inertie, et la
+date du prochain lancement. Sur le classeur de référence, cela coûtait 37 jours d'attente sur
+la bascule 2,5 → 1,5 et 35 sur la bascule 1,5 → 1,0.
+
+La case **« Accélérer en cours de cycle »** lève cette attente : la ligne accélère le jour où
+la pente l'autorise, et l'élément déjà en coulée termine ses segments restants au nouveau
+rythme. **Le segment entamé se termine à l'ancien** — un segment ne se coule pas à deux
+vitesses. La vraie montée en cadence est progressive sur le chantier ; ce modèle-ci s'arrête au
+segment, c'est la granularité que la simulation sait tenir.
+
+Effet mesuré, séquence optimisée, arrêt au plus tôt, **zéro retard dans les deux cas** :
+
+| | Sans | En cours de cycle |
+|---|---|---|
+| Cadence maximale atteinte le | 30/05/2027 | **02/03/2027** |
+| PL-5 éteinte | 22/09/2028 | **04/08/2028** |
+| PL-1 / PL-2 éteintes | 17/04/2029 | **27/02/2029** |
+| PL-3 / PL-4 éteintes | 11/07/2029 | **23/05/2029** |
+| Coulées raccourcies | — | 14, soit 231 j gagnés |
+| Bascules de cadence | 15 | 20 |
+
+Les cinq lignes PL gagnent donc **sept semaines chacune**. La date d'arrêt du site, elle, ne
+bouge presque pas (11/07/2029 → 10/07/2029) : c'est la **ligne SPE** qui devient contraignante,
+et ses durées viennent du planning P6, pas du solveur de cadence. Le prix est double : cinq
+bascules de plus à faire appliquer aux opérateurs (la pente ouvre un demi-palier tous les deux
+mois, et l'option le prend dès qu'il s'ouvre), et 247 jours d'avance moyenne sur l'immersion au
+lieu de 208.
+
+## Date de décision
+
+Le champ **« Date de décision d'accélérer »** fixe le point de départ de la pente d'inertie :
+une fois la décision prise, la rampe court, et la durée est réduite dès que la pente le permet.
+Laissé vide, la pente court depuis le dernier changement de cadence réellement appliqué —
+c'est-à-dire qu'il n'y a rien à décider, la ligne est déjà en régime.
+
+C'est le lever le plus sensible du modèle. Toujours sur le classeur de référence, en cours de
+cycle et arrêt au plus tôt :
+
+| Décision | Retards | Arrêt de l'usine |
+|---|---|---|
+| Aucune (rampe déjà en cours) | **0** | 10/07/2029 |
+| 01/01/2027 | 1 | 26/08/2029 |
+| 01/01/2028 | **63** | 19/03/2030 |
+
+Décider un an trop tard ne se rattrape pas : la pente ne rend pas les mois perdus.
 
 Quand aucun rythme conforme à la pente ne permet de tenir les délais, le solveur retient
 le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
