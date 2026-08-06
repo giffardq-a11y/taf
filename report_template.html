@@ -355,6 +355,8 @@
           Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
         <label class="champ" title="La pente d'inertie court à partir de cette date. Vide, elle court depuis le dernier changement de cadence réellement appliqué.">
           Décision d'accélérer <input type="date" id="p-datedecision"></label>
+        <label class="champ bascule" title="Deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.">
+          <input type="checkbox" id="p-vacances" checked> Arrêts annuels de l'usine</label>
         <label class="champ bascule" title="La ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme">
           <input type="checkbox" id="p-accel-cycle"> Accélérer en cours de cycle</label>
         <label class="champ bascule" title="Chaque ligne tourne au rythme le plus rapide que la pente autorise et s'éteint dès sa file vidée, quitte à produire longtemps avant l'immersion. Décoché : production à flux tendu.">
@@ -1167,6 +1169,10 @@ function tableauContraintes() {
    'En cours de cycle, le segment entamé se termine à l\'ancien rythme : un segment ne se coule pas à deux vitesses.'],
   ['Départ de la pente', p.dateDecision ? fr(new Date(p.dateDecision).toISOString().slice(0,10)) : 'dernier changement appliqué',
    'Champ « Décision d\'accélérer »', 'reglable', 'Vide, la ligne est réputée déjà en régime.'],
+  ['Arrêts annuels de l\'usine',
+   p.vacances ? `${REGLES.noelSemaines} sem dès la semaine du 25 décembre, ${REGLES.paquesSemaines} sem à Pâques` : 'désactivés',
+   'Règle + case', 'reglable',
+   "Ils ne décalent pas le travail, ils l'étirent : une coulée qui traverse un arrêt met d'autant plus de jours. Rien ne démarre pendant. L'aval — float-up, bassin, ballast, immersion — n'est pas concerné, ses dates viennent du P6."],
   ['Test de faisabilité', 'toute la file restante de la ligne, pas seulement l\'élément courant', 'Calcul', 'fige',
    'Regarder toute la file évite l\'oscillation accélérer / ralentir.'],
   ['Alerte de délai', 'file rejouée en accélérant à chaque ouverture de la pente', 'Calcul', 'fige',
@@ -1720,6 +1726,7 @@ function calculer(nomFichier) {
         autoriserEtancheCritique: $('p-etanche-critique-ok').checked,
         arretAuPlusTot: $('p-arret-tot').checked,
         accelererEnCoursCycle: $('p-accel-cycle').checked,
+        vacances: $('p-vacances').checked,
         dateDecision: $('p-datedecision').value ? new Date($('p-datedecision').value) : null,
       };
       STAGGER.actif = $('p-stagger').checked;

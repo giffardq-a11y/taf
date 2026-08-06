@@ -390,6 +390,21 @@ tunnel, plan animé : toutes ses dates, ses places de bassin et de parking, son 
 demandent encore du travail de fond — position réelle du Ballast Jetty et de la zone de
 stockage SPE, abscisses de la coupe, et un rendu des éléments plus proche du plan réel.
 
+### 12. Arrêts annuels de l'usine — fait
+
+Règle `REGLES.vacances`, cochée par défaut, avec `noelSemaines` (2) et `paquesSemaines` (1)
+réglables. Deux semaines dès le lundi de la semaine du 25 décembre, une semaine sainte (Pâques
+calculé par l'algorithme grégorien). Les durées de béton et d'outfitting s'étirent sur les
+arrêts, aucun élément ne démarre pendant, et le test de faisabilité du solveur en tient compte.
+
+Conséquence mesurée : les arrêts rendent **l'accélération en cours de cycle nécessaire**. Sans
+elle, 24 retards ; avec elle, retour à zéro. Sur la séquence brute du classeur, les arrêts font
+passer de 4 retards à 66 éléments jamais immergés.
+
+**Non couvert volontairement** : les arrêts ne s'appliquent qu'à la production (béton,
+outfitting). Le float-up, les bassins, le ballast et l'immersion suivent le planning P6, qui
+porte son propre calendrier. Si les opérations marines s'arrêtent aussi, c'est à ajouter.
+
 ## Points relevés, sans conséquence aujourd'hui
 
 - `REGLES.basins` est réglable, mais `groupeId` fige à 3 le nombre de groupes de lignes :

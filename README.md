@@ -73,6 +73,40 @@ cadence à faire appliquer aux opérateurs.
 
 Rythmes autorisés : **1,0 / 1,5 / 2,0 / 2,5 / 3,0 / 3,5 / 4,0** semaines par segment.
 
+## Arrêts annuels de l'usine
+
+Deux périodes par an, activables et réglables : **deux semaines à partir du lundi de la semaine
+du 25 décembre** — ce qui couvre Noël et le jour de l'an — et **une semaine sainte**, celle qui
+précède Pâques, dont la date est calculée chaque année.
+
+Les arrêts ne décalent pas le travail, ils l'**étirent** : un élément dont la coulée traverse un
+arrêt met d'autant plus de jours à sortir, et **rien ne démarre** pendant. Le test de
+faisabilité du solveur en tient compte, sans quoi il jugerait tenable un rythme qui ne l'est
+pas et découvrirait le retard une fois l'élément lancé. L'aval — float-up, bassin, ballast,
+immersion — n'est pas concerné : ses dates viennent du planning P6, qui porte déjà son propre
+calendrier.
+
+**Ce que les arrêts coûtent, mesuré** (séquence optimisée, arrêt au plus tôt) :
+
+| | Retards | Bloqués | Arrêt de l'usine |
+|---|---|---|---|
+| Sans arrêts | 0 | 0 | 11/07/2029 |
+| Avec arrêts | **24** (43 j max, 547 j cumulés) | 0 | 18/01/2030 |
+| Avec arrêts + accélération en cours de cycle | **0** | 0 | 27/09/2029 |
+
+Trois semaines de production perdues par an ne se rattrapent pas toutes seules : avec les
+arrêts, **l'accélération en cours de cycle cesse d'être une option et devient nécessaire** pour
+tenir les dates d'immersion.
+
+Sur la séquence **brute** du classeur, c'est plus net encore : sans arrêts elle donne 4 retards,
+avec arrêts elle donne 0 retard mais **66 éléments qui ne s'immergent jamais** — le piège de
+lecture habituel, un élément bloqué ne compte pas comme retardataire. L'optimiseur de séquence
+n'est plus facultatif dès lors que les arrêts sont pris en compte.
+
+Allonger les arrêts ne dégrade pas régulièrement le résultat : l'optimiseur redistribue les
+éléments entre les lignes et retrouve souvent une solution à zéro retard. Ne lisez donc pas ces
+variantes comme une courbe — chacune est un plan différent.
+
 ## Quand une accélération prend effet
 
 Par défaut, le rythme d'un élément est **fixé à son lancement** et ne change plus jusqu'à sa
