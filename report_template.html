@@ -324,6 +324,11 @@
   .seq-chip, .coupe-el { cursor: pointer; }
   .seq-chip:focus-visible, .coupe-el:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+  /* ---- avancement des finitions ---- */
+  #fin-svg { width: 100%; min-width: 900px; height: 300px; display: block; }
+  #fin-svg .fin-cadre { fill: none; stroke: var(--ink-3); stroke-width: .4; }
+  #fin-svg g:hover .fin-cadre { stroke: var(--ink); stroke-width: 1; }
+
   /* ---- relevé des contraintes ---- */
   .c-fam { font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: 0 0 8px;
     color: var(--ink); text-transform: none; }
@@ -588,6 +593,29 @@
     </div>
   </section>
 
+  <section id="s-finitions">
+    <div class="s-head">
+      <h2 class="s-title">Avancement des finitions</h2>
+      <p class="s-note">Le tunnel vu en long, chaque élément se remplissant au fur et à mesure que ses
+        finitions avancent. Six familles empilées de bas en haut, dans leur ordre d'exécution : dépose des
+        bulkheads au joint, béton de remplissage du joint, joint Omega, dépose du système TE, drainage,
+        passerelles. Les dates viennent du planning P6 au niveau de WBS le plus bas ; le solveur n'y est
+        pour rien. Vue indépendante du planning, avec son propre curseur.</p>
+    </div>
+    <div class="panel">
+      <div class="planning-cmd">
+        <button type="button" id="fin-play" aria-label="Lancer ou arrêter la lecture">&#9654;</button>
+        <input type="range" id="fin-slider" min="0" max="100" value="0" style="flex:1;min-width:220px"
+               aria-label="Date d'avancement">
+        <output id="fin-date">&mdash;</output>
+        <span class="seq-hint" id="fin-hint"></span>
+      </div>
+      <div class="scroll"><svg id="fin-svg" role="img"
+           aria-label="Avancement des finitions élément par élément"></svg></div>
+      <div class="pl-legende" id="fin-legende"></div>
+    </div>
+  </section>
+
   <section id="s-planning">
     <div class="s-head">
       <h2 class="s-title">Planning d'occupation du site</h2>
@@ -664,6 +692,7 @@
     rendreSequence();
     rendreGrilleSequence();
     rendreGantt();
+    brancherFinitions();
     rendreContraintes();
 
   "use strict";
@@ -1022,6 +1051,7 @@
   const dateOut = document.getElementById('plan-date');
   const curseur = document.getElementById('g-cursor');
   construireCoupe();
+  rendreFinitions();
   function dessinerPlan(j) {
     const ms = P0 + j * day;
     const iso = new Date(ms).toISOString().slice(0, 10);
@@ -1114,6 +1144,149 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- Avancement des finitions ----
+   Le même profil en long que la coupe, mais rempli par les finitions plutôt que par la pose.
+   Six familles empilées dans leur ordre d'exécution ; chacune remplit sa bande à mesure que
+   sa tâche récapitulative avance, au prorata du temps écoulé entre ses dates de début et de
+   fin. Les travaux de joint portent deux numéros dans le P6 : ils sont attribués au second
+   élément du joint, celui qui vient d'être posé et que le joint raccorde.
+   Vue indépendante du planning : elle a son propre curseur, car les finitions courent bien
+   au-delà de la fin de production. */
+const FIN_FAMILLES = [
+  ['bhrem',  'Dépose bulkheads au joint', '#A8C4D8'],
+  ['infill', 'Béton de remplissage du joint', '#90AFC6'],
+  ['omega',  'Joint Omega', '#6E93B5'],
+  ['tesys',  'Dépose du système TE', '#B9C9A8'],
+  ['drain',  'Drainage', '#9FBA8C'],
+  ['walk',   'Passerelles', '#86A472'],
+];
+
+// Tâches de finition rangées par élément : {STE-77: {omega: {d, f}, …}, …}
+// Calculé à la demande : `P6` est déclaré plus bas dans le fichier, et y toucher au moment de
+// la définition lèverait une erreur d'initialisation qui emporterait tout le script.
+let FIN_PAR_ELEMENT = null;
+function rangerFinitions() {
+  if (FIN_PAR_ELEMENT) return FIN_PAR_ELEMENT;
+  const out = {};
+  const cle = jeton => {
+    const p = jeton.split('-');
+    const dernier = p[p.length - 1];          // travaux de joint : le second élément
+    return dernier[0] === 'S' ? 'SPE-' + dernier.slice(1) : 'STE-' + dernier;
+  };
+  const familles = new Set(FIN_FAMILLES.map(f => f[0]));
+  P6.forEach(b => {
+    if (!familles.has(b.cat)) return;
+    const id = cle(b.id);
+    (out[id] = out[id] || {})[b.cat] = {d: b.d, f: b.f};
+  });
+  FIN_PAR_ELEMENT = out;
+  return out;
+}
+
+function rendreFinitions() {
+  const svg = document.getElementById('fin-svg');
+  if (!svg || !ordreCoupe.length) return;
+  svg.setAttribute('viewBox', `0 0 ${COUPE_L} ${COUPE_H}`);
+  svg.textContent = '';
+
+  const eau = svgN('rect', {x: 0, y: 0, width: COUPE_L, height: cz(0),
+    fill: 'var(--ph-basin)', opacity: 0.08});
+  svg.append(eau);
+  for (let c = 11000; c <= 28500; c += 2000) {
+    const g = svgN('text', {x: cx(c), y: COUPE_H - 2, 'font-size': 6.5, 'text-anchor': 'middle',
+      fill: 'var(--ink-3)'});
+    g.textContent = (c / 1000).toFixed(0) + '+000';
+    svg.append(g);
+  }
+
+  ordreCoupe.forEach(e => {
+    const g = TUNNEL[e.id];
+    if (!g) return;
+    const L = (e.ln === 6 ? GABARIT.spe : GABARIT.std);
+    const w = Math.max(cx(TUN_X0 + L) - cx(TUN_X0), 1.4);
+    const h = cz(0) - cz(GABARIT.haut);
+    const x = cx(g.c) - w / 2, y = cz(g.z) - h / 2;
+    const grp = svgN('g', {'data-id': e.id});
+    // Une bande par famille, empilée du bas vers le haut : le remplissage monte comme
+    // l'avancement.
+    FIN_FAMILLES.forEach((f, i) => {
+      const hb = h / FIN_FAMILLES.length;
+      grp.append(svgN('rect', {class: 'fin-bande', 'data-cat': f[0],
+        x, y: y + h - (i + 1) * hb, width: w, height: hb, fill: f[2], opacity: 0}));
+    });
+    grp.append(svgN('rect', {class: 'fin-cadre', x, y, width: w, height: h}));
+    const ti = svgN('title'); ti.textContent = e.id; grp.append(ti);
+    grp.style.cursor = 'pointer';
+    grp.addEventListener('click', () => ouvrirFiche(e.id));
+    svg.append(grp);
+  });
+  majFinitions(+document.getElementById('fin-slider').value);
+
+  const lg = document.getElementById('fin-legende');
+  lg.textContent = '';
+  FIN_FAMILLES.forEach(f => {
+    const sp = el('span'); const i = el('i'); i.style.background = f[2];
+    sp.append(i, document.createTextNode(f[1])); lg.append(sp);
+  });
+}
+
+// Avancement d'une famille à la date ms : 0 avant, 1 après, au prorata entre les deux.
+function avancement(t2, ms) {
+  if (!t2) return 0;
+  if (ms >= t2.f) return 1;
+  if (ms <= t2.d) return 0;
+  return (ms - t2.d) / (t2.f - t2.d);
+}
+
+let FIN_T0 = 0, FIN_T1 = 0;
+function majFinitions(j) {
+  const svg = document.getElementById('fin-svg');
+  if (!svg) return;
+  const ms = FIN_T0 + j * day;
+  document.getElementById('fin-date').textContent = fr(new Date(ms).toISOString().slice(0, 10));
+  let finis = 0, encours = 0;
+  ordreCoupe.forEach(e => {
+    const grp = svg.querySelector(`g[data-id="${e.id}"]`);
+    if (!grp) return;
+    const taches = rangerFinitions()[e.id] || {};
+    let somme = 0, connues = 0;
+    FIN_FAMILLES.forEach(f => {
+      const a = avancement(taches[f[0]], ms);
+      const b = grp.querySelector(`rect[data-cat="${f[0]}"]`);
+      if (b) b.setAttribute('opacity', taches[f[0]] ? (0.15 + 0.85 * a) * (a > 0 ? 1 : 0) : 0);
+      if (taches[f[0]]) { somme += a; connues++; }
+    });
+    if (connues && somme >= connues - 1e-9) finis++;
+    else if (somme > 0) encours++;
+  });
+  document.getElementById('fin-hint').innerHTML =
+    `<b>${finis}</b> élément(s) terminés · <b>${encours}</b> en cours · sur ${ordreCoupe.length}`;
+}
+
+function brancherFinitions() {
+  const toutes = P6.filter(b => FIN_FAMILLES.some(f => f[0] === b.cat));
+  if (!toutes.length) return;
+  FIN_T0 = Math.min(...toutes.map(b => b.d));
+  FIN_T1 = Math.max(...toutes.map(b => b.f));
+  const s = document.getElementById('fin-slider');
+  s.max = Math.round((FIN_T1 - FIN_T0) / day);
+  if (!s.dataset.lie) {
+    s.dataset.lie = '1';
+    s.addEventListener('input', () => majFinitions(+s.value));
+    const btn = document.getElementById('fin-play');
+    let timer = null;
+    btn.addEventListener('click', () => {
+      if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; return; }
+      btn.textContent = '❙❙';
+      timer = setInterval(() => {
+        let v = +s.value + 7;
+        if (v > +s.max) { v = +s.max; clearInterval(timer); timer = null; btn.textContent = '▶'; }
+        s.value = v; majFinitions(v);
+      }, 90);
+    });
+  }
+}
 
 /* ---- Planning d'occupation du site ----
    Mêmes ressources, mêmes couleurs et même lecture que l'export Excel : une ligne par

@@ -450,6 +450,23 @@ que le solveur calcule et ce qu'il ne fait que recopier.
 
 `Trench verification` a été retirée : le P6 n'a aucune activité sous ce nom.
 
+## Avancement des finitions
+
+Une vue à part du planning, avec **son propre curseur** — les finitions courent jusqu'en mai
+2030, bien au-delà de la fin de production. Le même profil en long que la coupe, mais rempli
+par les finitions plutôt que par la pose : chaque élément porte **six bandes empilées** dans
+leur ordre d'exécution — dépose des bulkheads au joint, béton de remplissage du joint, joint
+Omega, dépose du système TE, drainage, passerelles — et chacune se remplit au prorata de
+l'avancement de sa tâche récapitulative.
+
+Les travaux de joint portent deux numéros dans le P6 (`77-78`). Ils sont attribués au **second
+élément** du joint, celui qui vient d'être posé et que le joint raccorde.
+
+Le rendu retrouve la lecture du graphique *Tunnel Progress* du chantier : les finitions
+progressent depuis les deux rives vers le milieu. Le compteur donne le nombre d'éléments
+terminés et en cours à la date affichée — 8 terminés en juillet 2027, 46 en octobre 2028, 89 en
+mai 2030.
+
 ## Relevé des contraintes
 
 La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**
