@@ -77,6 +77,19 @@ Le rythme d'un élément est fixé à son lancement et ne change plus jusqu'à s
 Quand aucun rythme conforme à la pente ne permet de tenir les délais, le solveur retient
 le plus rapide autorisé et émet une **alerte de délai** dans le rapport.
 
+**L'alerte tient compte des accélérations à venir.** Le test qui décide d'accélérer fige le
+rythme courant sur toute la file restante : c'est ce qu'il faut pour trancher aujourd'hui,
+mais pas pour alerter, puisque la pente autorisera une nouvelle accélération dans quatre mois,
+puis quatre mois plus tard. Le drapeau d'alerte rejoue donc la file en accélérant dès que la
+pente le permet, et ne retient que ce qui reste hors d'atteinte quoi qu'il arrive. Sur le
+classeur de référence, les 15 bascules passaient toutes en rouge alors que le plan final ne
+compte aucun retard ; il n'en reste aucune. Brider la pente à 1 semaine par 12 mois les fait
+toutes revenir, avec 63 retards à la clé — l'alerte parle quand elle a lieu de parler.
+
+Cette alerte ne porte que sur la **cadence**. Un retard causé par l'aval — bassin plein,
+parking saturé, ordre d'immersion — ne la déclenche pas : c'est l'indicateur « éléments en
+retard » qui le montre.
+
 ## Staggering entre halls
 
 Le hall A (PL-1/PL-2) et le hall B (PL-3/PL-4) partagent les mêmes moyens : ils ne doivent

@@ -659,7 +659,9 @@
       `${String(c.from).replace('.', ',')} → ${String(c.to).replace('.', ',')} sem`);
     cell.append(p); tr.append(cell);
     tr.append(el('td', 'id', c.declencheur || '—'));
-    tr.append(el('td', '', c.atRisk ? 'Délai non tenable même au maximum autorisé par la pente' : ''));
+    tr.append(el('td', '', c.atRisk
+      ? 'Délai hors d\'atteinte même en accélérant à chaque fois que la pente le permettra'
+      : ''));
     if (c.atRisk) tr.querySelector('td:last-child').style.color = 'var(--crit)';
     tb.append(tr);
   });

@@ -1203,6 +1203,37 @@ function runSimulation(paramsArg) {
     return true;
   }
 
+  // Le test ci-dessus fige le rythme courant sur toute la file restante. C'est ce qu'il faut
+  // pour DÉCIDER d'accélérer maintenant — mais pas pour ALERTER : la pente autorisera d'autres
+  // accélérations dans quatre mois, puis quatre mois plus tard. Conclure « délai non tenable »
+  // sans en tenir compte, c'est signaler un retard que la ligne rattrape d'elle-même.
+  // Ce test-ci rejoue la file en accélérant dès que la pente le permet, et ne retient que ce
+  // qui reste hors d'atteinte quoi qu'il arrive.
+  function fileTenableRampe(ligne, dConcreteStart, R0, elemCourant) {
+    const queue = (elemCourant ? [elemCourant] : []).concat(
+      elements.filter(x => x.ligne === ligne && x.statut === 'EnAttente' && x !== elemCourant)
+              .sort((a, b) => a.ordreSeq - b.ordreSeq)
+    );
+    if (!queue.length) return true;
+    const plusRapide = Math.min(...RYTHMES);
+    let t = 0;              // jours écoulés depuis le lancement courant
+    let R = R0;
+    let tDernierChgt = 0;   // date du dernier changement de rythme sur cette rampe
+    for (let i = 0; i < queue.length; i++) {
+      if (i > 0 && R > plusRapide) {
+        // Accélération que la pente autorise au moment de ce lancement.
+        const marge = (REGLES.penteSem * (t - tDernierChgt)) / penteJours();
+        const cible = Math.min(...RYTHMES.filter(x => x >= R - marge - 1e-9 && x <= R + 1e-9));
+        if (cible < R) { R = cible; tDernierChgt = t; }
+      }
+      const dLancement = addDays(dConcreteStart, t);
+      const target = queue[i].dateImmersion;
+      if (target && t + pipelineJours(ligne, dLancement, R) > diffDays(target, dConcreteStart) + 1e-9) return false;
+      t += taktJours(ligne, dLancement, R);
+    }
+    return true;
+  }
+
   function chooseRhythm(ligne, dConcreteStart, elemCourant) {
     const state = lastRhythmState[ligne];
     const gapDays = Math.max(0, diffDays(dConcreteStart, state.changeDate));
@@ -1219,6 +1250,10 @@ function runSimulation(paramsArg) {
 
     const tenable = (R) => lignesPaire.every(l =>
       fileTenable(l, dConcreteStart, R, l === ligne ? elemCourant : null));
+    // Critère de l'alerte, distinct du critère de décision : une file que les accélérations
+    // à venir suffiront à rattraper n'est pas un délai non tenable.
+    const tenableRampe = (R) => lignesPaire.every(l =>
+      fileTenableRampe(l, dConcreteStart, R, l === ligne ? elemCourant : null));
 
     // PL-5 module librement sa cadence, ses contraintes propres l'imposent. Les autres
     // lignes ne relâchent qu'une fois — en fin de programme, pour ne pas arrêter la
@@ -1246,14 +1281,15 @@ function runSimulation(paramsArg) {
       // d'être brutal. Le stockage aval (bassins, parking) reste la limite : un élément qui n'a
       // pas où aller attend en halle, et la ligne ralentit d'elle-même.
       chosen = slopeOk.length ? Math.min(...slopeOk) : state.rhythm;
-      atRisk = !tenable(chosen);
+      atRisk = !tenableRampe(chosen);
     } else {
       chosen = slopeOk.find(tenable) ?? null;
       if (chosen === null) {
         // Aucun rythme conforme à la pente ne tient les délais : on prend le plus rapide que la pente
-        // autorise (la moins mauvaise option) et on signale le risque dans le rapport.
+        // autorise (la moins mauvaise option) et on signale le risque — mais seulement si les
+        // accélérations que la pente autorisera plus tard n'y suffisent pas non plus.
         chosen = slopeOk.length ? Math.min(...slopeOk) : state.rhythm;
-        atRisk = true;
+        atRisk = !tenableRampe(chosen);
       }
     }
 
