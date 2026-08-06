@@ -2724,7 +2724,11 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
         const localFrac = zc.dureeEff > 0 ? (jourCourant - zc.jourEntree) / zc.dureeEff : 0;
         progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speOutIdx.length;
       }
-      const x = lerp(GEO.x_hall_end, GEO.x_outfit_end, progress);
+      // Un élément PL est transféré dans la zone UB et y reste statique : l'outfitting s'y
+      // déroule sur place jusqu'au float-up. Seule la ligne SPE traverse réellement des zones
+      // successives, et son abscisse suit sa progression.
+      const x = ligne <= 5 ? (GEO.x_hall_end + GEO.x_outfit_end) / 2
+                           : lerp(GEO.x_hall_end, GEO.x_outfit_end, progress);
       return {...base, type:'outfitting', anchor:'center', x, y, w: len};
     }
     case 'AttenteFloatUp':

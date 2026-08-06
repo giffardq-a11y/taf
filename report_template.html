@@ -584,7 +584,7 @@
         reprennent l'avancement réel saisi dans le classeur.</p>
     </div>
     <div class="panel">
-      <div class="scroll"><div class="g-wrap" style="min-width:640px"><div id="planning"></div><div class="g-cursor" id="g-cursor" hidden></div></div></div>
+      <div class="scroll"><div class="g-wrap" style="min-width:640px"><div id="gantt"></div><div class="g-cursor" id="g-cursor" hidden></div></div></div>
       <div class="legend" id="g-legend"></div>
     </div>
   </section>
@@ -989,7 +989,8 @@
         const k = 5 + Math.min(2, Math.floor(p * 3));
         return { ph:'outfitting', x: xZoneSPE(k), y, w: L, anchor:'center' };
       }
-      return { ph:'outfitting', x: GEO.xHallEnd + (GEO.xOutfitEnd - GEO.xHallEnd) * p, y, w: L, anchor:'center' };
+      // Transféré dans la zone UB, l'élément y reste statique jusqu'au float-up.
+      return { ph:'outfitting', x: (GEO.xHallEnd + GEO.xOutfitEnd) / 2, y, w: L, anchor:'center' };
     }
     if (A('oF') && ms >= A('oF') && A('fu') && ms < A('fu'))
       return { ph:'outfitting', x: GEO.xOutfitEnd, y, w: L, anchor:'center', attente:true };
@@ -1124,11 +1125,11 @@ const G_RESSOURCES = (() => {
   const out = [];
   for (let n = 1; n <= 5; n++) {
     out.push([`Line ${n} - STE Casting`, 'beton', n]);
-    // Deux fronts distincts après la coulée : « Repairs + Integrated outfitting » sur la
-    // ligne, avant le mouvement vers l'Upper Basin, puis « Outfitting UB » après. La phase
-    // du solveur est la première ; la seconde n'est pas modélisée.
-    out.push([`Line ${n} - STE Repairs + Integrated out`, 'outfitting', n]);
-    out.push([`Line ${n} - Outfitting UB`, null, null]);
+    // Les repairs et l'outfitting intégré se font en temps masqué pendant la coulée, et
+    // s'achèvent pendant l'outfitting UB : ils n'occupent pas de zone à eux, donc leur ligne
+    // reste vide. La phase du solveur est l'« Outfitting UB », où l'élément stationne.
+    out.push([`Line ${n} - STE Repairs + Integrated out`, null, null]);
+    out.push([`Line ${n} - Outfitting UB`, 'outfitting', n]);
   }
   out.push(['Cage Prefabrication Area', 'zone', 1], ['Casting Pit 1', 'zone', 2],
            ['Casting Pit 2', 'zone', 3], ['Casting Pit 3', 'zone', 4],
@@ -1165,7 +1166,7 @@ function occupationsGantt() {
   D.elements.forEach(e => {
     if (e.ln <= 5) {
       pousser(`Line ${e.ln} - STE Casting`, e.bD, e.bF, e);
-      pousser(`Line ${e.ln} - STE Repairs + Integrated out`, e.oD, e.oF, e);
+      pousser(`Line ${e.ln} - Outfitting UB`, e.oD, e.oF, e);
     }
     if (e.zones) {
       const zs = {};
@@ -1481,7 +1482,7 @@ function tableauContraintes() {
   ['Fin d\'outfitting', `au segment ${REGLES.segmentsOutfitting} de l\'élément suivant`, 'Règle', 'reglable',
    'Le dernier élément d\'une ligne, lui, applique la durée nominale.'],
   ['Durée d\'outfitting nominale', `${REGLES.segmentsOutfitting} × rythme × 7 j`, 'Calcul', 'fige',
-   "Dérivée du rythme seul. Elle couvre le front « Repairs + Integrated outfitting », en aval de la coulée et avant le mouvement vers l'Upper Basin. L'« Outfitting UB », qui suit ce mouvement, n'est pas modélisé."],
+   "Dérivée du rythme seul. C'est l'« Outfitting UB » : l'élément y est transféré une fois la coulée finie et y reste statique jusqu'au float-up. Les repairs et l'outfitting intégré se font en temps masqué pendant la coulée et s'achèvent pendant cette phase — ils n'occupent aucune zone propre."],
   ['Chaîne SPE', '7 zones, une seule occupée à la fois, avance en file', 'Config_SPE', 'donnee', ''],
 ]],
 ['Float-up', [

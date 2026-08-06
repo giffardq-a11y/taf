@@ -363,11 +363,13 @@ out` et `Outfitting UB`, `MPP Repair`, `Trench verification`, `Trench rectificat
 `Gravel bed`, `Locking fill & Backfill`. Le tableau reste ainsi superposable à celui du
 chantier, et ce qui manque se voit au lieu de se deviner.
 
-**Le découpage de l'après-coulée est tranché.** Ce sont deux fronts distincts :
-« Repairs + Integrated outfitting », en aval de la zone de casting et **avant** le mouvement
-vers l'Upper Basin, puis « Outfitting UB » une fois l'élément déplacé. La phase d'outfitting du
-solveur est **la première** — celle qui suit immédiatement la coulée, sur la ligne. La seconde
-n'est pas modélisée et garde sa ligne vide.
+**Le découpage de l'après-coulée est tranché.** Les *repairs* et l'*integrated outfitting* se
+font **en temps masqué pendant la coulée**, et s'achèvent pendant l'*Outfitting UB* : ils
+n'occupent aucune zone à eux, donc leur ligne du planning reste vide. La phase d'outfitting du
+solveur est l'**Outfitting UB** — l'élément y est transféré une fois sa coulée finie, et **y
+reste statique** jusqu'au float-up. C'est exactement ce que le moteur fait déjà ; seule la vue
+en plan a dû être corrigée, elle faisait glisser l'élément à travers la zone au lieu de l'y
+laisser stationner.
 
 **Approximation assumée** : deux occupations d'une même ressource qui se suivent à moins d'une
 demi-semaine ne peuvent pas partager une colonne. La seconde est alors rognée d'une colonne —
