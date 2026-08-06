@@ -84,6 +84,7 @@ COULEURS = {
     'p6:bhrem': 'A8C4D8', 'p6:infill': '90AFC6', 'p6:omega': '6E93B5',
     'p6:tesys': 'B9C9A8', 'p6:drain': '9FBA8C', 'p6:walk': '86A472',
     'p6:readyfu': 'D9A5C0',
+    'push': 'C0392B', 'fu': '6A5FA8',
 }
 POLICE = 'Arial'
 TRAIT = Side(style='thin', color='BFBFBF')
@@ -97,7 +98,20 @@ def etiquette(ident):
     # « STE-61 » devient « TE-61 », comme sur le planning du chantier ; les SPE gardent le leur.
     return ident[1:] if ident.startswith('STE-') else ident
 
+def libelle_jeton(j):
+    # Jeton du P6 : « 01 » désigne TE-01, « S10 » le spécial SPE-10, « 77-78 » un joint.
+    return ' / '.join(('SPE-' + p[1:]) if p[:1] == 'S' else ('TE-' + p) for p in j.split('-'))
+
 # --- Occupations : (ligne de la grille, début, fin, étiquette) ---------------------------
+# Élément suivant de chaque ligne, au sens du départ béton : c'est lui qui borne le poussage.
+SUIVANT = {}
+for _l in range(1, 6):
+    _file = sorted([x for x in ELEMENTS if x['ligne'] == _l and x['beton'][0]],
+                   key=lambda x: x['beton'][0])
+    for _i, _x in enumerate(_file):
+        if _i + 1 < len(_file):
+            SUIVANT[_x['id']] = _file[_i + 1]
+
 def occupations():
     out = []
     for e in ELEMENTS:
@@ -109,6 +123,19 @@ def occupations():
         barre(f"Line {e['ligne']} - STE Casting", e['beton']) if e['ligne'] <= 5 else None
         if e['ligne'] <= 5:
             barre(f"Line {e['ligne']} - Outfitting UB", e['outfitting'])
+            # Big push : transfert de la zone béton vers la zone d'outfitting, entre la fin de
+            # coulée et le départ du suivant sur la même ligne.
+            bf = jour(e['beton'][1])
+            if bf:
+                suiv = SUIVANT.get(e['id'])
+                fin = max([x for x in (jour(e['outfitting'][0]),
+                                       jour(suiv['beton'][0]) if suiv else None,
+                                       bf + timedelta(days=1)) if x])
+                out.append((f"Line {e['ligne']} - STE Casting", bf, fin, 'push'))
+            # Float-up : le jalon qui clôt le séjour en zone UB.
+            fu = jour(e['floatUp'][0])
+            if fu:
+                out.append((f"Line {e['ligne']} - Outfitting UB", fu, fu + timedelta(days=2), '▲'))
         if e['zones']:
             # Une zone SPE est occupée jusqu'à l'entrée dans la suivante ; la dernière, jusqu'au
             # float-up. Le planning ne date pas de sortie, la simulation si.
@@ -136,7 +163,7 @@ def occupations():
     for ident, cat, d, f in BARRES_P6:
         libelle = par_cat.get(cat)
         if libelle and f > d:
-            out.append((libelle, d, f, etiquette(ident)))
+            out.append((libelle, d, f, libelle_jeton(ident)))
     return out
 
 OCC = occupations()
@@ -233,15 +260,6 @@ for libelle, d, f, lab in sorted(OCC, key=lambda o: (o[0], o[1])):
     if not r:
         continue
     source = next(g[1] for g in GRILLE if g[0] == libelle)
-    # Une famille de finition ou de travaux marins occupe sa ligne pour beaucoup d'éléments à la
-    # fois : les barres se recouvrent par nature. On peint alors une bande continue, sans
-    # fusion ni étiquette — la ligne dit quand la famille est active, ce qu'elle est censée dire.
-    if str(source).startswith('p6:'):
-        for c in range(colonne(d), max(colonne(d), colonne(f - timedelta(days=1))) + 1):
-            cel = ws.cell(r, c)
-            cel.fill = PatternFill('solid', fgColor=COULEURS[source])
-            cel.border = BORDURE
-        continue
     c1 = colonne(d)
     c2 = max(c1, colonne(f - timedelta(days=1)))
     pris = occupe.setdefault(r, set())
