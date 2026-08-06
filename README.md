@@ -361,6 +361,21 @@ simultanées, ce qui arrive au hook-up puisque les deux lignes d'une paire entre
 ensemble, les deux étiquettes sont accolées dans la même barre plutôt que d'en perdre une. Le
 script annonce les deux chiffres à chaque exécution.
 
+## Planning imprimable, dans la page de restitution
+
+La même lecture que l'export Excel, mais dans le rapport : section **« Planning d'occupation du
+site »**, une ligne par ressource, les 48 mêmes ressources, les mêmes couleurs.
+
+Ce qui la rend imprimable est le **découpage en tranches de temps** : la page se coupe en
+tranches de 3, 6 ou 12 mois, chacune portant ses propres libellés de ressource. À l'impression
+chaque tranche part sur sa feuille — il n'y a rien à recoller, et aucun bandeau de libellés ne
+manque. Le bouton *Imprimer le planning* masque le reste du rapport le temps du tirage, puis le
+rétablit ; la mise en page vise l'A3 paysage.
+
+Les arrêts annuels de l'usine sont hachurés en travers de toutes les lignes, les ressources non
+modélisées gardent leur ligne en gris, et **chaque barre ouvre la fiche de l'élément** au clic.
+Une case permet de masquer les lignes non modélisées pour un tirage plus dense.
+
 ## Relevé des contraintes
 
 La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**

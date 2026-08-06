@@ -405,6 +405,21 @@ passer de 4 retards à 66 éléments jamais immergés.
 outfitting). Le float-up, les bassins, le ballast et l'immersion suivent le planning P6, qui
 porte son propre calendrier. Si les opérations marines s'arrêtent aussi, c'est à ajouter.
 
+### 13. Planning imprimable — fait
+
+Section « Planning d'occupation du site » dans la page de restitution : mêmes 48 ressources et
+mêmes couleurs que l'export Excel, découpée en tranches de 3, 6 ou 12 mois. Chaque tranche
+porte ses libellés et part sur sa propre feuille à l'impression (A3 paysage). Arrêts de l'usine
+hachurés, lignes non modélisées en gris et masquables, barres cliquables vers la fiche.
+
+Piège rencontré, à retenir : le rapport utilisait déjà `#gantt` et le préfixe de classe `g-`
+pour l'écoulement de production, et cet identifiant figure dans la liste des conteneurs vidés à
+chaque rendu. Le nouveau planning se faisait donc effacer juste après avoir été construit. Il
+porte désormais `#planning` et le préfixe `pl-`.
+
+**Envisagé, non fait** : l'éditeur à blocs déplaçables qui rejouerait la simulation après un
+décalage saisi à la main. C'est la suite naturelle de cette section si le besoin se confirme.
+
 ## Points relevés, sans conséquence aujourd'hui
 
 - `REGLES.basins` est réglable, mais `groupeId` fige à 3 le nombre de groupes de lignes :

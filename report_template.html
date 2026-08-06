@@ -254,6 +254,59 @@
     color: var(--ink-3); font-family: var(--mono); }
   #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
   #coupe-compte b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  /* ---- planning d'occupation, à l'écran et à l'impression ---- */
+  .planning-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .planning-cmd button { border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; }
+  .planning-cmd button:hover { filter: brightness(1.1); }
+  .pl-page { margin: 0 0 26px; }
+  .pl-page + .pl-page { border-top: 1px solid var(--line); padding-top: 18px; }
+  .pl-titre { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--ink-2);
+    margin: 0 0 7px; text-transform: uppercase; }
+  .pl-corps { display: grid; grid-template-columns: 190px 1fr; border: 1px solid var(--line); }
+  .pl-libelles, .pl-piste { display: flex; flex-direction: column; }
+  .pl-libelles { border-right: 1px solid var(--line); }
+  .pl-tete { height: 30px; flex: 0 0 30px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2); position: relative; }
+  .pl-lib { height: 14px; flex: 0 0 14px; font-size: 9.5px; line-height: 14px; padding: 0 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2);
+    border-bottom: 1px solid var(--line-soft); }
+  .pl-lib.vide { color: var(--ink-3); font-style: italic; }
+  .pl-rang { height: 14px; flex: 0 0 14px; position: relative; border-bottom: 1px solid var(--line-soft); }
+  .pl-rang.alt { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+  .pl-mois { position: absolute; top: 0; height: 15px; font-size: 9px; line-height: 15px;
+    text-align: center; color: var(--ink-2); border-left: 1px solid var(--line);
+    font-family: var(--mono); overflow: hidden; }
+  .pl-sem { position: absolute; top: 15px; height: 15px; font-size: 8px; line-height: 15px;
+    text-align: center; color: var(--ink-3); border-left: 1px solid var(--line-soft); overflow: hidden; }
+  .pl-sep { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
+  .pl-barre { position: absolute; top: 1px; height: 12px; font-size: 8px; line-height: 12px;
+    text-align: center; overflow: hidden; white-space: nowrap; color: #10202a;
+    border: 1px solid rgba(0,0,0,.22); cursor: pointer; }
+  .pl-barre:hover { outline: 1px solid var(--ink); z-index: 3; }
+  .pl-vac { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg,
+    rgba(168,50,38,.16) 0 4px, transparent 4px 8px); pointer-events: none; }
+  .pl-legende { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 10px; font-size: 10.5px;
+    color: var(--ink-3); }
+  .pl-legende span { display: inline-flex; align-items: center; gap: 5px; }
+  .pl-legende i { width: 15px; height: 10px; display: inline-block; border: 1px solid rgba(0,0,0,.25); }
+
+  @page { size: A3 landscape; margin: 8mm; }
+  @media print {
+    /* Le bouton d'impression n'imprime que le planning : tout le reste du rapport disparaît,
+       et chaque tranche de temps part sur sa propre feuille avec ses libellés. */
+    body.impr-planning .wrap > section:not(#s-planning),
+    body.impr-planning .wrap > header,
+    body.impr-planning .wrap > footer,
+    body.impr-planning .verdict,
+    body.impr-planning #planning-cmd { display: none !important; }
+    body.impr-planning .pl-page { break-after: page; page-break-after: always; margin: 0; padding: 0; border: 0; }
+    body.impr-planning .pl-page:last-child { break-after: auto; page-break-after: auto; }
+    body.impr-planning .pl-barre, body.impr-planning .pl-rang.alt, body.impr-planning .pl-tete {
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body.impr-planning { background: #fff; }
+  }
+
   /* ---- fiche d'un élément ---- */
   #fiche { border: 1px solid var(--line); background: var(--surface); color: var(--ink);
     padding: 0; max-width: 560px; width: calc(100vw - 32px); box-shadow: 0 18px 48px rgba(0,0,0,.32); }
@@ -531,8 +584,34 @@
         reprennent l'avancement réel saisi dans le classeur.</p>
     </div>
     <div class="panel">
-      <div class="scroll"><div class="g-wrap" style="min-width:640px"><div id="gantt"></div><div class="g-cursor" id="g-cursor" hidden></div></div></div>
+      <div class="scroll"><div class="g-wrap" style="min-width:640px"><div id="planning"></div><div class="g-cursor" id="g-cursor" hidden></div></div></div>
       <div class="legend" id="g-legend"></div>
+    </div>
+  </section>
+
+  <section id="s-planning">
+    <div class="s-head">
+      <h2 class="s-title">Planning d'occupation du site</h2>
+      <p class="s-note" id="planning-note">Une ligne par ressource, comme le Target schedule du chantier.
+        La page se découpe en tranches de temps : chacune s'imprime sur une feuille, avec ses libellés
+        de ressource, donc rien à recoller. Les lignes grises sont les ressources que le solveur ne
+        modélise pas ; elles gardent leur place pour que le tableau reste superposable au vôtre.
+        Cliquez une barre pour la fiche de l'élément.</p>
+    </div>
+    <div class="panel" id="planning-panneau">
+      <div class="planning-cmd" id="planning-cmd">
+        <label class="champ">Par page
+          <select id="planning-tranche">
+            <option value="3">3 mois</option>
+            <option value="6" selected>6 mois</option>
+            <option value="12">12 mois</option>
+          </select></label>
+        <label class="champ bascule"><input type="checkbox" id="planning-vides" checked>
+          Garder les ressources non modélisées</label>
+        <button type="button" id="planning-imprimer">Imprimer le planning</button>
+        <span class="seq-hint" id="planning-hint"></span>
+      </div>
+      <div id="planning"></div>
     </div>
   </section>
 
@@ -585,6 +664,7 @@
     afficherJournal(lastJournal);
     rendreSequence();
     rendreGrilleSequence();
+    rendreGantt();
     rendreContraintes();
 
   "use strict";
@@ -1034,6 +1114,204 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- Planning d'occupation du site ----
+   Mêmes ressources, mêmes couleurs et même lecture que l'export Excel : une ligne par
+   ressource, une barre par occupation. Le découpage en tranches de temps est ce qui rend la
+   page imprimable — chaque tranche part sur sa feuille avec ses libellés, il n'y a rien à
+   recoller. Les ressources que le solveur ne modélise pas gardent leur ligne. */
+const G_RESSOURCES = (() => {
+  const out = [];
+  for (let n = 1; n <= 5; n++) {
+    out.push([`Line ${n} - STE Casting`, 'beton', n]);
+    out.push([`Line ${n} - Outfitting (solveur)`, 'outfitting', n]);
+    out.push([`Line ${n} - STE Repairs + Integrated out`, null, null]);
+    out.push([`Line ${n} - Outfitting UB`, null, null]);
+  }
+  out.push(['Cage Prefabrication Area', 'zone', 1], ['Casting Pit 1', 'zone', 2],
+           ['Casting Pit 2', 'zone', 3], ['Casting Pit 3', 'zone', 4],
+           ['Outfitting buffer area', 'zone', 5], ['Upper Basin 1', 'zone', 6],
+           ['Upper Basin 2', 'zone', 7], ['MPP Repair', null, null]);
+  for (let p = 1; p <= 6; p++) out.push([`Lower basin ${p}`, 'basin', p]);
+  out.push(['Harbour Parking SPE', 'stockageSPE', null]);
+  for (let p = 1; p <= 6; p++) out.push([`Harbour Parking ${p}`, 'parking', p]);
+  out.push(['Hookup', 'hookup', null], ['Ballast jetty', 'ballast', null],
+           ['Trench verification', null, null], ['Trench rectification', null, null],
+           ['Gravel bed', null, null], ['Immersion', 'immersion', null],
+           ['Locking fill & Backfill', null, null]);
+  return out;
+})();
+
+const G_COULEUR = {
+  beton: '#FFFF00', outfitting: '#00B050', zone: '#A39FE9', basin: '#9DC3E6',
+  stockageSPE: '#C9B6EC', parking: '#D9D9D9', hookup: '#7FC6CE', ballast: '#ED9B33',
+  immersion: '#FF0000',
+};
+const G_LEGENDE = {beton: 'Casting', outfitting: 'Outfitting', zone: 'Ligne SPE (CPA→UB3)',
+  basin: 'Lower basin', stockageSPE: 'Stockage SPE', parking: 'Harbour parking',
+  hookup: 'Hookup', ballast: 'Ballast jetty', immersion: 'Immersion'};
+const G_MOIS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+
+// Occupations : {ressource, debut, fin, id}. Mêmes règles que l'export Excel.
+function occupationsGantt() {
+  const out = [];
+  const nom = e => e.id.startsWith('STE-') ? e.id.slice(1) : e.id;
+  const pousser = (res, a, b, e) => {
+    const d = t(a), f = t(b);
+    if (d && f && f > d) out.push({res, d, f, id: e.id, lab: nom(e)});
+  };
+  D.elements.forEach(e => {
+    if (e.ln <= 5) {
+      pousser(`Line ${e.ln} - STE Casting`, e.bD, e.bF, e);
+      pousser(`Line ${e.ln} - Outfitting (solveur)`, e.oD, e.oF, e);
+    }
+    if (e.zones) {
+      const zs = {};
+      Object.entries(e.zones).forEach(([z, d]) => { zs[+z] = d; });
+      Object.keys(zs).map(Number).sort((a, b) => a - b).forEach(z => {
+        const ligne = G_RESSOURCES.find(r => r[1] === 'zone' && r[2] === z);
+        if (!ligne) return;
+        pousser(ligne[0], zs[z], zs[z + 1] || e.fu || e.oF, e);
+      });
+    }
+    if (e.bn && e.bp) pousser(`Lower basin ${(e.bn - 1) * 2 + e.bp}`, e.ba, e.pk || e.bl, e);
+    if (e.sp) pousser('Harbour Parking SPE', e.stk, e.bl, e);
+    if (e.pn) pousser(`Harbour Parking ${e.pn}`, e.pk, e.bl, e);
+    pousser('Hookup', e.ba, e.baF, e);
+    pousser('Ballast jetty', e.bl, e.fb, e);
+    if (e.ir) out.push({res: 'Immersion', d: t(e.ir), f: t(e.ir) + day * 3, id: e.id, lab: nom(e)});
+  });
+  return out;
+}
+
+// Périodes d'arrêt de l'usine, pour les hachurer sur le planning.
+function bandesVacances(t0, t1) {
+  if (!PARAMS || !PARAMS.vacances) return [];
+  const out = [];
+  for (let an = new Date(t0).getFullYear() - 1; an <= new Date(t1).getFullYear(); an++) {
+    periodesVacances(an).forEach(([a, b]) => out.push([+a, +b]));
+  }
+  return out;
+}
+
+function rendreGantt() {
+  const boite = document.getElementById('planning');
+  if (!boite) return;
+  const OCC = occupationsGantt();
+  boite.textContent = '';
+  if (!OCC.length) { boite.textContent = 'Aucune occupation à tracer.'; return; }
+
+  const gardeVides = document.getElementById('planning-vides').checked;
+  const ressources = G_RESSOURCES.filter(r => gardeVides || r[1]);
+  const moisParPage = parseInt(document.getElementById('planning-tranche').value, 10);
+
+  let T0 = Math.min(...OCC.map(o => o.d)), T1 = Math.max(...OCC.map(o => o.f));
+  const d0 = new Date(T0); T0 = +new Date(d0.getFullYear(), d0.getMonth(), 1);
+  const d1 = new Date(T1); T1 = +new Date(d1.getFullYear(), d1.getMonth() + 1, 1);
+  const vac = bandesVacances(T0, T1);
+
+  const pages = [];
+  for (let deb = new Date(T0); +deb < T1;) {
+    const fin = new Date(deb.getFullYear(), deb.getMonth() + moisParPage, 1);
+    pages.push([+deb, Math.min(+fin, T1)]);
+    deb = fin;
+  }
+
+  pages.forEach(([pa, pb], iPage) => {
+    const span = pb - pa;
+    const pc = ms => ((ms - pa) / span) * 100;
+    const page = el('div', 'pl-page');
+    page.append(el('div', 'pl-titre',
+      `${fr(new Date(pa).toISOString().slice(0,10))} → ${fr(new Date(pb - day).toISOString().slice(0,10))}`
+      + `  ·  page ${iPage + 1} / ${pages.length}`));
+
+    const corps = el('div', 'pl-corps');
+    const cols = el('div', 'pl-libelles');
+    cols.append(el('div', 'pl-tete'));
+    ressources.forEach(([lib, src]) => cols.append(el('div', 'pl-lib' + (src ? '' : ' vide'), lib)));
+    corps.append(cols);
+
+    const piste = el('div', 'pl-piste');
+    const tete = el('div', 'pl-tete');
+    // Bandeau des mois, puis des numéros de semaine.
+    for (let m = new Date(pa); +m < pb;) {
+      const suivant = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      const bloc = el('div', 'pl-mois', `${G_MOIS[m.getMonth()]} ${String(m.getFullYear()).slice(2)}`);
+      bloc.style.left = pc(+m) + '%';
+      bloc.style.width = (pc(Math.min(+suivant, pb)) - pc(+m)) + '%';
+      tete.append(bloc);
+      m = suivant;
+    }
+    const premLundi = new Date(pa); premLundi.setDate(premLundi.getDate() - ((premLundi.getDay() + 6) % 7));
+    for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+      if (+w < pa) continue;
+      const s = el('div', 'pl-sem', String(semaineIso(w)));
+      s.style.left = pc(+w) + '%';
+      s.style.width = (7 * day / span * 100) + '%';
+      tete.append(s);
+    }
+    piste.append(tete);
+
+    ressources.forEach(([lib, src], i) => {
+      const rang = el('div', 'pl-rang' + (i % 2 ? ' alt' : ''));
+      // Semaines : un filet discret, pour lire une date sans règle.
+      for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+        if (+w < pa) continue;
+        const t2 = el('div', 'pl-sep'); t2.style.left = pc(+w) + '%'; rang.append(t2);
+      }
+      vac.forEach(([a, b]) => {
+        if (b <= pa || a >= pb) return;
+        const h = el('div', 'pl-vac');
+        h.style.left = pc(Math.max(a, pa)) + '%';
+        h.style.width = (pc(Math.min(b, pb)) - pc(Math.max(a, pa))) + '%';
+        rang.append(h);
+      });
+      if (src) {
+        OCC.filter(o => o.res === lib && o.f > pa && o.d < pb).forEach(o => {
+          const a = Math.max(o.d, pa), b = Math.min(o.f, pb);
+          const barre = el('div', 'pl-barre');
+          barre.style.left = pc(a) + '%';
+          barre.style.width = Math.max(pc(b) - pc(a), 0.25) + '%';
+          barre.style.background = G_COULEUR[src];
+          if (src === 'immersion' || src === 'outfitting') barre.style.color = '#fff';
+          // L'étiquette n'apparaît que si la barre peut la porter.
+          if ((b - a) / span > 0.035) barre.textContent = o.lab;
+          barre.title = `${o.id} — ${lib}\n${fr(new Date(o.d).toISOString().slice(0,10))}`
+            + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`;
+          barre.addEventListener('click', () => ouvrirFiche(o.id));
+          rang.append(barre);
+        });
+      }
+      piste.append(rang);
+    });
+    corps.append(piste);
+    page.append(corps);
+    boite.append(page);
+  });
+
+  const lg = el('div', 'pl-legende');
+  Object.entries(G_LEGENDE).forEach(([k, lib]) => {
+    const sp = el('span'); const i = el('i'); i.style.background = G_COULEUR[k];
+    sp.append(i, document.createTextNode(lib)); lg.append(sp);
+  });
+  if (vac.length) {
+    const sp = el('span'); const i = el('i');
+    i.style.background = 'repeating-linear-gradient(45deg, rgba(168,50,38,.4) 0 3px, transparent 3px 6px)';
+    sp.append(i, document.createTextNode('Arrêt de l\'usine')); lg.append(sp);
+  }
+  boite.append(lg);
+
+  const horsSolveur = G_RESSOURCES.filter(r => !r[1]).length;
+  document.getElementById('planning-hint').innerHTML =
+    `<b>${pages.length}</b> page(s) · <b>${ressources.length}</b> ressources · <b>${OCC.length}</b> barres`
+    + (gardeVides ? ` · dont ${horsSolveur} lignes hors solveur` : '');
+}
+
+function semaineIso(d) {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  x.setUTCDate(x.getUTCDate() + 4 - (x.getUTCDay() || 7));
+  return Math.ceil(((x - Date.UTC(x.getUTCFullYear(), 0, 1)) / day + 1) / 7);
+}
 
 /* ---- Fiche d'un élément ----
    Toute la vie d'un élément en une boîte : ses dates de zone en zone, ses places de bassin et
@@ -1773,6 +2051,8 @@ function construireD() {
       im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
       ri: e.rangImmersion,
       fuF: iso(e.dateFinFU), baF: iso(e.dateFinBasin), hk: iso(e.dateHookup),
+      zones: e.passagesSim
+        ? Object.fromEntries(Object.entries(e.passagesSim).map(([z, d]) => [z, iso(d)])) : null,
       stk: iso(e.dateDebutStockageSPE), sp: e.stockageSPENum, st: e.statut, zs: e.zoneSPE,
       pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
     })),
@@ -1834,6 +2114,20 @@ function appliquerFondPlan() {
   img.setAttribute('x', src.x); img.setAttribute('y', src.y);
   img.setAttribute('width', src.w); img.setAttribute('height', src.h);
   img.setAttribute('href', src.href);
+}
+
+{
+  // Commandes du planning : le découpage et le filtre le redessinent, l'impression n'emporte
+  // que lui — le reste du rapport est masqué le temps du tirage, puis rétabli.
+  const redessiner = () => { if (D) rendreGantt(); };
+  document.getElementById('planning-tranche').addEventListener('change', redessiner);
+  document.getElementById('planning-vides').addEventListener('change', redessiner);
+  document.getElementById('planning-imprimer').addEventListener('click', () => {
+    document.body.classList.add('impr-planning');
+    const rendre = () => document.body.classList.remove('impr-planning');
+    window.addEventListener('afterprint', rendre, {once: true});
+    setTimeout(() => { window.print(); setTimeout(rendre, 1500); }, 60);
+  });
 }
 
 {
