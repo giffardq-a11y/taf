@@ -288,6 +288,45 @@ la variante 1 passe de **18 éléments bloqués à 0**, et la variante 2 de 7 re
 l'optimiseur, le résultat était déjà à zéro et le reste. Le plan ne dépend donc plus de la
 mise en page du classeur, et la priorité va à qui en a besoin.
 
+## Planning d'occupation, à la forme du Target schedule
+
+Le solveur sait produire le planning dans la forme utilisée sur le chantier : une ligne par
+ressource, une colonne par demi-semaine, une barre par occupation.
+
+```bash
+node planning_runner.js target_schedule_reduit.xlsx 2026-08-05 > plan.json
+python3 planning_cible.py plan.json Target_schedule_solveur.xlsx
+```
+
+`planning_runner.js` extrait le noyau du solveur de `index.html` entre ses deux marqueurs et le
+rejoue hors navigateur : le planning exporté vient donc du même code que l'interface, jamais
+d'une copie. Options : `--variante=N`, `--sans-optimiseur`, `--flux-tendu`,
+`--en-cours-de-cycle`, `--sans-staggering`, `--budget=ms`.
+
+**Ce que le solveur remplit** — casting par ligne, outfitting, la chaîne SPE zone par zone
+(Cage Prefabrication Area = CPA, Casting Pit 1 à 3 = CP1 à CP3, Outfitting buffer area = UB1,
+Upper Basin 1 et 2 = UB2 et UB3), les 6 places de Lower basin, le stockage SPE, les 6 places de
+Harbour Parking, le hook-up, le Ballast Jetty et l'immersion.
+
+**Ce qu'il ne remplit pas**, et qui garde sa ligne, vide et grisée : `STE Repairs + Integrated
+out` et `Outfitting UB`, `MPP Repair`, `Trench verification`, `Trench rectification`,
+`Gravel bed`, `Locking fill & Backfill`. Le tableau reste ainsi superposable à celui du
+chantier, et ce qui manque se voit au lieu de se deviner.
+
+**Une question de découpage reste ouverte.** Le chantier sépare l'après-coulée en deux lignes —
+« Repairs + Integrated outfitting » puis « Outfitting UB ». Le solveur n'a qu'une seule phase
+d'outfitting, de `segmentsOutfitting × rythme` semaines. Laquelle des deux elle recouvre, ou
+comment elle se répartit entre les deux, est une décision de chantier : la barre est donc
+tracée sur sa propre ligne, `Outfitting (solveur, phase unique)`, et les deux lignes d'origine
+restent vides. Le jour où le découpage est arrêté, il suffit de rebrancher la source.
+
+**Approximation assumée** : deux occupations d'une même ressource qui se suivent à moins d'une
+demi-semaine ne peuvent pas partager une colonne. La seconde est alors rognée d'une colonne —
+174 barres sur 559 dans l'export de référence. Quand deux occupations sont réellement
+simultanées, ce qui arrive au hook-up puisque les deux lignes d'une paire entrent en bassin
+ensemble, les deux étiquettes sont accolées dans la même barre plutôt que d'en perdre une. Le
+script annonce les deux chiffres à chaque exécution.
+
 ## Relevé des contraintes
 
 La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**

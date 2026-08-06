@@ -989,7 +989,7 @@ function runSimulation(paramsArg) {
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
     dateBallast:null, dateFinBallast:null, dateHookup:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false, stockeEnBassin:false,
-    stockageSPENum:0, dateDebutStockageSPE:null,
+    stockageSPENum:0, dateDebutStockageSPE:null, passagesSim:null,
   }));
 
   const zoneBetonOccupee = {1:false,2:false,3:false,4:false,5:false};
@@ -1777,7 +1777,15 @@ function runSimulation(paramsArg) {
     return jourCourant >= zc.jourEntree + zc.dureeEff;
   }
 
+  // Trace des passages de zone réellement simulés, pour l'export du planning d'occupation :
+  // l'entrée en zone est une donnée du plan, pas seulement du planning d'entrée.
+  function noterPassageSPE(e, zoneNum, dCur) {
+    e.passagesSim = e.passagesSim || {};
+    if (!e.passagesSim[zoneNum]) e.passagesSim[zoneNum] = new Date(dCur);
+  }
+
   function demarrerZoneSPE(e, zoneNum, dCur, jourCourant) {
+    noterPassageSPE(e, zoneNum, dCur);
     zonesSPE[zoneNum-1].occupee = true;
     zonesSPE[zoneNum-1].idOccupant = e.id;
     zonesSPE[zoneNum-1].jourEntree = jourCourant;
@@ -1829,11 +1837,13 @@ function runSimulation(paramsArg) {
     if (z === 0) return;
     const zc = zonesSPE[z-1];
     if (zoneSPETerminee(e, z, dCur, jourCourant)) {
-      if (z === zonesSPE.length) { zc.occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur; return; }
+      if (z === zonesSPE.length) { zc.occupee = false; e.statut = 'AttenteFloatUp'; e.dateFinOut = dCur;
+        noterPassageSPE(e, zonesSPE.length + 1, dCur); return; }
       if (!zonesSPE[z].occupee) {
         zonesSPE[z-1].occupee = false;
         zonesSPE[z].occupee = true; zonesSPE[z].idOccupant = e.id; zonesSPE[z].jourEntree = jourCourant;
         e.zoneSPE = z + 1;
+        noterPassageSPE(e, z + 1, dCur);
         if (z + 1 === premiereUB) { e.statut = 'Outfitting'; marquerEntreeUB(e, dCur); }
       }
     }
