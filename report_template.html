@@ -254,6 +254,21 @@
     color: var(--ink-3); font-family: var(--mono); }
   #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
   #coupe-compte b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  /* ---- relevé des contraintes ---- */
+  .c-fam { font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: 0 0 8px;
+    color: var(--ink); text-transform: none; }
+  .c-note { color: var(--ink-3); font-size: 12px; line-height: 1.45; max-width: 46ch; }
+  .pill.c-reglable { background: var(--accent-soft); color: var(--accent); }
+  .pill.c-donnee { background: var(--surface-2); color: var(--ink-2); }
+  .pill.c-fige { background: transparent; color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
+  .pill.c-anomalie { background: var(--crit-soft); color: var(--crit); }
+  .c-resume { display: flex; flex-wrap: wrap; gap: 22px; }
+  .c-case { display: flex; flex-direction: column; gap: 2px; }
+  .c-case b { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--ink); }
+  .c-case b.c-reglable { color: var(--accent); }
+  .c-case b.c-anomalie { color: var(--crit); }
+  .c-case b.c-fige, .c-case b.c-donnee { color: var(--ink-2); }
+  .c-case span { font-size: 11.5px; color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; }
   .seq-grid { position: relative; }
   .seq-col { position: absolute; top: 0; font-family: var(--mono); font-size: 11px; font-weight: 600;
     color: var(--ink-2); text-align: center; letter-spacing: .06em; }
@@ -497,6 +512,17 @@
   </section>
 
   <section>
+    <div class="s-head">
+      <h2 class="s-title">Toutes les contraintes du modèle</h2>
+      <p class="s-note">Le relevé complet de ce que le solveur applique : contraintes de structure,
+        d'occupation, de calcul et de séquence. Chaque ligne dit son seuil, d'où il vient, et s'il est
+        pilotable depuis l'interface. Ce qui n'y figure pas n'est pas modélisé.</p>
+    </div>
+    <div class="panel" id="contraintes-resume"></div>
+    <div id="contraintes"></div>
+  </section>
+
+  <section>
     <div class="s-head"><h2 class="s-title">Journal du calcul</h2>
       <p class="s-note">Ce que le solveur a lu dans le classeur et les points qu'il signale.
         Les avertissements pointent en général une saisie manquante.</p></div>
@@ -525,6 +551,7 @@
     afficherJournal(lastJournal);
     rendreSequence();
     rendreGrilleSequence();
+    rendreContraintes();
 
   "use strict";
 
@@ -963,6 +990,223 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- Relevé exhaustif des contraintes du modèle ----
+   Écrit à la main d'après le solveur, pas déduit du code : c'est une relecture, et son intérêt
+   est justement de pouvoir être confrontée au code. Les seuils, eux, sont lus dans REGLES et
+   PARAMS pour que le tableau ne puisse pas mentir sur les valeurs réellement appliquées.
+   Statuts : « reglable » = modifiable dans l'interface ; « donnee » = vient du classeur ou du
+   planning P6 ; « fige » = structurel ou codé en dur ; « anomalie » = à trancher. */
+const P = () => (typeof PARAMS === 'object' && PARAMS) || {};
+const n = v => String(v).replace('.', ',');
+
+function tableauContraintes() {
+  const p = P();
+  const seuilEt = REGLES.etancheSem, seuilCrit = p.etancheCritiqueSem || REGLES.etancheCritiqueSem;
+  return [
+['Données d\'entrée — lues, jamais inventées', [
+  ['Ordre d\'immersion', 'rang de l\'onglet Immersion', 'Planning P6', 'donnee',
+   'Entrée intangible : le programme ne le modifie jamais, il s\'y plie.'],
+  ['Date d\'immersion cible', 'une par élément', 'Planning P6', 'donnee',
+   'Sans date, la simulation en dérive une à la fin du ballast — elle ne survit pas au calcul.'],
+  ['Durée de ballast', '4 à 25 j selon l\'élément', 'Activités « Floatout, 1st Phase Ballast Concrete » du P6', 'donnee',
+   'Le paramètre « Ballast (sem) » ne sert que pour un élément absent du planning.'],
+  ['Passages de zone SPE', 'CPA → UB3, datés', 'Planning P6', 'donnee',
+   'La ligne SPE suit le planning ; les durées fixes de Config_SPE ne servent qu\'à un SPE absent du P6.'],
+  ['Clamping SPE', 'une date par SPE', 'Planning P6', 'donnee', 'Fermeture définitive.'],
+  ['Date « ready for float up » SPE', 'facultative', 'Planning P6', 'donnee',
+   'Fournie, elle commande la sortie de chaîne quelle que soit la zone occupée.'],
+  ['Affectation ligne + ordre de production', 'colonnes de Inputs', 'Classeur', 'reglable',
+   'Reprise telle quelle, sauf si l\'optimiseur de séquence est activé.'],
+  ['État as-built', 'colonnes C/E/G/I/K/M', 'Classeur ou saisie à l\'écran', 'donnee',
+   'Un élément engagé ne peut plus être déplacé par l\'optimiseur.'],
+  ['Cadence de départ et date d\'ancre', '3 sem/segment', 'Config_Cycles', 'donnee',
+   'Sert de point de départ à la pente d\'inertie quand aucune date de décision n\'est saisie.'],
+  ['Jalon d\'étanchéité SPE', `${seuilEt} sem après la sortie de CP3`, 'Config_SPE', 'reglable', ''],
+  ['Phases d\'outfitting', '6 phases × 2 séquences', 'Config_Outfitting', 'anomalie',
+   'Lues et journalisées, mais jamais appliquées : la durée d\'outfitting vaut 7 × rythme, quelles que soient les phases. À trancher — soit les appliquer, soit retirer l\'onglet.'],
+]],
+['Cadence de production', [
+  ['Rythmes autorisés', REGLES.rythmes.map(n).join(' / ') + ' sem/segment', 'Règle', 'reglable',
+   'Valeurs discrètes : aucune cadence intermédiaire n\'est produite.'],
+  ['Segments béton par élément', String(REGLES.segments), 'Règle', 'reglable', ''],
+  ['Pente d\'inertie', `${n(REGLES.penteSem)} sem par tranche de ${REGLES.pentePeriodeMois} mois`, 'Règle', 'reglable',
+   'Mesurée depuis le dernier changement réellement appliqué à la paire.'],
+  ['Cliquet de cadence', 'une cadence atteinte n\'est jamais relâchée', 'Règle', 'reglable',
+   'Une case autorise un relâchement unique par paire, en fin de programme. Décochée par défaut.'],
+  ['Couplage de paire', 'PL-1+PL-2 et PL-3+PL-4 partagent leur cadence', 'Structure', 'fige',
+   'Leurs éléments doivent sortir de l\'outfitting ensemble : les deux lignes basculent d\'un seul tenant.'],
+  ['PL-5', 'cadence indépendante', 'Structure', 'fige', ''],
+  ['Choix du rythme', p.arretAuPlusTot ? 'le plus rapide que la pente autorise' : 'le plus lent qui tienne les dates',
+   'Case « Arrêt de l\'usine au plus tôt »', 'reglable',
+   'Au plus tôt : les halles se vident tôt, quitte à stocker à flot. Flux tendu : production au plus juste.'],
+  ['Moment d\'application', p.accelererEnCoursCycle ? 'dès que la pente l\'ouvre, en cours de coulée' : 'au prochain départ béton',
+   'Case « Accélérer en cours de cycle »', 'reglable',
+   'En cours de cycle, le segment entamé se termine à l\'ancien rythme : un segment ne se coule pas à deux vitesses.'],
+  ['Départ de la pente', p.dateDecision ? fr(new Date(p.dateDecision).toISOString().slice(0,10)) : 'dernier changement appliqué',
+   'Champ « Décision d\'accélérer »', 'reglable', 'Vide, la ligne est réputée déjà en régime.'],
+  ['Test de faisabilité', 'toute la file restante de la ligne, pas seulement l\'élément courant', 'Calcul', 'fige',
+   'Regarder toute la file évite l\'oscillation accélérer / ralentir.'],
+  ['Alerte de délai', 'file rejouée en accélérant à chaque ouverture de la pente', 'Calcul', 'fige',
+   'Ne signale que ce qui reste hors d\'atteinte quoi qu\'il arrive. Ne couvre pas les retards dus à l\'aval.'],
+]],
+['Staggering entre halls', [
+  ['Déphasage du hall B', `${REGLES.staggerHallB} segments après le hall A`, 'Règle', 'reglable',
+   'Les deux halls partagent les mêmes moyens et ne doivent pas attaquer un élément au même moment.'],
+  ['Déphasage de PL-5', `${REGLES.staggerPL5} segments`, 'Règle', 'reglable', 'Préférence seulement, jamais bloquante.'],
+  ['Contrainte dure à partir de', `${n(REGLES.staggerCadenceDure)} sem/segment`, 'Règle', 'reglable',
+   'En deçà, on ne patiente que si l\'attente est gratuite pour toute la file.'],
+  ['Aucun déphasage dans un hall', 'les deux lignes d\'un hall démarrent ensemble', 'Structure', 'fige', ''],
+  ['Suspension', 'halls à des cadences différentes', 'Calcul', 'fige',
+   'La phase dériverait d\'un cycle à l\'autre ; le déphasage reprend dès que les cadences se rejoignent.'],
+  ['Tolérance de phase', '0,5 jour', 'Codé en dur', 'fige', 'Le pas de simulation est le jour, les cibles tombent sur des demi-journées.'],
+  ['Activation', 'oui / non', 'Case « Staggering entre halls »', 'reglable', ''],
+]],
+['Occupation des zones de production', [
+  ['Zone béton', '1 élément à la fois par ligne', 'Structure', 'fige', ''],
+  ['Zone outfitting', '1 élément à la fois par ligne', 'Structure', 'fige', ''],
+  ['Poussage continu', 'la zone béton se libère au dernier segment coulé', 'Structure', 'fige',
+   'Sans quoi un élément bloqué en fin de béton gèlerait toute la ligne derrière lui.'],
+  ['Fin d\'outfitting', `au segment ${REGLES.segmentsOutfitting} de l\'élément suivant`, 'Règle', 'reglable',
+   'Le dernier élément d\'une ligne, lui, applique la durée nominale.'],
+  ['Durée d\'outfitting nominale', `${REGLES.segmentsOutfitting} × rythme × 7 j`, 'Calcul', 'fige',
+   'Dérivée du rythme, jamais des phases de Config_Outfitting.'],
+  ['Chaîne SPE', '7 zones, une seule occupée à la fois, avance en file', 'Config_SPE', 'donnee', ''],
+]],
+['Float-up', [
+  ['Départ par paire', 'les deux lignes d\'un groupe partent ensemble', 'Structure', 'fige', ''],
+  ['Ligne épuisée', 'départ solo autorisé', 'Calcul', 'fige',
+   'Les files des deux lignes n\'ont pas la même longueur : sans cette issue, les derniers éléments resteraient bloqués.'],
+  ['PL-5 et SPE', 'découplés', 'Structure', 'fige', 'Le SPE stationne en Basin C bien après le passage des éléments normaux.'],
+  ['Durée', `${n(p.floatUpSem ?? 1)} sem`, 'Paramètre', 'reglable', ''],
+]],
+['Bassins', [
+  ['Capacité', `${REGLES.basins} bassins × ${REGLES.basinPlaces} places`, 'Règle', 'reglable', ''],
+  ['Place attitrée', 'PL-1/PL-3/PL-5 en place 1, PL-2/PL-4/SPE en place 2', 'Structure', 'fige',
+   'Si le bassin compte moins de places que de lignes, elles se partagent la dernière.'],
+  ['Entrée bassins A et B', 'par paire, bassin entièrement libre', 'Structure', 'fige', ''],
+  ['Entrée Basin C', 'places indépendantes', 'Structure', 'fige', ''],
+  ['Hook-up', `${n(p.hookupSem ?? 0.5)} sem`, 'Paramètre', 'reglable', 'Occupe aussi les 24 h précédant le Ballast Jetty.'],
+  ['Sortie bloquée', 'PL-2 fait face à la sortie du bassin A, PL-4 du bassin B', 'Structure', 'fige',
+   'L\'autre élément du bassin ne peut pas sortir avant lui. Le Basin C est libre.'],
+  ['Stockage croisé', 'soupape quand le parking est saturé', 'Calcul', 'fige',
+   'Interdit dans le bassin d\'un groupe qui a encore des éléments en amont : la soupape ne doit pas gêner ailleurs.'],
+]],
+['Parking', [
+  ['Places', `${REGLES.parkingPlaces} sans limite de durée`, 'Règle', 'reglable', ''],
+  ['Place de réserve', `la ${REGLES.parkingPlaces + 1}e, si le départ tombe sous ${REGLES.parkingReserveJours} j`, 'Règle', 'reglable',
+   'Au-delà, mieux vaut laisser l\'élément attendre en amont.'],
+  ['Saut du parking', `immersion à moins de ${n(p.seuilParkingSem ?? 4)} sem`, 'Paramètre', 'reglable',
+   'Évite un mouvement coûteux quand l\'immersion est proche.'],
+  ['Priorité de la production', 'le seuil ne retient jamais un élément dont la place est réclamée', 'Calcul', 'fige', ''],
+]],
+['Basin C et ligne SPE', [
+  ['Stockage SPE dédié', `${p.placesStockageSPE ?? 1} place`, 'Paramètre', 'reglable',
+   'À part du parking. Dégage la place SPE du Basin C quand elle retient un élément qui s\'immerge plus tôt.'],
+  ['Stationnement du SPE', 'jusqu\'au démarrage de son Ballast Jetty', 'Structure', 'fige', ''],
+  ['Évacuation vers le stockage', 'seulement si un SPE d\'immersion antérieure attend', 'Calcul', 'fige', ''],
+  ['Inondation du Basin C', 'tout SPE en zone UB doit être étanche', 'Structure', 'fige',
+   'Sans jalon renseigné, la contrainte n\'existe pas : rien à attendre.'],
+  ['Outfitting de PL-5', 'autorisé si l\'outfitting finit avant la prochaine évacuation SPE', 'Structure', 'fige', ''],
+  ['Zone tampon', 'dans le bassin', 'Structure', 'fige', ''],
+]],
+['Étanchéité d\'un SPE — cascade à trois niveaux', [
+  ['1. Clamping du P6', 'la date du planning', 'Planning P6', 'donnee', 'Fermeture définitive. S\'il tombe assez tôt, rien d\'autre n\'est nécessaire.'],
+  ['2. Fermeture provisoire', `${seuilEt} sem après la sortie de CP3`, 'Règle', 'reglable',
+   'L\'avancement compte, pas la zone : les travaux peuvent commencer en UB1 et s\'achever en UB2.'],
+  ['3. Seuil critique', `${seuilCrit} sem, sur autorisation`, 'Règle + case', 'reglable',
+   'Faisable mais met le planning en tension. Chaque recours est signalé.'],
+]],
+['Ballast et immersion', [
+  ['Ordre imposé', 'porte à l\'entrée du Ballast Jetty', 'Planning P6', 'fige',
+   'Seul l\'élément en tête de file peut être ballasté : un élément non prêt bloque tous ceux qui le suivent.'],
+  ['Un seul ballast à la fois', 'conséquence de la porte', 'Structure', 'fige', ''],
+  ['Durée de ballast', 'celle du P6, à défaut ' + n(p.ballastSem ?? 1) + ' sem', 'P6 + paramètre', 'reglable', ''],
+  ['SPE', 'aucune phase de ballast', 'Structure', 'fige', 'Ils passent du bassin à l\'immersion.'],
+  ['Immersion', 'la fin du ballast est l\'immersion', 'Structure', 'fige', ''],
+  ['Entrée au Ballast Jetty', 'date d\'immersion cible moins la durée de ballast', 'Calcul', 'fige', ''],
+]],
+['Optimiseur de séquence', [
+  ['Ordre des critères', 'bloqués → inversions PL → nombre de retards → retard cumulé → retard max'
+    + (p.arretAuPlusTot ? ' → fin de production' : '') + ' → changements de cadence', 'Calcul', 'fige',
+   'Comparaison lexicographique : un critère ne départage que si tous les précédents sont à égalité.'],
+  ['Inversions SPE', 'hors critère principal', 'Calcul', 'fige',
+   'La zone de stockage dédiée les absorbe ; les compter à égalité ferait préférer une variante bien plus en retard.'],
+  ['Réaffectation aux lignes', 'oui / non', 'Case', 'reglable', 'L\'optimiseur choisit aussi sur quelle ligne PL produire chaque élément.'],
+  ['Éléments engagés', 'as-built saisi ou date cible dépassée', 'Calcul', 'fige', 'Leur production est commencée : ils ne bougent plus.'],
+  ['Budget de recherche', `${OPTIM.budgetMs / 1000} s`, 'Codé en dur', 'fige', 'Non exposé dans l\'interface.'],
+  ['Voisinage exploré', `déplacement de ±${OPTIM.fenetre} rangs, ${OPTIM.ciblesParElement} lignes d\'accueil`, 'Codé en dur', 'fige', ''],
+]],
+['Cadre de la simulation', [
+  ['Pas de temps', '1 jour', 'Codé en dur', 'fige', ''],
+  ['Horizon', '6 ans à partir de la date de référence', 'Codé en dur', 'fige',
+   'Un élément non immergé au bout de l\'horizon est compté comme bloqué.'],
+  ['Date de référence', 'saisie', 'Champ', 'reglable', 'Point de départ de la simulation.'],
+]],
+];
+}
+
+const ETIQ_STATUT = {
+  reglable: ['Réglable', 'Modifiable dans l\'interface'],
+  donnee:   ['Donnée', 'Vient du classeur ou du planning P6'],
+  fige:     ['Figé', 'Structurel ou codé en dur — non exposé'],
+  anomalie: ['À trancher', 'Incohérence relevée à l\'audit'],
+};
+
+function rendreContraintes() {
+  const box = document.getElementById('contraintes');
+  const resume = document.getElementById('contraintes-resume');
+  if (!box) return;
+  box.textContent = '';
+  const familles = tableauContraintes();
+  const comptes = {reglable: 0, donnee: 0, fige: 0, anomalie: 0};
+  let total = 0;
+
+  familles.forEach(([titre, lignes]) => {
+    const bloc = el('div', 'panel scroll');
+    bloc.style.marginTop = '14px';
+    const h = el('h3', 'c-fam', `${titre} — ${lignes.length}`);
+    bloc.append(h);
+    const tab = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
+    ['Contrainte', 'Seuil ou valeur', 'Origine', 'Statut', 'Précision'].forEach(t => trh.append(el('th', '', t)));
+    thead.append(trh); tab.append(thead);
+    const tb = el('tbody');
+    lignes.forEach(([nom, seuil, origine, statut, note]) => {
+      total++; comptes[statut]++;
+      const tr = el('tr');
+      tr.append(el('td', 'id', nom));
+      tr.append(el('td', '', seuil));
+      tr.append(el('td', '', origine));
+      const tdS = el('td');
+      const pill = el('span', 'pill c-' + statut, ETIQ_STATUT[statut][0]);
+      pill.title = ETIQ_STATUT[statut][1];
+      tdS.append(pill); tr.append(tdS);
+      tr.append(el('td', 'c-note', note || ''));
+      tb.append(tr);
+    });
+    tab.append(tb); bloc.append(tab); box.append(bloc);
+  });
+
+  resume.textContent = '';
+  const lig = el('div', 'c-resume');
+  [['Contraintes relevées', total, ''],
+   ['Réglables', comptes.reglable, 'c-reglable'],
+   ['Données d\'entrée', comptes.donnee, 'c-donnee'],
+   ['Figées', comptes.fige, 'c-fige'],
+   ['À trancher', comptes.anomalie, 'c-anomalie']].forEach(([lab, val, cls]) => {
+    const c = el('div', 'c-case');
+    c.append(el('b', cls, String(val)), el('span', '', lab));
+    lig.append(c);
+  });
+  resume.append(lig);
+  const av = el('p', 's-note');
+  av.style.margin = '10px 0 0';
+  av.textContent = 'Relevé tenu à la main d\'après le solveur : c\'est une relecture du code, pas une extraction, '
+    + 'et c\'est ce qui lui permet de servir de contrôle. Les seuils affichés, eux, sont ceux réellement appliqués au calcul.';
+  resume.append(av);
+}
 
 /* ---- coupe du tunnel : les éléments côte à côte dans l'ordre de pose ---- */
 // TE-01 à gauche, TE-79 à droite : les standard se rangent par numéro. Les SPE n'ont pas de
@@ -1456,6 +1700,10 @@ function appliquerFondPlan() {
   img.setAttribute('width', src.w); img.setAttribute('height', src.h);
   img.setAttribute('href', src.href);
 }
+
+// Le relevé des contraintes ne dépend d'aucune donnée : il s'affiche dès l'ouverture de la
+// page, puis se remet à jour après chaque calcul pour refléter les seuils réellement appliqués.
+rendreContraintes();
 
 })();
 </script>

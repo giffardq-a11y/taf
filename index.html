@@ -1524,9 +1524,7 @@ function runSimulation(paramsArg) {
 
   // Date d'évacuation du Basin C d'un SPE : il n'en sort qu'avant son utilisation finale,
   // c'est-à-dire au démarrage de son Ballast Jetty.
-  function dateEvacuationSPE(e) {
-    return e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
-  }
+  function dateEvacuationSPE(e) { return dateDebutBallastDe(e); }
   // Prochaine évacuation SPE à venir (tous SPE confondus), vue depuis dCur.
   function prochaineEvacuationSPE(dCur) {
     let best = null;
@@ -1646,7 +1644,7 @@ function runSimulation(paramsArg) {
       if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
     }
     if (parkingOccupee[reserve]) return;
-    const sortie = e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
+    const sortie = dateDebutBallastDe(e);
     if (!sortie || diffDays(sortie, dCur) > REGLES.parkingReserveJours) return;
     parkingOccupee[reserve] = true;
     e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = reserve; e.parkingReserve = true;
@@ -1741,7 +1739,7 @@ function runSimulation(paramsArg) {
         if (e.statut === 'AttenteParking') stockerEnBassin(e, dCur);
         break;
       case 'Parking': {
-        const dateDebutBallast = e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : dCur;
+        const dateDebutBallast = dateDebutBallastDe(e) || dCur;
         if (dCur >= dateDebutBallast) {
           if (!ballastAutorise(e)) { bloquesParOrdre.set(e.id, (bloquesParOrdre.get(e.id) || 0) + 1); break; }
           libererParking(e); demarrerBallast(e, dCur);
@@ -1927,6 +1925,9 @@ function runSimulation(paramsArg) {
 
   const bloquesParOrdre = new Map(); // id -> jours d'attente imposés par l'ordre seul
 
+  // Règle unique de la date d'entrée au Ballast Jetty : on remonte la durée de ballast depuis
+  // la date d'immersion cible. Tout ce qui a besoin de cette date passe par ici — l'évacuation
+  // d'un SPE du Basin C, l'ouverture de la réserve de parking, le départ depuis le parking.
   function dateDebutBallastDe(e) {
     return e.dateImmersion ? addDays(e.dateImmersion, -dureeBallastJours(e)) : null;
   }

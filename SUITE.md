@@ -360,6 +360,27 @@ deux facultatifs et sans effet sur le résultat de référence quand ils sont la
 Reste ouvert : la montée en cadence réelle est continue, ce modèle s'arrête au segment. Si la
 granularité fine devient nécessaire, c'est `raccourcirEnCours` qu'il faudra reprendre.
 
+### 10. Relevé exhaustif des contraintes — fait
+
+74 contraintes en 12 familles dans la page de restitution, avec seuil, origine et statut
+(réglable / donnée / figé / à trancher). Tenu à la main d'après le solveur, avec les seuils lus
+dans `REGLES` et `PARAMS`. Deux points sortis de l'audit :
+
+- **Corrigé** — la date d'entrée au Ballast Jetty était écrite quatre fois à l'identique ;
+  tout passe désormais par `dateDebutBallastDe`. Résultat de référence inchangé.
+- **En attente de décision** — `Config_Outfitting` (6 phases × 2 séquences) est lu et
+  journalisé mais n'entre dans aucun calcul : la durée d'outfitting vaut
+  `segmentsOutfitting × rythme × 7 j`. Soit on applique les phases, soit on retire l'onglet.
+  Rien n'a été changé sans arbitrage, la règle est marquée « à trancher » dans le relevé.
+
+Trois autres points relevés, sans conséquence pour l'instant mais à garder en tête :
+
+- `REGLES.basins` est réglable, mais `groupeId` fige à 3 le nombre de groupes de lignes :
+  réduire le nombre de bassins n'affecte que la soupape de stockage croisé, pas l'affectation.
+- Le budget de recherche de l'optimiseur (8 s), la fenêtre de déplacement (±4) et le nombre de
+  lignes d'accueil essayées (5) ne sont pas exposés.
+- L'horizon de simulation (6 ans) et la tolérance de phase du staggering (0,5 j) non plus.
+
 ## Onglets du classeur devenus caducs
 
 `Recap_Dates` est le résultat de l'ancienne macro, pas une donnée d'entrée : il n'a plus lieu

@@ -260,6 +260,38 @@ C'est la première étape de l'interface entièrement paramétrable : les règle
 code. Restent à y remonter l'état as-built, aujourd'hui saisi dans les colonnes de `Inputs`,
 et la capacité des bassins.
 
+## Relevé des contraintes
+
+La page de restitution porte un relevé complet de ce que le solveur applique : **74 contraintes**
+en 12 familles — données d'entrée, cadence, staggering, occupation des zones, float-up, bassins,
+parking, Basin C et ligne SPE, étanchéité, ballast et immersion, optimiseur, cadre de la
+simulation. Chaque ligne donne son seuil, son origine, et son statut :
+
+| Statut | Sens | Nombre |
+|---|---|---|
+| **Réglable** | modifiable depuis l'interface | 26 |
+| **Donnée** | vient du classeur ou du planning P6 | 10 |
+| **Figé** | structurel, ou codé en dur et non exposé | 37 |
+| **À trancher** | incohérence relevée à l'audit | 1 |
+
+Le relevé est **tenu à la main** d'après le solveur : c'est une relecture du code, pas une
+extraction. C'est précisément ce qui lui permet de servir de contrôle — une extraction
+automatique ne pourrait pas signaler qu'une règle lue n'est jamais appliquée. Les seuils
+affichés, eux, sont lus dans `REGLES` et `PARAMS` : le tableau ne peut pas mentir sur les
+valeurs réellement en vigueur.
+
+### Ce que l'audit a relevé
+
+- **Doublon corrigé.** La date d'entrée au Ballast Jetty (date d'immersion cible moins la durée
+  de ballast) était réécrite à **quatre endroits** : évacuation d'un SPE du Basin C, ouverture
+  de la réserve de parking, départ depuis le parking, et la fonction dédiée. Les quatre sont
+  ramenées à `dateDebutBallastDe`. Résultat de référence inchangé, vérifié.
+- **Règle lue mais jamais appliquée.** `Config_Outfitting` fournit 6 phases × 2 séquences ; le
+  solveur les lit, les journalise, et ne s'en sert pas — la durée d'outfitting vaut
+  `segmentsOutfitting × rythme × 7 j`, quelles que soient les phases. Deux issues possibles :
+  appliquer les phases, ou retirer l'onglet. **Décision à prendre**, c'est pourquoi la règle est
+  marquée « à trancher » plutôt que corrigée d'office.
+
 ## Structure du classeur
 
 | Onglet | Rôle |
