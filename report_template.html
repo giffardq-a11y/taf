@@ -1124,8 +1124,10 @@ const G_RESSOURCES = (() => {
   const out = [];
   for (let n = 1; n <= 5; n++) {
     out.push([`Line ${n} - STE Casting`, 'beton', n]);
-    out.push([`Line ${n} - Outfitting (solveur)`, 'outfitting', n]);
-    out.push([`Line ${n} - STE Repairs + Integrated out`, null, null]);
+    // Deux fronts distincts après la coulée : « Repairs + Integrated outfitting » sur la
+    // ligne, avant le mouvement vers l'Upper Basin, puis « Outfitting UB » après. La phase
+    // du solveur est la première ; la seconde n'est pas modélisée.
+    out.push([`Line ${n} - STE Repairs + Integrated out`, 'outfitting', n]);
     out.push([`Line ${n} - Outfitting UB`, null, null]);
   }
   out.push(['Cage Prefabrication Area', 'zone', 1], ['Casting Pit 1', 'zone', 2],
@@ -1163,7 +1165,7 @@ function occupationsGantt() {
   D.elements.forEach(e => {
     if (e.ln <= 5) {
       pousser(`Line ${e.ln} - STE Casting`, e.bD, e.bF, e);
-      pousser(`Line ${e.ln} - Outfitting (solveur)`, e.oD, e.oF, e);
+      pousser(`Line ${e.ln} - STE Repairs + Integrated out`, e.oD, e.oF, e);
     }
     if (e.zones) {
       const zs = {};
@@ -1439,6 +1441,9 @@ function tableauContraintes() {
   ['Couplage de paire', 'PL-1+PL-2 et PL-3+PL-4 partagent leur cadence', 'Structure', 'fige',
    'Leurs éléments doivent sortir de l\'outfitting ensemble : les deux lignes basculent d\'un seul tenant.'],
   ['PL-5', 'cadence indépendante', 'Structure', 'fige', ''],
+  ['Une seule paire de portes', p.floatUpUnique !== false ? 'un float-up à la fois' : 'désactivée',
+   'Règle + case', 'reglable',
+   "Le groupe dont l'élément est le plus urgent passe d'abord. Le staggering décale les départs béton, pas les sorties d'outfitting : sans cette règle, deux ou trois bassins se remplissent parfois le même jour."],
   ['Choix du rythme', p.arretAuPlusTot ? 'le plus rapide que la pente autorise' : 'le plus lent qui tienne les dates',
    'Case « Arrêt de l\'usine au plus tôt »', 'reglable',
    'Au plus tôt : les halles se vident tôt, quitte à stocker à flot. Flux tendu : production au plus juste.'],
@@ -1476,7 +1481,7 @@ function tableauContraintes() {
   ['Fin d\'outfitting', `au segment ${REGLES.segmentsOutfitting} de l\'élément suivant`, 'Règle', 'reglable',
    'Le dernier élément d\'une ligne, lui, applique la durée nominale.'],
   ['Durée d\'outfitting nominale', `${REGLES.segmentsOutfitting} × rythme × 7 j`, 'Calcul', 'fige',
-   'Dérivée du rythme seul. Config_Outfitting a été retiré du modèle : il était lu sans jamais servir.'],
+   "Dérivée du rythme seul. Elle couvre le front « Repairs + Integrated outfitting », en aval de la coulée et avant le mouvement vers l'Upper Basin. L'« Outfitting UB », qui suit ce mouvement, n'est pas modélisé."],
   ['Chaîne SPE', '7 zones, une seule occupée à la fois, avance en file', 'Config_SPE', 'donnee', ''],
 ]],
 ['Float-up', [

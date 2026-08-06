@@ -73,6 +73,22 @@ cadence à faire appliquer aux opérateurs.
 
 Rythmes autorisés : **1,0 / 1,5 / 2,0 / 2,5 / 3,0 / 3,5 / 4,0** semaines par segment.
 
+## Une seule paire de portes
+
+Le site n'a qu'une paire de portes : **un seul float-up à la fois**. Le groupe dont l'élément
+est le plus urgent passe d'abord, au sens du rang d'immersion — le même départage que pour les
+places de bassin et de parking.
+
+Cette règle a été ajoutée après vérification, non par principe. L'hypothèse de départ était que
+le staggering suffisait à l'assurer : **il ne suffit pas**. Le staggering décale les *départs
+béton*, pas les *sorties d'outfitting*. Mesuré avant la règle, sur la séquence brute du
+classeur : **28 float-ups de groupes différents se chevauchaient** dans le temps, et sur la
+séquence optimisée deux jours demandaient à deux ou trois bassins de se remplir ensemble —
+le 24/12/2026 (PL-5, hall A et hall B le même jour) et le 09/03/2027.
+
+Après la règle : **zéro chevauchement**, et elle ne coûte rien — zéro retard, zéro bloqué, même
+date d'arrêt de l'usine. L'optimiseur trouve une séquence qui la respecte sans perdre un jour.
+
 ## Arrêts annuels de l'usine
 
 Deux périodes par an, activables et réglables : **deux semaines à partir du lundi de la semaine
@@ -347,12 +363,11 @@ out` et `Outfitting UB`, `MPP Repair`, `Trench verification`, `Trench rectificat
 `Gravel bed`, `Locking fill & Backfill`. Le tableau reste ainsi superposable à celui du
 chantier, et ce qui manque se voit au lieu de se deviner.
 
-**Une question de découpage reste ouverte.** Le chantier sépare l'après-coulée en deux lignes —
-« Repairs + Integrated outfitting » puis « Outfitting UB ». Le solveur n'a qu'une seule phase
-d'outfitting, de `segmentsOutfitting × rythme` semaines. Laquelle des deux elle recouvre, ou
-comment elle se répartit entre les deux, est une décision de chantier : la barre est donc
-tracée sur sa propre ligne, `Outfitting (solveur, phase unique)`, et les deux lignes d'origine
-restent vides. Le jour où le découpage est arrêté, il suffit de rebrancher la source.
+**Le découpage de l'après-coulée est tranché.** Ce sont deux fronts distincts :
+« Repairs + Integrated outfitting », en aval de la zone de casting et **avant** le mouvement
+vers l'Upper Basin, puis « Outfitting UB » une fois l'élément déplacé. La phase d'outfitting du
+solveur est **la première** — celle qui suit immédiatement la coulée, sur la ligne. La seconde
+n'est pas modélisée et garde sa ligne vide.
 
 **Approximation assumée** : deux occupations d'une même ressource qui se suivent à moins d'une
 demi-semaine ne peuvent pas partager une colonne. La seconde est alors rognée d'une colonne —

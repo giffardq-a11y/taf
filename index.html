@@ -219,6 +219,8 @@
     <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+    <label class="check"><input type="checkbox" id="p-porte-unique" checked>
+      <span><b>Une seule paire de portes</b> — un seul float-up à la fois. Le groupe dont l'élément est le plus urgent passe d'abord, les autres attendent la porte. Le staggering décale les départs béton, pas les sorties d'outfitting : sans cette règle, deux ou trois bassins se remplissent parfois le même jour.</span></label>
     <label class="check"><input type="checkbox" id="p-vacances" checked>
       <span><b>Arrêts annuels de l'usine</b> — deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Les durées se règlent à l'étape 6. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.</span></label>
     <label class="field">Date de décision d'accélérer <input type="date" id="p-datedecision"></label>
@@ -394,6 +396,7 @@ const REGLES = {
   basins: 3, basinPlaces: 2,
   arretAuPlusTot: true,     // vider les halles au plus tôt plutôt que produire à flux tendu
   accelererEnCoursCycle: false, // accélérer sans attendre le prochain départ béton
+  floatUpUnique: true,      // une seule paire de portes : un float-up à la fois
   vacances: true,           // arrêts annuels de l'usine
   noelSemaines: 2,          // de la semaine du 25 décembre, couvre Noël et le jour de l'an
   paquesSemaines: 1,        // semaine sainte
@@ -1036,6 +1039,7 @@ function lireParamsUI() {
     arretAuPlusTot: caseCochee('p-arret-tot', REGLES.arretAuPlusTot),
     accelererEnCoursCycle: caseCochee('p-accel-cycle', REGLES.accelererEnCoursCycle),
     vacances: caseCochee('p-vacances', REGLES.vacances),
+    floatUpUnique: caseCochee('p-porte-unique', REGLES.floatUpUnique),
     dateDecision: dateChamp('p-datedecision'),
     etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
@@ -1099,6 +1103,7 @@ function runSimulation(paramsArg) {
   }
   const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
   const accelerationsEnCours = []; // éléments dont la coulée a été raccourcie en cours de route
+  const portesEnAttente = []; // float-ups repoussés faute de porte libre
   const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
@@ -1932,40 +1937,79 @@ function runSimulation(paramsArg) {
   // Un élément est encore susceptible de rejoindre un Float-up sur sa ligne (amont du Float-up).
   const EN_AMONT_FU = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp'];
 
+  /* ---- Une seule paire de portes ----
+     Le site n'a qu'une paire de portes : un seul float-up peut se faire à la fois. Le
+     staggering décale les départs béton, pas les sorties d'outfitting — il ne suffit donc
+     pas à l'assurer. Mesuré sur le classeur de référence avant cette règle : deux jours
+     demandaient à deux ou trois groupes de partir ensemble.
+     Le groupe qui passe est celui dont l'élément le plus urgent attend, au sens du rang
+     d'immersion : c'est le même départage que pour les places de bassin et de parking. */
+  function porteFloatUpOccupee() {
+    return elements.some(x => !x.termine && x.statut === 'FloatUp');
+  }
+  function urgenceGroupe(partants) {
+    return Math.min(...partants.map(e => isFinite(e.rangImmersion) ? e.rangImmersion : Infinity));
+  }
+
   function verifierFloatUpGroupes(dCur) {
-    for (const [lA, lB] of GROUPES) {
-      // PL-5 / SPE : cadences désormais indépendantes (le SPE stationne en Basin C bien après
-      // que les éléments normaux l'aient traversé), un float-up synchronisé bloquerait la ligne.
-      // Les règles spécifiques au Basin C remplacent ce couplage.
-      if (lA === 5) {
-        const dFinC = addDays(dCur, PARAMS.floatUpSem * 7);
-        [lA, lB].forEach(l => {
-          const e = premierDeLigne(l, 'AttenteFloatUp');
-          if (e) { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFinC; }
-        });
-        continue;
+    // Sans la contrainte, chaque groupe part dès qu'il est prêt : c'est l'ancien comportement.
+    if (PARAMS.floatUpUnique !== false) {
+      const candidats = [];
+      if (porteFloatUpOccupee()) {
+        // Porte prise : on note qui patiente, c'est le coût réel de la contrainte.
+        for (const [lA, lB] of GROUPES) {
+          const p = partantsDuGroupe(lA, lB);
+          if (p && p.length) portesEnAttente.push({date: new Date(dCur), passe: '(porte occupée)',
+            attendent: [LIGNE_NOM[lA]]});
+        }
+        return;
       }
-      const eA = premierDeLigne(lA, 'AttenteFloatUp');
-      const eB = premierDeLigne(lB, 'AttenteFloatUp');
-      const partants = [eA, eB].filter(Boolean);
-      if (!partants.length) continue;
+      for (const [lA, lB] of GROUPES) {
+        const p = partantsDuGroupe(lA, lB);
+        if (p && p.length) candidats.push({lA, lB, p});
+      }
+      if (!candidats.length) return;
+      candidats.sort((a, b) => urgenceGroupe(a.p) - urgenceGroupe(b.p));
+      const retenu = candidats[0];
+      if (candidats.length > 1) {
+        portesEnAttente.push({date: new Date(dCur), passe: LIGNE_NOM[retenu.lA],
+          attendent: candidats.slice(1).map(c => LIGNE_NOM[c.lA])});
+      }
+      lancerFloatUp(retenu.p, dCur);
+      return;
+    }
+    for (const [lA, lB] of GROUPES) {
+      const p = partantsDuGroupe(lA, lB);
+      if (p && p.length) lancerFloatUp(p, dCur);
+    }
+  }
 
-      // Une ligne épuisée (plus aucun élément en amont du Float-up) ne peut plus fournir de
-      // partenaire : les derniers éléments de la ligne jumelle partent alors seuls, sinon ils
-      // resteraient bloqués indéfiniment (les files des 2 lignes n'ont pas la même longueur).
-      const resteA = elements.some(x => x.ligne===lA && EN_AMONT_FU.includes(x.statut));
-      const resteB = elements.some(x => x.ligne===lB && EN_AMONT_FU.includes(x.statut));
-      if (!eA && resteA) continue;   // le partenaire de A va encore arriver : on attend
-      if (!eB && resteB) continue;
+  // Éléments qu'un groupe ferait partir aujourd'hui, ou null s'il n'est pas prêt.
+  function partantsDuGroupe(lA, lB) {
+    // PL-5 / SPE : cadences indépendantes (le SPE stationne en Basin C bien après que les
+    // éléments normaux l'aient traversé), un float-up synchronisé bloquerait la ligne.
+    if (lA === 5) {
+      return [lA, lB].map(l => premierDeLigne(l, 'AttenteFloatUp')).filter(Boolean);
+    }
+    const eA = premierDeLigne(lA, 'AttenteFloatUp');
+    const eB = premierDeLigne(lB, 'AttenteFloatUp');
+    const partants = [eA, eB].filter(Boolean);
+    if (!partants.length) return null;
+    // Une ligne épuisée (plus aucun élément en amont du Float-up) ne peut plus fournir de
+    // partenaire : les derniers éléments de la ligne jumelle partent alors seuls, sinon ils
+    // resteraient bloqués indéfiniment (les files des 2 lignes n'ont pas la même longueur).
+    const resteA = elements.some(x => x.ligne === lA && EN_AMONT_FU.includes(x.statut));
+    const resteB = elements.some(x => x.ligne === lB && EN_AMONT_FU.includes(x.statut));
+    if (!eA && resteA) return null;   // le partenaire de A va encore arriver : on attend
+    if (!eB && resteB) return null;
+    return partants;
+  }
 
-      // Le couplage porte sur la paire elle-même : les deux lignes sortent de l'outfitting
-      // ensemble, le plus rapide attendant le plus lent. L'élément qui vient d'entrer en
-      // outfitting derrière eux appartient au cycle suivant et n'est pas bloquant — l'exiger
-      // rendrait le float-up quasi impossible, la place d'outfitting étant reprise dès qu'elle
-      // se libère.
-      const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
-      partants.forEach(e => { e.statut='FloatUp'; e.dateDebutFU=dCur; e.dateFinFU=dFin; });
-      if (partants.length === 1) floatUpSolo.push({id: partants[0].id, ligne: LIGNE_NOM[partants[0].ligne], date: new Date(dCur)});
+  function lancerFloatUp(partants, dCur) {
+    const dFin = addDays(dCur, PARAMS.floatUpSem * 7);
+    partants.forEach(e => { e.statut = 'FloatUp'; e.dateDebutFU = dCur; e.dateFinFU = dFin; });
+    if (partants.length === 1 && partants[0].ligne <= 4) {
+      floatUpSolo.push({id: partants[0].id, ligne: LIGNE_NOM[partants[0].ligne], date: new Date(dCur)});
     }
   }
 
@@ -2117,6 +2161,11 @@ function runSimulation(paramsArg) {
   if (evacuationsSPE.length) log(`Zone de stockage SPE : ${evacuationsSPE.length} évacuation(s) anticipée(s) du Basin C — ${evacuationsSPE.map(x=>`${x.id} le ${fmt(x.date)}`).join(', ')}.`);
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
+  if (portesEnAttente.length) {
+    const jours = new Set(portesEnAttente.map(p => +p.date)).size;
+    log(`Paire de portes : ${jours} jour(s) d'attente de porte, ${portesEnAttente.length} float-up(s) repoussé(s) d'un jour — `
+      + `du ${fmt(new Date(Math.min(...portesEnAttente.map(p => +p.date))))} au ${fmt(new Date(Math.max(...portesEnAttente.map(p => +p.date))))}.`);
+  }
   if (accelerationsEnCours.length) {
     const gain = accelerationsEnCours.reduce((s, a) => s + a.gainJours, 0);
     log(`Accélération en cours de cycle : ${accelerationsEnCours.length} élément(s) raccourci(s) en cours de coulée, ${gain} jour(s) gagnés au total — `

@@ -23,15 +23,13 @@ ELEMENTS = D['elements']
 # ('libellé', source, paramètre). source vaut None quand la ressource n'est pas modélisée :
 # la ligne existe quand même, pour que le planning reste superposable à celui du chantier.
 GRILLE = []
-# Le chantier découpe l'après-coulée en deux : « Repairs + Integrated outfitting » puis
-# « Outfitting UB ». Le solveur n'en connaît qu'une, de durée `segmentsOutfitting × rythme`.
-# Laquelle des deux elle recouvre est une question de chantier, pas de modèle : on la trace
-# donc sur sa propre ligne, et les deux lignes du planning restent vides et signalées. Le jour
-# où le découpage est arrêté, il suffira de rebrancher la source sur la bonne.
+# L'après-coulée se fait sur deux fronts distincts : « Repairs + Integrated outfitting », en
+# aval de la zone de casting et avant le mouvement vers l'Upper Basin, puis « Outfitting UB »
+# une fois l'élément déplacé. La phase d'outfitting du solveur est la première — celle qui suit
+# immédiatement la coulée, sur la ligne. La seconde n'est pas modélisée et garde sa ligne vide.
 for n in range(1, 6):
     GRILLE.append((f'Line {n} - STE Casting', 'beton', n))
-    GRILLE.append((f'Line {n} - Outfitting (solveur, phase unique)', 'outfitting', n))
-    GRILLE.append((f'Line {n} - STE Repairs + Integrated out', None, None))
+    GRILLE.append((f'Line {n} - STE Repairs + Integrated out', 'outfitting', n))
     GRILLE.append((f'Line {n} - Outfitting UB', None, None))
 GRILLE += [
     ('Cage Prefabrication Area', 'zone', 1),   # CPA
@@ -84,7 +82,7 @@ def occupations():
                 out.append((libelle, d, f, lab))
         barre(f"Line {e['ligne']} - STE Casting", e['beton']) if e['ligne'] <= 5 else None
         if e['ligne'] <= 5:
-            barre(f"Line {e['ligne']} - Outfitting (solveur, phase unique)", e['outfitting'])
+            barre(f"Line {e['ligne']} - STE Repairs + Integrated out", e['outfitting'])
         if e['zones']:
             # Une zone SPE est occupée jusqu'à l'entrée dans la suivante ; la dernière, jusqu'au
             # float-up. Le planning ne date pas de sortie, la simulation si.
