@@ -29,7 +29,9 @@ pouvoir dire lesquelles.
 Et, hors DCMA, ce qui compte autant sur un planning répétitif :
   - la densité de liens et les liens redondants (un chemin plus long existe déjà) ;
   - les boucles de logique ;
-  - les liens qui traversent deux calendriers différents, source de jours fantômes ;
+  - les liens qui traversent deux calendriers différents : parfois des jours fantômes,
+    parfois la frontière légitime entre un quai ouvert en continu et un moyen en mer
+    limité par l'état de mer — le chiffre se lit, il ne se corrige pas de lui-même ;
   - la profondeur et le remplissage du WBS ;
   - la composition du chemin déterminant calculé par P6 lui-même.
 
@@ -47,7 +49,8 @@ BESOINS = {
     'PROJECT': ['proj_id', 'proj_short_name', 'last_recalc_date', 'plan_start_date',
                 'scd_end_date', 'critical_path_type', 'clndr_id'],
     'SCHEDOPTIONS': None,
-    'CALENDAR': ['clndr_id', 'clndr_name', 'clndr_type', 'day_hr_cnt', 'default_flag'],
+    'CALENDAR': ['clndr_id', 'clndr_name', 'clndr_type', 'day_hr_cnt', 'week_hr_cnt',
+                 'year_hr_cnt', 'default_flag'],
     'PROJWBS': ['wbs_id', 'parent_wbs_id', 'wbs_name', 'proj_node_flag'],
     'TASK': ['task_id', 'wbs_id', 'clndr_id', 'task_code', 'task_name', 'task_type',
              'status_code', 'total_float_hr_cnt', 'free_float_hr_cnt', 'target_drtn_hr_cnt',
@@ -292,13 +295,33 @@ def analyser(chemin, rap):
                   f"{reel(cals.get(k, {}).get('day_hr_cnt', 8)):.0f}", v]
                  for k, v in utilises.most_common(10)], (1, 2))
     # Un lien entre deux calendriers différents fabrique des jours ouvrés qui n'existent que
-    # d'un côté : c'est une cause classique de décalage que personne ne sait expliquer.
+    # d'un côté. C'est parfois un défaut, mais pas toujours : sur des travaux maritimes, un
+    # calendrier réduit encode la praticabilité météo d'un moyen, et la traversée entre un
+    # quai ouvert 24 h et une drague limitée par l'état de mer est alors parfaitement fondée.
+    # Le chiffre se lit, il ne se corrige pas de lui-même.
     croises = sum(1 for l in liens
                   if l['task_id'] in par_id and l['pred_task_id'] in par_id
                   and par_id[l['task_id']]['clndr_id'] != par_id[l['pred_task_id']]['clndr_id'])
     rap.dire('', f'  {croises} lien(s) relient deux activités de calendriers différents '
              f'({pct(croises, len(liens)).strip()}).',
-             '  Chaque traversée fabrique des jours ouvrés d\'un seul côté du lien.')
+             "  Chaque traversée fabrique des jours ouvrés d'un seul côté du lien. À vérifier",
+             '  au cas par cas : sur des travaux en mer, un calendrier réduit peut encoder la',
+             "  praticabilité météo d'un moyen, et la traversée est alors justifiée.")
+    # Même moyen déclaré avec deux longueurs de journée : les durées cessent d'être comparables
+    # d'une phase à l'autre, puisque P6 convertit les heures en jours par `day_hr_cnt`.
+    parAn = collections.defaultdict(set)
+    for k in utilises:
+        c = cals.get(k, {})
+        parAn[(round(reel(c.get('year_hr_cnt', 0))), (c.get('clndr_name') or '')[:14])].add(
+            round(reel(c.get('day_hr_cnt', 8))))
+    melanges = {k: v for k, v in parAn.items() if len(v) > 1}
+    if melanges:
+        rap.dire('', '  Même capacité annuelle, longueur de journée différente :')
+        rap.tableau(['h/an', 'Préfixe de calendrier', 'h/j déclarées'],
+                    [[a, n, ' et '.join(str(x) for x in sorted(v))] for (a, n), v in
+                     sorted(melanges.items())[:10]], (0,))
+        rap.dire("  P6 convertit les durées en jours par `day_hr_cnt` : une tâche « de 3 jours »",
+                 "  ne vaut pas le même nombre d'heures selon la version du calendrier employée.")
 
     # ---------------------------------------------------------------- WBS
     rap.titre('9. Arborescence WBS')
