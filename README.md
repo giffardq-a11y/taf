@@ -216,8 +216,14 @@ Vérifié par l'expérience : en retirant les cadences en demi-semaines de la li
 zéro élément en retard, avec ou sans elle. Sur le classeur de référence, seuls 5 éléments
 tournaient à 1,5 sem/segment ; ce sont eux qui portaient tout le coût.
 
-Le journal signale le cas dès qu'il se produit, avec les cadences fautives et le nombre
-d'éléments concernés : sans cet avertissement, les retards seraient incompréhensibles.
+**La règle se désactive donc d'elle-même à cadence intermédiaire**, et ne s'applique qu'aux
+rythmes entiers (4, 3, 2, 1 sem/segment) où elle ne coûte rien — plutôt que de rattraper un
+dérapage qui n'a de sens qu'au bénéfice de l'atelier, jamais à son détriment. Une ligne qui
+passe d'un rythme entier à un rythme intermédiaire perd sa contrainte de jour le temps de la
+cadence intermédiaire, et la retrouve dès qu'elle revient à un rythme entier — sans
+intervention. Le journal le signale, avec les cadences concernées et le nombre d'éléments qui
+en profitent : sans ce repère, un jour de coulage manquant en fin de programme passerait pour
+un oubli plutôt que pour la règle qui s'applique.
 
 ## Quand une accélération prend effet
 
@@ -711,6 +717,27 @@ repère, pas un verdict.
 Sur l'export de référence — 86 Mo, 67 000 activités, 107 000 liens, 108 calendriers — le
 rapport sort en **4 secondes**. Le coût ne dépend pas de la taille du fichier : c'est le script
 qui le lit, pas l'analyste.
+
+## Planning de post-tension (`post_tension.py`)
+
+Dérive un planning de post-tension du meilleur scénario de coulée calculé par le solveur,
+au format Dywidag : la post-tension d'un élément commence **deux jours après le démarrage
+de la coulée de l'élément suivant sur la même ligne** (règle du modèle Dywidag, cellule
+E31) — le temps que le poussage l'ait dégagé et que le suivant soit engagé. Pour le dernier
+élément d'une ligne, faute de suivant, le départ se prend sur sa propre fin de coulée.
+
+```bash
+node planning_runner.js classeur.xlsx 2026-08-05 > plan.json
+python3 post_tension.py plan.json Post_tension.xlsx --threading 6 --stressing 4 --grouting 2
+```
+
+Sortie en Gantt classique — une ligne par élément, dates de début/fin par opération
+(enfilage, mise en tension, injection), numéro d'élément en clair, plus un graphique en
+barres empilées horizontal. La ligne SPE reste hors tableau : le solveur ne date pas la
+coulée d'un élément spécial, il n'en suit que les passages d'aire — y lire un départ de
+post-tension serait une donnée fabriquée. Les durées par opération (en postes D/N,
+demi-journées) sont des paramètres de ligne de commande, pas des constantes du chantier :
+les valeurs par défaut sont des repères à remplacer par celles de Dywidag.
 
 ## Classeur réduit
 

@@ -1,4 +1,4 @@
-"""Planning de post-tension au format Dywidag, calé sur les coulées du solveur.
+"""Planning de post-tension en Gantt classique, calé sur les coulées du solveur.
 
     node planning_runner.js classeur.xlsx 2026-08-05 > plan.json
     python3 post_tension.py plan.json Post_tension.xlsx [--threading 6] [--stressing 4] [--grouting 2]
@@ -16,40 +16,41 @@ porte pas et le solveur ne les connaît pas. Les valeurs par défaut sont des re
 par celles de Dywidag ; tout le reste — les dates, l'ordre, la ligne, le bassin — vient du
 solveur et n'est pas à discuter ici.
 
-La mise en page reprend le modèle : un bloc par bassin, deux lignes par bassin, trois
-opérations par ligne, une colonne par poste, et une page par tranche de 63 jours comme dans le
-fichier d'origine.
+La ligne SPE reste hors planning : le solveur ne date pas la coulée d'un élément spécial, il
+n'en suit que les passages d'aire — y lire un départ de post-tension reviendrait à en inventer
+un.
+
+Sortie : un Gantt classique, une ligne par élément, dates de début/fin par opération, numéro
+d'élément en clair — pas la grille postes-par-jour du modèle Dywidag.
 """
 import argparse
 import json
 from datetime import date, timedelta
 
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.line import LineProperties
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-# Lignes du modèle : un bassin, ses deux lignes de production, dans l'ordre du fichier Dywidag.
-BASSINS = [('Basin A', [(1, 'PL-1'), (2, 'PL-2')]),
-           ('Basin B', [(3, 'PL-3'), (4, 'PL-4')]),
-           ('Basin C', [(5, 'PL-5'), (6, 'SPE')])]
+LIGNE_NOM = {1: 'PL-1', 2: 'PL-2', 3: 'PL-3', 4: 'PL-4', 5: 'PL-5'}
 OPERATIONS = ['Threading', 'Stressing', 'Grouting']
 COULEUR = {'Threading': 'FFC7CE', 'Stressing': 'FFEB9C', 'Grouting': 'C6EFCE'}
 BORD = Border(*[Side(style='thin', color='FFB0B0B0')] * 4)
-JOURS_PAR_PAGE = 63          # comme le modèle Dywidag
-POSTES = ['D', 'N']
 
 
 def planifier(elements, durees, retard_j=2):
-    """Pour chaque élément : le poste de départ de sa post-tension, et ses trois opérations.
+    """Pour chaque élément d'une ligne PL : ses trois opérations, en postes absolus.
 
-    Renvoie une liste de {ligne, id, op, debut, fin} en numéros de poste absolus, comptés
-    depuis le premier jour du planning. Un poste = une demi-journée ; le jour J occupe les
+    Renvoie une liste de {ligne, id, op, jour, poste0, nb} — `jour` est la date (calendaire) où
+    démarre le poste 0 de l'opération, `poste0` son décalage en postes (demi-journées) au sein
+    de ce jour-là, `nb` sa durée en postes. Un poste = une demi-journée ; le jour J occupe les
     postes 2J et 2J+1.
     """
-    # Seules les lignes PL sont retenues. Un élément spécial ne se coule pas par segments : le
-    # solveur ne lui donne aucune date de coulée, il ne suit que ses passages d'aire. Y lire un
-    # départ de post-tension reviendrait à en inventer un — la ligne SPE reste donc en place
-    # dans la grille, mais vide, et le fait est signalé plutôt que masqué.
+    # Seules les lignes PL sont retenues. La ligne SPE n'a pas de date de coulée dans le
+    # solveur (il ne suit que ses passages d'aire) : lui inventer un départ de post-tension
+    # serait une donnée fabriquée, elle reste donc absente de cette sortie.
     par_ligne = {}
     for e in elements:
         if e['ligne'] <= 5 and e['beton'][0]:
@@ -75,88 +76,119 @@ def planifier(elements, durees, retard_j=2):
     return barres, sans_suivant
 
 
-def ecrire(barres, dst, origine, nb_jours, durees, meta):
+def par_element(barres):
+    """Regroupe les barres par élément : {ligne, id, Threading: (début, fin), ...}, triés par
+    ligne puis par début de post-tension. Début/fin sont des dates calendaires (jour du poste
+    concerné) — l'unité d'affichage d'un Gantt classique, pas le poste lui-même."""
+    par_id = {}
+    for b in barres:
+        d = par_id.setdefault(b['id'], {'ligne': b['ligne'], 'id': b['id']})
+        debut = b['jour'] + timedelta(days=b['poste0'] // 2)
+        fin = b['jour'] + timedelta(days=(b['poste0'] + b['nb'] - 1) // 2)
+        d[b['op']] = (debut, fin)
+    lignes = sorted(par_id.values(), key=lambda d: (d['ligne'], d['Threading'][0]))
+    return lignes
+
+
+def ecrire(elements_g, dst, meta, durees):
     wb = Workbook()
     ws = wb.active
     ws.title = 'Post tensioning'
     gras = Font(bold=True, size=9)
     petit = Font(size=8)
+    centre = Alignment(horizontal='center')
 
-    ws['A1'] = 'Post tensioning — calé sur les coulées du solveur'
+    ws['A1'] = 'Post tensioning — Gantt calé sur les coulées du solveur'
     ws['A1'].font = Font(bold=True, size=12)
     ws['A2'] = (f"Départ : {meta['retard']} jours après le démarrage de la coulée de l'élément "
-                f"suivant sur la même ligne (règle Dywidag). "
+                f"suivant sur la même ligne (règle Dywidag, cellule E31). "
                 f"Durées en postes — Threading {durees['Threading']}, Stressing "
                 f"{durees['Stressing']}, Grouting {durees['Grouting']} : paramètres à confirmer.")
     ws['A2'].font = petit
     ws['A3'] = (f"Scénario : {meta['classeur']}, date de référence {meta['dateRef']}, "
-                f"{meta['kpi']}")
+                f"{meta['kpi']}. Ligne SPE hors tableau : pas de date de coulée solveur.")
     ws['A3'].font = petit
 
-    ligne_xl = 5
-    pages = (nb_jours + JOURS_PAR_PAGE - 1) // JOURS_PAR_PAGE
-    for page in range(pages):
-        j0 = page * JOURS_PAR_PAGE
-        j1 = min(j0 + JOURS_PAR_PAGE, nb_jours)
-        d0 = origine + timedelta(days=j0)
-        d1 = origine + timedelta(days=j1 - 1)
-        ws.cell(ligne_xl, 1, f'{d0:%d/%m/%Y} → {d1:%d/%m/%Y}   ·   page {page + 1} / {pages}').font = gras
-        ligne_xl += 1
+    entete = 5
+    colonnes = ['Ligne', 'Élément', 'Threading début', 'Threading fin',
+                'Stressing début', 'Stressing fin', 'Grouting début', 'Grouting fin']
+    for c, nom in enumerate(colonnes, start=1):
+        cell = ws.cell(entete, c, nom)
+        cell.font = gras
+        cell.alignment = centre
+        cell.border = BORD
 
-        # En-têtes : numéro de jour sur deux colonnes, puis le poste D / N.
-        tete = ligne_xl
-        for j in range(j0, j1):
-            col = 4 + (j - j0) * 2
-            c = ws.cell(tete, col, j + 1)
-            c.font = petit
-            c.alignment = Alignment(horizontal='center')
-            ws.merge_cells(start_row=tete, start_column=col, end_row=tete, end_column=col + 1)
-            if (j + 1) % 7 == 0:                     # repère de fin de semaine, comme le modèle
-                for k in (0, 1):
-                    ws.cell(tete, col + k).fill = PatternFill('solid', fgColor='FFC7CE')
-            for k, p in enumerate(POSTES):
-                cp = ws.cell(tete + 1, col + k, p)
-                cp.font = petit
-                cp.alignment = Alignment(horizontal='center')
-        ligne_xl += 2
+    origine = min(d['Threading'][0] for d in elements_g)
+    r = entete + 1
+    for d in elements_g:
+        ws.cell(r, 1, LIGNE_NOM[d['ligne']]).font = petit
+        ws.cell(r, 2, d['id']).font = Font(size=8, bold=True)
+        col = 3
+        for op in OPERATIONS:
+            debut, fin = d[op]
+            ws.cell(r, col, debut).number_format = 'dd/mm/yyyy'
+            ws.cell(r, col + 1, fin).number_format = 'dd/mm/yyyy'
+            for k in (0, 1):
+                c = ws.cell(r, col + k)
+                c.font = petit
+                c.border = BORD
+                c.fill = PatternFill('solid', fgColor=COULEUR[op])
+            col += 2
+        r += 1
+    fin_tableau = r - 1
 
-        for nom_bassin, lignes in BASSINS:
-            debut_bassin = ligne_xl
-            for num, nom_ligne in lignes:
-                for op in OPERATIONS:
-                    ws.cell(ligne_xl, 2, nom_ligne if op == OPERATIONS[0] else '').font = petit
-                    ws.cell(ligne_xl, 3, op).font = petit
-                    for j in range(j0, j1):
-                        for k in range(2):
-                            ws.cell(ligne_xl, 4 + (j - j0) * 2 + k).border = BORD
-                    # Les barres de cette ligne et de cette opération.
-                    for b in barres:
-                        if b['ligne'] != num or b['op'] != op:
-                            continue
-                        p0 = (b['jour'] - origine).days * 2 + b['poste0']
-                        for p in range(p0, p0 + b['nb']):
-                            j, k = divmod(p, 2)
-                            if not (j0 <= j < j1):
-                                continue
-                            c = ws.cell(ligne_xl, 4 + (j - j0) * 2 + k)
-                            c.fill = PatternFill('solid', fgColor=COULEUR[op])
-                            c.border = BORD
-                            if p == p0:
-                                c.value = b['id'].replace('STE-', '').replace('SPE-', 'S')
-                                c.font = Font(size=7)
-                                c.alignment = Alignment(horizontal='left')
-                    ligne_xl += 1
-            ws.cell(debut_bassin, 1, nom_bassin).font = gras
-            ws.merge_cells(start_row=debut_bassin, start_column=1,
-                           end_row=ligne_xl - 1, end_column=1)
-        ligne_xl += 2
+    for c, larg in enumerate([8, 11, 12, 12, 12, 12, 12, 12], start=1):
+        ws.column_dimensions[get_column_letter(c)].width = larg
+    ws.freeze_panes = 'A6'
 
-    ws.column_dimensions['A'].width = 10
-    ws.column_dimensions['B'].width = 8
-    ws.column_dimensions['C'].width = 11
-    for col in range(4, 4 + JOURS_PAR_PAGE * 2):
-        ws.column_dimensions[get_column_letter(col)].width = 2.6
-    ws.freeze_panes = 'D1'
+    # Colonnes de calcul (masquées) pour le Gantt : décalage depuis l'origine et durée de
+    # chaque opération, en jours — le format « barre empilée » d'Excel dessine le Gantt à
+    # partir de ces nombres, la première série (le décalage) restant invisible.
+    base_calc = 12
+    ws.cell(entete, base_calc, 'Repère').font = gras
+    ws.cell(entete, base_calc + 1, 'Décalage (j)').font = gras
+    for k, op in enumerate(OPERATIONS):
+        ws.cell(entete, base_calc + 2 + k, f'{op} (j)').font = gras
+    r = entete + 1
+    for d in elements_g:
+        ws.cell(r, base_calc, f"{LIGNE_NOM[d['ligne']]} · {d['id']}")
+        ws.cell(r, base_calc + 1, (d['Threading'][0] - origine).days)
+        for k, op in enumerate(OPERATIONS):
+            debut, fin = d[op]
+            ws.cell(r, base_calc + 2 + k, (fin - debut).days + 1)
+        r += 1
+    for c in range(base_calc, base_calc + 2 + len(OPERATIONS)):
+        ws.column_dimensions[get_column_letter(c)].hidden = True
+
+    chart = BarChart()
+    chart.type = 'bar'          # barres horizontales : axe des catégories = éléments
+    chart.grouping = 'stacked'
+    chart.overlap = 100
+    chart.title = 'Post-tension — Gantt (une barre par élément)'
+    chart.y_axis.title = None
+    chart.x_axis.title = 'Jours depuis le début du programme de post-tension'
+    chart.x_axis.number_format = '0'
+    chart.height = max(10, 0.5 * len(elements_g))
+    chart.width = 32
+
+    cats = Reference(ws, min_col=base_calc, min_row=entete + 1, max_row=fin_tableau)
+    offset = Reference(ws, min_col=base_calc + 1, min_row=entete, max_row=fin_tableau)
+    chart.add_data(offset, titles_from_data=True)
+    for k, op in enumerate(OPERATIONS):
+        ref = Reference(ws, min_col=base_calc + 2 + k, min_row=entete, max_row=fin_tableau)
+        chart.add_data(ref, titles_from_data=True)
+    chart.set_categories(cats)
+
+    # Première série (décalage) invisible : c'est elle qui pousse le début de chaque barre au
+    # bon jour sans être dessinée, l'artifice classique du Gantt en barres empilées Excel.
+    chart.series[0].graphicalProperties = GraphicalProperties(
+        noFill=True, ln=LineProperties(noFill=True))
+    for k, op in enumerate(OPERATIONS):
+        chart.series[k + 1].graphicalProperties = GraphicalProperties(solidFill=COULEUR[op])
+
+    ancre = f'K{entete + len(elements_g) + 4}'
+    ws.add_chart(chart, ancre)
+
     wb.save(dst)
 
 
@@ -178,24 +210,21 @@ def main():
     if not barres:
         raise SystemExit('Aucun élément avec une date de coulée : rien à planifier.')
 
-    debuts = [b['jour'] for b in barres]
-    origine = min(debuts)
-    fin = max(b['jour'] + timedelta(days=(b['poste0'] + b['nb'] + 1) // 2) for b in barres)
-    nb_jours = (fin - origine).days + 1
+    elements_g = par_element(barres)
     k = D['kpi']
     meta = {'classeur': D['classeur'], 'dateRef': D['dateRef'], 'retard': args.retard,
             'kpi': f"{k['retards']} élément(s) en retard, {k['bloques']} bloqué(s), "
                    f"fin de production {k['finProduction']}"}
-    ecrire(barres, args.out, origine, nb_jours, durees, meta)
+    ecrire(elements_g, args.out, meta, durees)
 
-    par_op = {op: sum(1 for b in barres if b['op'] == op) for op in OPERATIONS}
-    print(f"{args.out} écrit — {len(barres) // 3} élément(s) post-tendus, "
-          f"{nb_jours} jours du {origine:%d/%m/%Y} au {fin:%d/%m/%Y}.")
-    print(f"   opérations : {par_op}")
+    debut = min(d['Threading'][0] for d in elements_g)
+    fin = max(d['Grouting'][1] for d in elements_g)
+    print(f"{args.out} écrit — {len(elements_g)} élément(s) post-tendus, Gantt du "
+          f"{debut:%d/%m/%Y} au {fin:%d/%m/%Y}.")
     spe = [e['id'] for e in D['elements'] if e['ligne'] == 6]
     if spe:
-        print(f"   ligne SPE laissée vide ({len(spe)} éléments) : le solveur ne date pas la "
-              f"coulée d'un élément spécial, il n'en suit que les passages d'aire.")
+        print(f"   ligne SPE laissée hors tableau ({len(spe)} éléments) : le solveur ne date pas "
+              f"la coulée d'un élément spécial, il n'en suit que les passages d'aire.")
     if sans_suivant:
         print(f"   {len(sans_suivant)} dernier(s) élément(s) de ligne sans suivant — départ pris "
               f"sur leur propre fin de coulée : {', '.join(sans_suivant)}")

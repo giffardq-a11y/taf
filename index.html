@@ -1580,7 +1580,7 @@ function runSimulation(paramsArg) {
     // de la ligne reste donc en retard de ce même écart au cycle suivant. Sans cette marge,
     // le solveur y lirait « cible franchie » et lui ferait attendre un takt entier, chaque
     // fois — la ligne perdrait un cycle sur deux pour deux jours de décalage.
-    const marge = PARAMS.jourCoulage ? 6 : 0;
+    const marge = (PARAMS.jourCoulage && rythmeEntier(ligne)) ? 6 : 0;
     if (attente < -marge) attente += takt;   // la cible de ce cycle est vraiment passée
     if (attente < 0) attente = 0;            // franchie de peu : le jour de coulage l'explique
     return versJourCoulage(ligne, dCur, attente);
@@ -1592,16 +1592,28 @@ function runSimulation(paramsArg) {
     return Math.abs(lastRhythmState[1].rhythm - lastRhythmState[3].rhythm) < 1e-9;
   }
 
+  // Le jour de coulage n'a de sens qu'à cadence entière : le cycle d'un élément dure
+  // R × 7 × 9 jours, multiple de 7 seulement quand R l'est. À cadence demi-entière (1,5 —
+  // 2,5 — 3,5 sem/segment) le cycle fait un nombre non entier de semaines et le jour de
+  // semaine dérive à chaque élément ; le tenir forcerait un rattrapage à chaque cycle, prélevé
+  // sur les éléments les plus rapides — ceux de la fin de programme, qui n'ont plus de marge.
+  // La règle se désactive donc d'elle-même à cadence intermédiaire, et ne s'applique qu'aux
+  // cadences entières où elle ne coûte rien.
+  function rythmeEntier(ligne) {
+    return Number.isInteger(lastRhythmState[ligne].rhythm);
+  }
+
   /* ---- Jour de coulage propre à chaque ligne ----
      Cinq lignes qui démarrent le même jour, ce sont cinq premières coulées le même jour :
      centrale à béton, grue et équipe de coffrage saturées en début de semaine puis désœuvrées
      ensuite. Chaque ligne reçoit donc son jour — PL-1 le lundi, …, PL-5 le vendredi par
      défaut — et n'y lance un élément que ce jour-là. Le reste du cycle suit : à cadence
-     entière, les neuf coulées de segment tombent le même jour de semaine ; à cadence
-     demi-entière elles alternent entre deux jours, ce que le rythme impose et non la règle.
-     L'attente coûte au plus six jours par élément, et rien quand la ligne est déjà en avance. */
+     entière, les neuf coulées de segment tombent le même jour de semaine — la règle est
+     gratuite et reste active. L'attente coûte au plus six jours par élément, et rien quand la
+     ligne est déjà en avance. */
   function jourDeCoulage(ligne, dCur) {
     if (!PARAMS.jourCoulage) return true;
+    if (!rythmeEntier(ligne)) return true;
     const vise = REGLES.joursCoulage[ligne];
     if (!vise) return true;
     return dCur.getDay() === vise;
@@ -1611,6 +1623,7 @@ function runSimulation(paramsArg) {
   // et les deux règles visent alors la même date au lieu de se renvoyer la balle.
   function versJourCoulage(ligne, dCur, attente) {
     if (!PARAMS.jourCoulage) return attente;
+    if (!rythmeEntier(ligne)) return attente;
     const vise = REGLES.joursCoulage[ligne];
     if (!vise) return attente;
     // Arrondi au jour plein d'abord : une attente fractionnaire (cadence en demi-semaines)
@@ -1628,7 +1641,7 @@ function runSimulation(paramsArg) {
     // rendrait la main un jour où le jour de coulage retient encore la ligne ; le lendemain la
     // phase serait franchie et il faudrait attendre le cycle suivant — un battement entre les
     // deux règles qui coûte des mois, là où chacune prise seule ne coûte que des jours.
-    const tol = PARAMS.jourCoulage ? 1e-9 : STAGGER.tolJours;
+    const tol = (PARAMS.jourCoulage && rythmeEntier(ligne)) ? 1e-9 : STAGGER.tolJours;
     if (attente === null || attente <= tol) return true;
 
     // Contrainte dure : uniquement à partir de la cadence de 1 semaine/segment, et à condition
@@ -2410,19 +2423,20 @@ function runSimulation(paramsArg) {
     /* Le cycle d'un élément dure R × 7 × 9 jours. Tant que ce takt est un multiple de 7, le
        départ retombe de lui-même sur le jour de coulage de la ligne et la règle est gratuite.
        Une cadence en demi-semaines donne un takt qui ne l'est pas — 1,5 sem/segment fait
-       94,5 jours — et le jour de semaine dérive à chaque élément : il faut le rattraper, et
-       le rattrapage tombe sur les éléments les plus rapides, ceux de la fin de programme,
-       qui n'ont plus de marge. Le silence sur ce point rendrait les retards incompréhensibles. */
+       94,5 jours — et le jour de semaine dériverait à chaque élément. Plutôt que de le
+       rattraper au prix des éléments les plus rapides, la règle se désactive d'elle-même sur
+       ces cadences et ne s'applique qu'aux rythmes entiers ; le signaler évite qu'un jour de
+       coulage manquant en fin de programme passe pour un oubli. */
     const bancales = [...new Set(elements.filter(e => e.ligne <= 5 && e.rythme).map(e => e.rythme))]
       .filter(R => !Number.isInteger(R * 9)).sort((a, b) => a - b);
     if (bancales.length) {
       const nb = elements.filter(e => e.ligne <= 5 && bancales.includes(e.rythme)).length;
-      log(`⚠ Jour de coulage et cadence en demi-semaines sont incompatibles : à `
-        + `${bancales.map(R => `${String(R).replace('.', ',')} sem/segment`).join(' et ')}, le cycle `
-        + `(${bancales.map(R => String(R * 63).replace('.', ',')).join(' et ')} j) n'est pas un multiple de 7 — `
-        + `le jour de départ dérive et doit être rattrapé à chaque élément. ${nb} élément(s) concerné(s). `
-        + `Retirer les cadences en demi-semaines de la liste des rythmes rend la règle gratuite ; `
-        + `la laisser coûte quelques jours par élément, prélevés là où il n'y a plus de marge.`, 'warn');
+      log(`Jour de coulage désactivé aux cadences intermédiaires ` +
+          `(${bancales.map(R => `${String(R).replace('.', ',')} sem/segment`).join(' et ')}) : `
+        + `le cycle (${bancales.map(R => String(R * 63).replace('.', ',')).join(' et ')} j) n'est pas `
+        + `multiple de 7 et forcerait un jour fixe à dériver à chaque élément. ${nb} élément(s) `
+        + `concerné(s) tournent sans contrainte de jour tant qu'ils restent à cette cadence ; la `
+        + `règle reprend d'elle-même dès le retour à une cadence entière.`);
     }
   }
   const fermetures = [...fermeturesProvisoires.values()];
