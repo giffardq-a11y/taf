@@ -2312,6 +2312,23 @@ function runSimulation(paramsArg) {
     const total = [1,2,3,4,5].reduce((s, l) => s + attenteJourCoulage[l], 0);
     log(`Jour de coulage par ligne : ${[1,2,3,4,5].map(l => `${LIGNE_NOM[l]} ${JOURS_SEM[REGLES.joursCoulage[l]] || '—'}`).join(', ')}`
       + ` — ${total} jour(s) d'attente au total pour tenir le calendrier.`);
+    /* Le cycle d'un élément dure R × 7 × 9 jours. Tant que ce takt est un multiple de 7, le
+       départ retombe de lui-même sur le jour de coulage de la ligne et la règle est gratuite.
+       Une cadence en demi-semaines donne un takt qui ne l'est pas — 1,5 sem/segment fait
+       94,5 jours — et le jour de semaine dérive à chaque élément : il faut le rattraper, et
+       le rattrapage tombe sur les éléments les plus rapides, ceux de la fin de programme,
+       qui n'ont plus de marge. Le silence sur ce point rendrait les retards incompréhensibles. */
+    const bancales = [...new Set(elements.filter(e => e.ligne <= 5 && e.rythme).map(e => e.rythme))]
+      .filter(R => !Number.isInteger(R * 9)).sort((a, b) => a - b);
+    if (bancales.length) {
+      const nb = elements.filter(e => e.ligne <= 5 && bancales.includes(e.rythme)).length;
+      log(`⚠ Jour de coulage et cadence en demi-semaines sont incompatibles : à `
+        + `${bancales.map(R => `${String(R).replace('.', ',')} sem/segment`).join(' et ')}, le cycle `
+        + `(${bancales.map(R => String(R * 63).replace('.', ',')).join(' et ')} j) n'est pas un multiple de 7 — `
+        + `le jour de départ dérive et doit être rattrapé à chaque élément. ${nb} élément(s) concerné(s). `
+        + `Retirer les cadences en demi-semaines de la liste des rythmes rend la règle gratuite ; `
+        + `la laisser coûte quelques jours par élément, prélevés là où il n'y a plus de marge.`, 'warn');
+    }
   }
   const fermetures = [...fermeturesProvisoires.values()];
   const critiques = fermetures.filter(f => f.critique);

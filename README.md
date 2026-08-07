@@ -143,9 +143,28 @@ de juin 2029 à mars 2031. Deux corrections : la cible de phase du staggering es
 reportée sur le jour de coulage de la ligne, et la comparaison de phase tolère les quelques
 jours de retard que ce report crée.
 
-Le prix réel de la règle, mesuré sur le classeur de référence avec l'optimiseur de séquence :
-**4 éléments en retard, 17 jours au pire, 41 jours cumulés**, contre zéro sans la règle. C'est
-ce que coûte l'étalement de la charge de la centrale ; la case permet d'en juger.
+### Le prix de la règle, et d'où il vient
+
+Mesuré sur le classeur de référence avec l'optimiseur de séquence : **4 éléments en retard,
+17 jours au pire, 41 jours cumulés**, contre zéro sans la règle.
+
+Ce prix n'est pas dû au choix des jours — six répartitions différentes, y compris en groupant
+les deux lignes d'un hall sur le même jour, donnent toutes le même résultat. Il vient de la
+**quantification à la semaine**.
+
+Le cycle d'un élément dure `R × 7 × 9` jours. Tant que ce takt est un multiple de 7, le départ
+retombe de lui-même sur le jour de la ligne et la règle ne coûte rien. Une cadence en
+demi-semaines donne un takt qui ne l'est pas — 1,5 sem/segment fait 94,5 jours, soit 13,5
+semaines — et le jour de semaine dérive à chaque élément. Il faut le rattraper, et le rattrapage
+tombe sur les éléments les plus rapides, ceux de la fin de programme, qui n'ont plus de marge.
+
+Vérifié par l'expérience : en retirant les cadences en demi-semaines de la liste des rythmes
+(4 / 3 / 2 / 1 au lieu de 4 / 3,5 / 3 / 2,5 / 2 / 1,5 / 1), **la règle devient gratuite** —
+zéro élément en retard, avec ou sans elle. Sur le classeur de référence, seuls 5 éléments
+tournaient à 1,5 sem/segment ; ce sont eux qui portaient tout le coût.
+
+Le journal signale le cas dès qu'il se produit, avec les cadences fautives et le nombre
+d'éléments concernés : sans cet avertissement, les retards seraient incompréhensibles.
 
 ## Quand une accélération prend effet
 
