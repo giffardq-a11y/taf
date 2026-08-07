@@ -48,11 +48,17 @@ api.wb = XLSX.read(fs.readFileSync(classeur), {type: 'buffer', cellDates: true})
 api.sequenceChoisie = parseInt(option('variante', '1'), 10) - 1;
 api.parseWorkbook(dateRef);
 
+// Mêmes réglages que la page de restitution : sans cela le « meilleur scénario » exporté ici
+// ne serait pas celui que l'utilisateur voit à l'écran.
 const params = {
   dateRef: new Date(dateRef),
   seuilParkingSem: 4, floatUpSem: 1, hookupSem: 0.5, ballastSem: 1, placesStockageSPE: 1,
   arretAuPlusTot: !option('flux-tendu', false),
-  accelererEnCoursCycle: !!option('en-cours-de-cycle', false),
+  accelererEnCoursCycle: !option('sans-accel-cycle', false),
+  vacances: !option('sans-vacances', false),
+  floatUpUnique: !option('sans-porte-unique', false),
+  jourCoulage: !option('sans-jour-coulage', false),
+  bassinLibre: !option('sans-bassin-libre', false),
 };
 
 if (option('sans-optimiseur', false)) {
@@ -72,6 +78,8 @@ const sortie = {
     optimiseur: !option('sans-optimiseur', false),
     arretAuPlusTot: params.arretAuPlusTot,
     accelererEnCoursCycle: params.accelererEnCoursCycle,
+    vacances: params.vacances, jourCoulage: params.jourCoulage,
+    bassinLibre: params.bassinLibre, floatUpUnique: params.floatUpUnique,
     staggering: api.STAGGER.actif,
   },
   zonesSPE: api.speConfig.map(z => ({nom: z.nom, beton: z.estBeton})),
