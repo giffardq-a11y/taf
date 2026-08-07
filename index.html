@@ -1194,6 +1194,7 @@ function runSimulation(paramsArg) {
   const accelerationsEnCours = []; // éléments dont la coulée a été raccourcie en cours de route
   const portesEnAttente = []; // float-ups repoussés faute de porte libre
   const bassinsPleins = [];   // float-ups repoussés faute de poste libre à l'arrivée
+  const attenteParking = []; // jours-élément passés à attendre une place de parking
   const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
@@ -1832,9 +1833,14 @@ function runSimulation(paramsArg) {
     for (let p = 1; p <= REGLES.parkingPlaces; p++) {
       if (!parkingOccupee[p]) { parkingOccupee[p] = true; e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = p; return; }
     }
+    // Toutes les places prises. C'est la mesure directe de la pression sur le parking : un
+    // élément qui ne trouve pas de place reste en bassin, ou va occuper un poste dans un autre
+    // bassin — et ce poste retient un float-up. La saturation remonte ainsi jusqu'à l'usine.
+    attenteParking.push({id: e.id, date: new Date(dCur)});
     if (parkingOccupee[reserve]) return;
     const sortie = dateDebutBallastDe(e);
     if (!sortie || diffDays(sortie, dCur) > REGLES.parkingReserveJours) return;
+    attenteParking.pop();                       // finalement placé sur la réserve
     parkingOccupee[reserve] = true;
     e.statut = 'Parking'; e.dateDebutParking = dCur; e.parkingNum = reserve; e.parkingReserve = true;
     parkingReserveUsages.push({id: e.id, ligne: LIGNE_NOM[e.ligne], date: new Date(dCur),
@@ -1905,18 +1911,22 @@ function runSimulation(paramsArg) {
           break;
         }
 
-        // Le seuil de parking évite un mouvement coûteux quand l'immersion est proche — mais
-        // il ne doit jamais retenir un élément dont la place est réclamée par la production.
-        // Qui réclame la place ? Depuis que le float-up ne part plus vers un bassin occupé,
-        // la file ne se forme plus à flot mais en amont, en fin d'outfitting : c'est là qu'il
-        // faut la lire. La chercher encore en `AttenteBasin` reviendrait à ne voir personne
-        // réclamer, donc à ne jamais libérer le bassin — et tout se bloque.
-        const placeReclamee = elements.some(x => x !== e && !x.termine
+        /* Le bassin n'est pas un lieu de stationnement : hook-up fini, l'élément gagne un
+           parking dès qu'une place est libre. Une seule dispense — un séjour de moins de
+           `seuilParkingSem` semaines, et à condition qu'il ne retienne aucun float-up de son
+           propre bassin : bouger un élément pour trois semaines coûte deux manœuvres et ne
+           libère rien d'utile.
+           C'est l'inverse de la règle précédente, qui ne le faisait sortir que si quelqu'un
+           réclamait sa place. Le bassin se vidait alors au dernier moment, et le nombre de
+           places de parking n'avait presque aucun effet sur la fin de production — ce qui
+           n'est pas ce que le chantier observe. */
+        const sejourCourt = dBallast && diffDays(dBallast, dCur) <= PARAMS.seuilParkingSem * 7;
+        // Qui serait retenu ? Depuis que le float-up ne part plus vers un bassin occupé, la
+        // file ne se forme plus à flot mais en amont, en fin d'outfitting : c'est là qu'on la lit.
+        const retientUnFloatUp = elements.some(x => x !== e && !x.termine
           && groupeId(x.ligne) === e.basinNum
           && (x.statut === 'AttenteBasin' || x.statut === 'AttenteFloatUp'));
-        const immersionProche = dBallast && diffDays(dBallast, dCur) <= PARAMS.seuilParkingSem * 7;
-        if (immersionProche && !placeReclamee) break;
-        if (!placeReclamee) break; // rien ne presse : inutile de consommer une place de parking
+        if (sejourCourt && !retientUnFloatUp) break;
 
         libererBasin(e);
         e.statut = 'AttenteParking';
@@ -2375,6 +2385,15 @@ function runSimulation(paramsArg) {
         + `(${impositions.ordreChange.slice(0, 6).join(', ')}${impositions.ordreChange.length > 6 ? '…' : ''}). `
         + `C'est une donnée du planning P6 : à confirmer avant d'en tirer une conclusion.`, 'err');
     }
+  }
+  if (attenteParking.length) {
+    const jours = new Set(attenteParking.map(a => +a.date)).size;
+    const ids = [...new Set(attenteParking.map(a => a.id))];
+    log(`Parking saturé : ${attenteParking.length} jour(s)-élément d'attente d'une place sur `
+      + `${jours} journée(s), pour ${ids.length} élément(s) — ${ids.slice(0, 6).join(', ')}`
+      + `${ids.length > 6 ? '…' : ''}. Un élément qui attend une place occupe un poste en bassin, `
+      + `et ce poste retient un float-up : le nombre de places de parking commande la file `
+      + `jusqu'en amont de l'usine.`, 'warn');
   }
   if (bassinsPleins.length) {
     const jours = new Set(bassinsPleins.map(b => +b.date)).size;

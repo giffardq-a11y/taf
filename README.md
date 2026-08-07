@@ -91,16 +91,40 @@ bassin. La file ne se formant plus à flot mais en amont, en fin d'outfitting, i
 lire : sans cela plus personne ne réclamait, le bassin ne se vidait jamais et tout se bloquait —
 62 éléments jamais immergés au premier essai.
 
-**Le prix est lourd et il faut le savoir.** Sur le classeur de référence, avec l'optimiseur :
-retards 4 → 31, retard maximum 17 → 69 jours, cumulé 41 → 993 jours. Ce n'est pas la règle qui
-coûte, c'est ce qu'elle révèle : le planning ne tenait qu'en s'autorisant un mouvement
-impossible. Les journaux disent où — sur cet essai, **1 990 jours** où un float-up a été repoussé
-faute de poste libre. La case permet de revenir à l'ancien comportement pour comparer.
+**Le prix est lourd et il faut le savoir.** Ce n'est pas la règle qui coûte, c'est ce qu'elle
+révèle : le planning ne tenait qu'en s'autorisant un mouvement impossible. Le journal dit où —
+sur le classeur de référence, **2 015 jours** où un float-up a été repoussé faute de poste libre.
+La case permet de revenir à l'ancien comportement pour comparer.
 
-Ajouter des places de parking ne répare rien (essais à 5, 7, 9 et 12 places) : le goulot n'est
-pas là. Les deux causes dominantes du séjour en bassin, mesurées en jours-élément, sont l'échec
-de la sortie vers parking ou stockage (5 354) et le blocage par l'élément qui fait face à la
-sortie (3 966).
+## Le bassin n'est pas un lieu de stationnement
+
+Hook-up terminé, un élément **gagne un parking dès qu'une place est libre**. Une seule dispense :
+un séjour de moins de `seuilParkingSem` semaines — quatre par défaut — **et** à condition qu'il
+ne retienne aucun float-up de son propre bassin. Bouger un élément pour trois semaines coûte
+deux manœuvres et ne libère rien d'utile.
+
+C'est l'inverse de la règle précédente, qui ne le faisait sortir que si quelqu'un réclamait sa
+place. Le bassin se vidait alors au dernier moment, et le nombre de places de parking n'avait
+presque aucun effet sur le résultat — ce qui n'est pas ce que le chantier observe.
+
+Avec la bonne règle, l'effet apparaît, mesuré avec l'optimiseur (5 places plus la réserve étant
+la configuration nominale) :
+
+| Places de parking | En retard | Retard max | Cumulé | Bloqués |
+|---|---|---|---|---|
+| 3 | — | — | — | **62** |
+| 4 à 6 | 9 | 46 j | 161 j | 0 |
+| 8 | 4 | 18 j | 40 j | 0 |
+| 10 | **0** | — | — | 0 |
+
+La règle corrigée améliore d'ailleurs nettement le cas nominal : le retard cumulé passe de
+993 à **161 jours**.
+
+Le mécanisme, mesuré en jours-élément sur le séjour en bassin : **5 810** jours où aucune place
+de parking n'était libre, **3 908** où l'élément était retenu par celui qui fait face à la sortie.
+Quand le parking est plein, la soupape range l'élément dans **un autre bassin** — et ce poste-là
+retient à son tour un float-up. La saturation du parking remonte ainsi jusqu'à l'usine. Le
+journal l'écrit à chaque calcul.
 
 ## Une seule paire de portes
 
