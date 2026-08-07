@@ -299,6 +299,9 @@
   .pl-cnt.charge { background: var(--crit-soft); color: var(--crit); font-weight: 600; }
   /* Retouches manuelles : barres déplaçables et relevé des écarts. */
   .pl-piste.ajustable .pl-barre { cursor: grab; }
+  .pl-piste.ajustable .pl-barre[data-pilote] { cursor: ew-resize;
+    box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .pl-barre.imposee { box-shadow: 0 0 0 1px var(--accent), 0 0 0 2px rgba(0,0,0,.15); }
   .pl-barre.retouchee { box-shadow: 0 0 0 1px var(--warn), 0 0 0 2px rgba(0,0,0,.15); }
   .pl-barre.attrapee { cursor: grabbing; opacity: .85; z-index: 6; outline: 1px solid var(--ink); }
   .retouches { border: 1px solid var(--warn); background: var(--surface); padding: 10px 12px;
@@ -310,6 +313,7 @@
   .retouches button:hover { border-color: var(--ink-2); color: var(--ink); }
   .retouche { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
     background: var(--surface-2); padding: 2px 8px; white-space: nowrap; }
+  .retouche.impose { border-color: var(--accent); color: var(--accent); }
   /* Cheminement d'un élément d'une ressource à la suivante. */
   .pl-piste { position: relative; }
   .pl-flux { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -1690,10 +1694,36 @@ function rendreRetouches() {
   const boite = document.getElementById('planning-retouches');
   if (!boite) return;
   boite.textContent = '';
-  boite.hidden = RETOUCHES.size === 0;
+  boite.hidden = RETOUCHES.size === 0 && IMPOSITIONS.size === 0;
+  if (boite.hidden) return;
+  const relance = () => calculer($('drop-xlsx').textContent.trim());
+
+  // Les dates imposées, d'abord : elles ont changé le calcul, pas seulement le dessin.
+  if (IMPOSITIONS.size) {
+    const t = el('span');
+    t.append(document.createTextNode('Dates imposées : '));
+    t.append(el('b', null, String(IMPOSITIONS.size)));
+    t.append(document.createTextNode(' élément(s) — le planning ci-dessous en découle.'));
+    boite.append(t);
+    [...IMPOSITIONS.entries()].slice(0, 10).forEach(([id, imp]) => {
+      const quoi = [imp.beton ? 'coulée ' + fr(new Date(imp.beton).toISOString().slice(0, 10)) : null,
+                    imp.immersion ? 'immersion ' + fr(new Date(imp.immersion).toISOString().slice(0, 10)) : null]
+        .filter(Boolean).join(' · ');
+      const chip = el('span', 'retouche impose', `${id} · ${quoi}`);
+      chip.title = 'Cliquer pour rendre cet élément au solveur et relancer';
+      chip.style.cursor = 'pointer';
+      chip.addEventListener('click', () => { IMPOSITIONS.delete(id); relance(); });
+      boite.append(chip);
+    });
+    if (IMPOSITIONS.size > 10) boite.append(el('span', 'retouche', `+${IMPOSITIONS.size - 10} autre(s)`));
+    const bi = el('button', null, 'Rendre toutes les dates au solveur');
+    bi.type = 'button';
+    bi.addEventListener('click', () => { IMPOSITIONS.clear(); relance(); });
+    boite.append(bi);
+  }
   if (!RETOUCHES.size) return;
   const titre = el('span');
-  titre.append(document.createTextNode('Retouches manuelles : '));
+  titre.append(document.createTextNode('Retouches d\'affichage : '));
   const b = el('b', null, String(RETOUCHES.size)); titre.append(b);
   titre.append(document.createTextNode(' barre(s) déplacée(s), hors calcul du solveur.'));
   boite.append(titre);
@@ -1730,7 +1760,8 @@ function brancherDeplacement() {
     const span = +piste.dataset.pb - +piste.dataset.pa;
     prise = {barre, piste, x0: ev.clientX, y0: ev.clientY,
              jourParPx: (span / day) / piste.getBoundingClientRect().width,
-             cle: barre.dataset.cle, rang: +barre.dataset.rang, dj: 0, drang: 0};
+             cle: barre.dataset.cle, rang: +barre.dataset.rang, dj: 0, drang: 0,
+             pilote: barre.dataset.pilote || null, d0: +barre.dataset.d0};
     barre.classList.add('attrapee');
     barre.setPointerCapture(ev.pointerId);
     ev.preventDefault();
@@ -1744,12 +1775,23 @@ function brancherDeplacement() {
   });
   const relacher = ev => {
     if (!prise) return;
-    const {barre, cle, dj, drang, rang} = prise;
+    const {barre, cle, dj, drang, rang, pilote, d0} = prise;
     barre.classList.remove('attrapee');
     barre.style.transform = '';
     prise = null;
     if (!dj && !drang) return;
-    ev.preventDefault();                       // un déplacement n'ouvre pas la fiche
+    // `preventDefault` sur le relâchement n'empêche pas le clic qui suit : c'est la barre
+    // elle-même qui porte la marque, et son gestionnaire de clic la consomme.
+    barre.dataset.glisse = '1';
+    // Barre pilotante déplacée dans le temps : c'est une entrée du modèle qu'on change, donc
+    // on impose la date et on relance le calcul. Le décalage vertical est ignoré ici : une
+    // coulée ne change pas de ligne en glissant sur une ressource quelconque.
+    if (pilote && dj) {
+      const d = new Date(d0 + dj * day);
+      imposer(barre.dataset.id, pilote === 'beton' ? 'beton' : 'immersion', d);
+      calculer($('drop-xlsx').textContent.trim());
+      return;
+    }
     const cible = RESSOURCES_AFFICHEES[rang + drang];
     const avant = RETOUCHES.get(cle) || {dj: 0, res: null};
     const suite = {dj: avant.dj + dj, res: drang && cible ? cible[0] : avant.res};
@@ -1911,13 +1953,24 @@ function rendreGantt() {
               + `\ncoulé le ${fr(new Date(s.d).toISOString().slice(0,10))}`;
             barre.append(bloc);
           });
+          barre.dataset.d0 = o.d0;
           barre.title = `${o.id} — ${lib}\n${fr(new Date(o.d).toISOString().slice(0,10))}`
-            + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`;
+            + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`
+            + (barre.dataset.pilote ? '\nGlisser à l\'horizontale impose cette date et relance le calcul.' : '');
           barre.dataset.id = o.id;
           barre.dataset.cle = cleRetouche(o);
           barre.dataset.rang = rangIdx;
+          // Deux barres seulement pilotent le calcul : la coulée et l'immersion. Ce sont les
+          // deux vraies entrées du modèle ; tout le reste en découle et ne se déplace qu'à
+          // l'affichage. La distinction se voit : elles ont leur propre curseur.
+          if (src === 'beton' && !o.push) barre.dataset.pilote = 'beton';
+          else if (src === 'immersion') barre.dataset.pilote = 'immersion';
+          if (barre.dataset.pilote && IMPOSITIONS.has(o.id)) barre.classList.add('imposee');
           if (o.retouchee) barre.classList.add('retouchee');
-          barre.addEventListener('click', ev => { if (!ev.defaultPrevented) ouvrirFiche(o.id); });
+          barre.addEventListener('click', ev => {
+            if (ev.currentTarget.dataset.glisse) { delete ev.currentTarget.dataset.glisse; return; }
+            ouvrirFiche(o.id);
+          });
           rang.append(barre);
         });
       }

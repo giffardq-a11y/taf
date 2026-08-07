@@ -925,6 +925,11 @@ function parseWorkbook(dateRefArg) {
       e.dateReadyFU = readyFU[e.id] || null;
       e.dateImmersion = map[e.id] || null;
       e.rangImmersion = (e.id in rang) ? rang[e.id] : Infinity;
+      // Valeurs du classeur mises de côté : une imposition manuelle doit pouvoir être retirée
+      // sans relire le fichier, donc chaque simulation repart de celles-ci.
+      e.dateImmersionClasseur = e.dateImmersion;
+      e.rangImmersionClasseur = e.rangImmersion;
+      e.dateBetonImposee = null;
       if (!e.dateImmersion) missing++;
       if (!isFinite(e.rangImmersion)) sansRang++;
     });
@@ -1126,6 +1131,7 @@ function lireParamsUI() {
 //   sansTimeline — ne construit pas les images du rendu (l'essentiel du coût).
 function runSimulation(paramsArg) {
   PARAMS = paramsArg || lireParamsUI();
+  const impositions = appliquerImpositions();
   journalSilencieux = !!PARAMS.silencieux;
   const REF = PARAMS.dateRef;
 
@@ -2218,8 +2224,12 @@ function runSimulation(paramsArg) {
     for (let l = 1; l <= 5; l++) {
       if (!zoneBetonOccupee[l] && !usineArretee) {
         const e = prochainEnAttente(l);
-        if (!e || !departAutoriseParStagger(e, dCur)) continue;
-        if (!jourDeCoulage(l, dCur)) { attenteJourCoulage[l]++; continue; }
+        if (!e) continue;
+        if (e.dateBetonImposee && dCur < e.dateBetonImposee) continue;   // départ imposé plus tard
+        if (!departAutoriseParStagger(e, dCur)) continue;
+        // Un départ imposé prime sur le jour de coulage : l'utilisateur a tranché une date,
+        // la faire glisser au prochain jour de la ligne serait la lui reprendre.
+        if (!e.dateBetonImposee && !jourDeCoulage(l, dCur)) { attenteJourCoulage[l]++; continue; }
         demarrerBetonPL(e, dCur);
       }
     }
@@ -2307,6 +2317,25 @@ function runSimulation(paramsArg) {
   const joursStagger = staggerAttentes[3] + staggerAttentes[4] + staggerAttentes[5];
   if (STAGGER.actif && (joursStagger || staggerNonTenus.length)) {
     log(`Staggering entre halls : ${joursStagger} jour(s) de décalage appliqués au départ des lignes${staggerNonTenus.length ? `, ${staggerNonTenus.length} départ(s) pris hors phase` : ''}.`);
+  }
+  if (impositions && (impositions.beton || impositions.immersion)) {
+    log(`Impositions manuelles : ${impositions.beton} départ(s) béton et ${impositions.immersion} date(s) `
+      + `d'immersion fixés à la main. Le reste du planning en découle.`, 'warn');
+    // Un départ imposé est un « au plus tôt » : la halle, le déphasage ou l'ordre d'immersion
+    // peuvent le repousser encore. Le taire laisserait croire que la date a été tenue.
+    const repousses = elements.filter(e => e.dateBetonImposee && e.dateDebutBeton
+                                        && diffDays(e.dateDebutBeton, e.dateBetonImposee) > 0.5)
+      .map(e => `${e.id} +${Math.round(diffDays(e.dateDebutBeton, e.dateBetonImposee))} j`);
+    if (repousses.length) {
+      log(`   ${repousses.length} départ(s) imposé(s) n'ont pas pu être tenus — la halle, le `
+        + `déphasage ou l'ordre d'immersion les ont repoussés : ${repousses.slice(0, 6).join(', ')}`
+        + `${repousses.length > 6 ? '…' : ''}. Une date imposée retarde, elle n'avance jamais.`, 'warn');
+    }
+    if (impositions.ordreChange.length) {
+      log(`⚠ L'ordre d'immersion en est changé pour ${impositions.ordreChange.length} élément(s) `
+        + `(${impositions.ordreChange.slice(0, 6).join(', ')}${impositions.ordreChange.length > 6 ? '…' : ''}). `
+        + `C'est une donnée du planning P6 : à confirmer avant d'en tirer une conclusion.`, 'err');
+    }
   }
   if (PARAMS.jourCoulage) {
     const total = [1,2,3,4,5].reduce((s, l) => s + attenteJourCoulage[l], 0);
@@ -2979,6 +3008,61 @@ function itemsPortes(dCur, enJeu) {
                 titre: `Porte coulissante ${LIGNE_NOM[l]} — ${passe ? 'ouverte, transfert en cours' : 'fermée'}`});
   }
   return items;
+}
+
+/* ================================================================
+   10. IMPOSITIONS MANUELLES
+   Deux dates du planning sont de vraies entrées du modèle, et deux seulement : le départ
+   béton d'un élément et sa date d'immersion cible. Toutes les autres — outfitting, bassin,
+   parking, ballast — sont des sorties, calculées par les règles d'occupation ; les imposer
+   n'aurait pas de sens tant que le solveur ne sait pas raisonner sur des dates contraintes.
+
+   Le départ béton s'impose au plus tôt, jamais au plus tard : on peut retarder le lancement
+   d'un élément, on ne peut pas rendre la halle libre plus tôt qu'elle ne l'est.
+
+   Déplacer une date d'immersion, en revanche, touche à une donnée du planning P6, et peut
+   changer l'ordre d'immersion — qui est justement ce que le programme ne modifie jamais de
+   lui-même. C'est ici une décision de l'utilisateur, pas du solveur : elle est appliquée
+   telle quelle, et le journal dit si l'ordre en a été changé.
+   ================================================================ */
+const IMPOSITIONS = new Map();   // id → {beton: Date|null, immersion: Date|null}
+
+function imposer(id, quoi, d) {
+  const cour = IMPOSITIONS.get(id) || {beton: null, immersion: null};
+  cour[quoi] = d;
+  if (!cour.beton && !cour.immersion) IMPOSITIONS.delete(id); else IMPOSITIONS.set(id, cour);
+}
+
+function appliquerImpositions() {
+  // Toujours repartir du classeur : sans cette remise à zéro, retirer une imposition ne la
+  // retirerait pas — la valeur forcée resterait écrite dans l'élément d'une simulation à
+  // l'autre, et le solveur mentirait silencieusement.
+  for (const e of elements) {
+    if ('dateImmersionClasseur' in e) e.dateImmersion = e.dateImmersionClasseur;
+    if ('rangImmersionClasseur' in e) e.rangImmersion = e.rangImmersionClasseur;
+    e.dateBetonImposee = null;
+  }
+  if (!IMPOSITIONS.size) return {beton: 0, immersion: 0, ordreChange: []};
+
+  const avant = elements.filter(e => isFinite(e.rangImmersion))
+    .sort((a, b) => a.rangImmersion - b.rangImmersion).map(e => e.id);
+  const nb = {beton: 0, immersion: 0};
+  for (const e of elements) {
+    const imp = IMPOSITIONS.get(e.id);
+    if (!imp) continue;
+    if (imp.immersion) { e.dateImmersion = new Date(imp.immersion); nb.immersion++; }
+    if (imp.beton) { e.dateBetonImposee = new Date(imp.beton); nb.beton++; }
+  }
+  // Le rang d'immersion se recalcule sur les dates retenues : c'est lui qui commande l'ordre
+  // de traitement, le départage des lignes et le blocage des sorties de bassin.
+  if (nb.immersion) {
+    const dates = elements.filter(e => e.dateImmersion).sort((a, b) => a.dateImmersion - b.dateImmersion);
+    elements.forEach(e => { e.rangImmersion = Infinity; });
+    dates.forEach((e, i) => { e.rangImmersion = i; });
+    const apres = dates.map(e => e.id);
+    nb.ordreChange = avant.filter((id, i) => apres[i] !== id);
+  }
+  return {ordreChange: [], ...nb};
 }
 
 /* ==== SOLVEUR-CORE-FIN ==== */

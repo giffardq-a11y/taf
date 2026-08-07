@@ -492,9 +492,41 @@ par pièce ou d'un coup, et la barre déplacée se borde d'orange. Sans ce relev
 déplacée par mégarde se confondrait avec un résultat de calcul. Les compteurs de coulées se
 recalculent sur le planning retouché.
 
-Rien de tout cela ne remonte dans le solveur ni dans l'export : le format du planning peut donc
-continuer d'évoluer sans casser les retouches, qui ne dépendent que du couple *(élément,
-ressource, date d'origine)*.
+### Deux barres pilotent vraiment le calcul
+
+Toutes les barres se déplacent, mais **deux seulement sont des entrées du modèle** : la coulée
+béton et l'immersion. Les glisser à l'horizontale **impose la date et relance le solveur** ;
+tout le reste du planning en découle. Elles se distinguent à l'œil (curseur de redimensionnement,
+soulignement bleu) parce qu'une barre qu'on croit pilotante alors qu'elle est calculée est pire
+que pas de glisser-déposer du tout.
+
+Les autres — outfitting, bassin, parking, ballast — sont des **sorties** des règles d'occupation.
+Les imposer n'aurait pas de sens tant que le solveur ne sait pas raisonner sur des dates
+contraintes ; elles restent donc de simples retouches d'affichage.
+
+Deux précisions de sémantique, toutes deux visibles dans le journal :
+
+- **un départ béton imposé est un « au plus tôt », jamais un « au plus tard »** : on peut
+  retarder le lancement d'un élément, on ne peut pas rendre la halle libre plus tôt qu'elle ne
+  l'est. Quand la halle, le déphasage ou l'ordre d'immersion repoussent encore le départ, le
+  journal le dit, élément par élément, avec l'écart ;
+- **déplacer une date d'immersion touche à une donnée du planning P6** et peut changer l'ordre
+  d'immersion — précisément ce que le programme ne modifie jamais de lui-même. C'est une
+  décision de l'utilisateur, appliquée telle quelle, et le journal signale en rouge les
+  éléments dont le rang a changé.
+
+Les impositions sont **non destructives** : chaque simulation repart des valeurs du classeur
+avant de les réappliquer. Sans cette remise à zéro, retirer une imposition ne la retirerait pas
+— la valeur forcée resterait écrite dans l'élément d'une simulation à l'autre, et le solveur
+mentirait silencieusement. Le bandeau les liste et permet de rendre un élément, ou tous, au
+solveur.
+
+Mesuré sur le classeur de référence : repousser la coulée de STE-42 de deux mois fait passer les
+retards de 4 à 13, le pire de 17 à 84 jours, et bloque 27 éléments. L'annulation restitue
+exactement l'état initial.
+
+Rien de tout cela ne remonte dans l'export : le format du planning peut donc continuer d'évoluer
+sans casser les retouches, qui ne dépendent que du couple *(élément, ressource, date d'origine)*.
 
 ## Travaux marins et finitions, repris du planning P6
 
@@ -583,6 +615,24 @@ Les deux points sont réglés.
   2 séquences que le solveur lisait, journalisait, et n'utilisait pas — la durée d'outfitting
   vaut `segmentsOutfitting × rythme × 7 j`. L'onglet, sa lecture, ses valeurs par défaut et la
   date `Seq2_Debut` de `Inputs` sont supprimés. Le calcul est inchangé, par construction.
+
+## Audit d'un planning P6 (`auditer_xer.py`)
+
+`lire_xer.py` lit un export XER — le format tabulé de Primavera — sans jamais charger le fichier
+entier : seules les tables et colonnes demandées sont gardées. Un champ mémo pouvant contenir
+des retours à la ligne, une ligne qui ne commence pas par un jeton `%` est traitée comme la
+suite de l'enregistrement précédent, et non comme un nouvel enregistrement.
+
+`auditer_xer.py` en tire un rapport : volumétrie, options de calcul, types de liens, décalages,
+extrémités ouvertes, contraintes, marges, durées, cohérence des dates, ressources, calendriers,
+WBS, chemin déterminant. Les seuils cités sont ceux de l'évaluation DCMA en 14 points — un
+repère, pas un verdict.
+
+    python3 auditer_xer.py planning.xer -o audit.txt
+
+Sur l'export de référence — 86 Mo, 67 000 activités, 107 000 liens, 108 calendriers — le
+rapport sort en **4 secondes**. Le coût ne dépend pas de la taille du fichier : c'est le script
+qui le lit, pas l'analyste.
 
 ## Classeur réduit
 
