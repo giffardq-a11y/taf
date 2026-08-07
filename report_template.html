@@ -297,6 +297,19 @@
     text-align: center; font-family: var(--mono); color: var(--ink-2); overflow: hidden;
     border-left: 1px solid var(--line-soft); }
   .pl-cnt.charge { background: var(--crit-soft); color: var(--crit); font-weight: 600; }
+  /* Retouches manuelles : barres déplaçables et relevé des écarts. */
+  .pl-piste.ajustable .pl-barre { cursor: grab; }
+  .pl-barre.retouchee { box-shadow: 0 0 0 1px var(--warn), 0 0 0 2px rgba(0,0,0,.15); }
+  .pl-barre.attrapee { cursor: grabbing; opacity: .85; z-index: 6; outline: 1px solid var(--ink); }
+  .retouches { border: 1px solid var(--warn); background: var(--surface); padding: 10px 12px;
+    margin-bottom: 12px; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 8px 14px;
+    align-items: center; }
+  .retouches b { font-family: var(--mono); color: var(--warn); }
+  .retouches button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px; cursor: pointer; }
+  .retouches button:hover { border-color: var(--ink-2); color: var(--ink); }
+  .retouche { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
+    background: var(--surface-2); padding: 2px 8px; white-space: nowrap; }
   /* Cheminement d'un élément d'une ressource à la suivante. */
   .pl-piste { position: relative; }
   .pl-flux { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -669,9 +682,12 @@
           Garder les ressources non modélisées</label>
         <label class="champ bascule" title="Relie les barres d'un même élément d'une ressource à la suivante : béton, outfitting, bassin, parking, ballast, immersion. Survolez une barre pour isoler son cheminement.">
           <input type="checkbox" id="planning-flux"> Cheminement des éléments</label>
+        <label class="champ bascule" title="Déplacer une barre à la souris : de gauche à droite pour décaler ses dates, de haut en bas pour la changer de ressource. Le solveur n'est pas rejoué — les retouches restent une couche par-dessus son résultat, et se retirent d'un clic.">
+          <input type="checkbox" id="planning-ajuster"> Ajuster à la main</label>
         <button type="button" id="planning-imprimer">Imprimer le planning</button>
         <span class="seq-hint" id="planning-hint"></span>
       </div>
+      <div class="retouches" id="planning-retouches" hidden></div>
       <div id="planning"></div>
     </div>
   </section>
@@ -1524,6 +1540,30 @@ const G_LEGENDE = {beton: 'Casting', outfitting: 'Outfitting', zone: 'Ligne SPE 
   'p6:gravel': 'Travaux marins (P6)', 'p6:omega': 'Finitions (P6)'};
 const G_MOIS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
 
+/* ---- Retouches manuelles ----
+   Le planning est le résultat du solveur ; il arrive qu'on veuille en décaler une barre pour
+   discuter une hypothèse — un arrêt technique, une immersion repoussée — sans relancer le
+   calcul ni perdre le reste. Les retouches sont donc une couche par-dessus le résultat :
+   elles ne remontent jamais dans le solveur, elles sont listées, et elles s'annulent d'un clic.
+   Clé : identifiant + ressource + date de départ d'origine, ce qui distingue les deux barres
+   qu'un même élément a sur une même ligne (la coulée et le big push). */
+const RETOUCHES = new Map();
+let RESSOURCES_AFFICHEES = [];
+const cleRetouche = o => `${o.id}|${o.res0}|${o.d0}`;
+
+function appliquerRetouches(occ) {
+  occ.forEach(o => {
+    o.res0 = o.res; o.d0 = o.d;
+    const r = RETOUCHES.get(cleRetouche(o));
+    if (!r) return;
+    o.retouchee = true;
+    if (r.dj) { o.d += r.dj * day; o.f += r.dj * day;
+                if (o.segs) o.segs = o.segs.map(s => ({...s, d: s.d + r.dj * day, f: s.f + r.dj * day})); }
+    if (r.res) o.res = r.res;
+  });
+  return occ;
+}
+
 // Occupations : {ressource, debut, fin, id}. Mêmes règles que l'export Excel.
 function occupationsGantt() {
   const out = [];
@@ -1643,11 +1683,89 @@ function tracerFlux(etapes, pc, nbRessources) {
   return svg;
 }
 
+/* Relevé des retouches, au-dessus du planning : ce qui a été déplacé, de combien, et de
+   quoi l'annuler — pièce par pièce ou d'un coup. Sans ce relevé, une barre déplacée par
+   mégarde se confondrait avec un résultat de calcul. */
+function rendreRetouches() {
+  const boite = document.getElementById('planning-retouches');
+  if (!boite) return;
+  boite.textContent = '';
+  boite.hidden = RETOUCHES.size === 0;
+  if (!RETOUCHES.size) return;
+  const titre = el('span');
+  titre.append(document.createTextNode('Retouches manuelles : '));
+  const b = el('b', null, String(RETOUCHES.size)); titre.append(b);
+  titre.append(document.createTextNode(' barre(s) déplacée(s), hors calcul du solveur.'));
+  boite.append(titre);
+  [...RETOUCHES.entries()].slice(0, 12).forEach(([cle, r]) => {
+    const [id, res0] = cle.split('|');
+    const txt = `${id} · ${r.dj ? (r.dj > 0 ? '+' : '') + r.dj + ' j' : ''}`
+      + `${r.dj && r.res ? ' · ' : ''}${r.res ? '→ ' + r.res : ''}`;
+    const chip = el('span', 'retouche', txt);
+    chip.title = `${res0}\nCliquer pour annuler cette retouche`;
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', () => { RETOUCHES.delete(cle); rendreGantt(); });
+    boite.append(chip);
+  });
+  if (RETOUCHES.size > 12) boite.append(el('span', 'retouche', `+${RETOUCHES.size - 12} autre(s)`));
+  const bouton = el('button', null, 'Tout annuler');
+  bouton.type = 'button';
+  bouton.addEventListener('click', () => { RETOUCHES.clear(); rendreGantt(); });
+  boite.append(bouton);
+}
+
+/* Déplacement d'une barre à la souris. L'horizontale décale les dates au jour près,
+   la verticale change de ressource. Rien n'est écrit tant que le bouton n'est pas relâché :
+   pendant le geste, la barre suit le curseur par une simple translation. */
+function brancherDeplacement() {
+  const planning = document.getElementById('planning');
+  if (!planning) return;
+  let prise = null;
+  planning.addEventListener('pointerdown', ev => {
+    if (!document.getElementById('planning-ajuster').checked) return;
+    const barre = ev.target.closest('.pl-barre');
+    if (!barre || ev.button !== 0) return;
+    const piste = barre.closest('.pl-piste');
+    if (!piste) return;
+    const span = +piste.dataset.pb - +piste.dataset.pa;
+    prise = {barre, piste, x0: ev.clientX, y0: ev.clientY,
+             jourParPx: (span / day) / piste.getBoundingClientRect().width,
+             cle: barre.dataset.cle, rang: +barre.dataset.rang, dj: 0, drang: 0};
+    barre.classList.add('attrapee');
+    barre.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  planning.addEventListener('pointermove', ev => {
+    if (!prise) return;
+    prise.dj = Math.round((ev.clientX - prise.x0) * prise.jourParPx);
+    prise.drang = Math.round((ev.clientY - prise.y0) / PL_RANG_H);
+    prise.barre.style.transform =
+      `translate(${ev.clientX - prise.x0}px, ${prise.drang * PL_RANG_H}px)`;
+  });
+  const relacher = ev => {
+    if (!prise) return;
+    const {barre, cle, dj, drang, rang} = prise;
+    barre.classList.remove('attrapee');
+    barre.style.transform = '';
+    prise = null;
+    if (!dj && !drang) return;
+    ev.preventDefault();                       // un déplacement n'ouvre pas la fiche
+    const cible = RESSOURCES_AFFICHEES[rang + drang];
+    const avant = RETOUCHES.get(cle) || {dj: 0, res: null};
+    const suite = {dj: avant.dj + dj, res: drang && cible ? cible[0] : avant.res};
+    if (!suite.dj && !suite.res) RETOUCHES.delete(cle); else RETOUCHES.set(cle, suite);
+    rendreGantt();
+  };
+  planning.addEventListener('pointerup', relacher);
+  planning.addEventListener('pointercancel', relacher);
+}
+
 function rendreGantt() {
   const boite = document.getElementById('planning');
   if (!boite) return;
-  const OCC = occupationsGantt();
+  const OCC = appliquerRetouches(occupationsGantt());
   boite.textContent = '';
+  rendreRetouches();
   if (!OCC.length) { boite.textContent = 'Aucune occupation à tracer.'; return; }
 
   const gardeVides = document.getElementById('planning-vides').checked;
@@ -1660,6 +1778,8 @@ function rendreGantt() {
   const COULEES = OCC.flatMap(o => (o.segs || []).map(s => s.d)).sort((a, b) => a - b);
   const SEUIL_SEM = 6;
   const flux = document.getElementById('planning-flux').checked;
+  const ajuster = document.getElementById('planning-ajuster').checked;
+  RESSOURCES_AFFICHEES = ressources;
 
   let T0 = Math.min(...OCC.map(o => o.d)), T1 = Math.max(...OCC.map(o => o.f));
   const d0 = new Date(T0); T0 = +new Date(d0.getFullYear(), d0.getMonth(), 1);
@@ -1739,6 +1859,8 @@ function rendreGantt() {
     piste.append(rangMois);
 
     const etapes = [];
+    if (ajuster) piste.classList.add('ajustable');
+    piste.dataset.pa = pa; piste.dataset.pb = pb;
     ressources.forEach(([lib, src], i) => {
       const rangIdx = i;
       const rang = el('div', 'pl-rang' + (i % 2 ? ' alt' : ''));
@@ -1792,7 +1914,10 @@ function rendreGantt() {
           barre.title = `${o.id} — ${lib}\n${fr(new Date(o.d).toISOString().slice(0,10))}`
             + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`;
           barre.dataset.id = o.id;
-          barre.addEventListener('click', () => ouvrirFiche(o.id));
+          barre.dataset.cle = cleRetouche(o);
+          barre.dataset.rang = rangIdx;
+          if (o.retouchee) barre.classList.add('retouchee');
+          barre.addEventListener('click', ev => { if (!ev.defaultPrevented) ouvrirFiche(o.id); });
           rang.append(barre);
         });
       }
@@ -1971,6 +2096,10 @@ function tableauContraintes() {
    p.vacances ? `${REGLES.noelSemaines} sem dès la semaine du 25 décembre, ${REGLES.paquesSemaines} sem à Pâques` : 'désactivés',
    'Règle + case', 'reglable',
    "Ils ne décalent pas le travail, ils l'étirent : une coulée qui traverse un arrêt met d'autant plus de jours. Rien ne démarre pendant. L'aval — float-up, bassin, ballast, immersion — n'est pas concerné, ses dates viennent du P6."],
+  ['Jour de coulage par ligne',
+   p.jourCoulage ? [1,2,3,4,5].map(l => `${LIGNE_NOM[l]} ${JOURS_SEM[REGLES.joursCoulage[l]] || '—'}`).join(', ') : 'désactivé',
+   'Règle + case', 'reglable',
+   "Une ligne ne lance un élément que son jour de la semaine, pour ne pas saturer la centrale à béton. À cadence entière les neuf coulées d'un élément tombent ce jour-là ; à cadence demi-entière elles alternent entre deux jours — c'est le rythme qui l'impose, pas la règle."],
   ['Test de faisabilité', 'toute la file restante de la ligne, pas seulement l\'élément courant', 'Calcul', 'fige',
    'Regarder toute la file évite l\'oscillation accélérer / ralentir.'],
   ['Alerte de délai', 'file rejouée en accélérant à chaque ouverture de la pente', 'Calcul', 'fige',
@@ -1985,7 +2114,11 @@ function tableauContraintes() {
   ['Aucun déphasage dans un hall', 'les deux lignes d\'un hall démarrent ensemble', 'Structure', 'fige', ''],
   ['Suspension', 'halls à des cadences différentes', 'Calcul', 'fige',
    'La phase dériverait d\'un cycle à l\'autre ; le déphasage reprend dès que les cadences se rejoignent.'],
-  ['Tolérance de phase', '0,5 jour', 'Codé en dur', 'fige', 'Le pas de simulation est le jour, les cibles tombent sur des demi-journées.'],
+  ['Tolérance de phase', p.jourCoulage ? 'aucune — la cible tombe sur le jour de coulage' : '0,5 jour',
+   'Codé en dur', 'fige',
+   p.jourCoulage
+     ? "La cible de phase est reportée sur le jour de coulage de la ligne, et la comparaison tolère les quelques jours de retard que ce report crée. Sans cela les deux règles battent l'une contre l'autre et la ligne perd un cycle entier pour deux jours d'écart."
+     : 'Le pas de simulation est le jour, les cibles tombent sur des demi-journées.'],
   ['Activation', 'oui / non', 'Case « Staggering entre halls »', 'reglable', ''],
 ]],
 ['Occupation des zones de production', [
@@ -2717,6 +2850,8 @@ function appliquerFondPlan() {
   document.getElementById('planning-tranche').addEventListener('change', redessiner);
   document.getElementById('planning-vides').addEventListener('change', redessiner);
   document.getElementById('planning-flux').addEventListener('change', redessiner);
+  document.getElementById('planning-ajuster').addEventListener('change', redessiner);
+  brancherDeplacement();
   // Survoler une barre isole le cheminement de son élément dans le faisceau.
   const planning = document.getElementById('planning');
   planning.addEventListener('mouseover', ev => {

@@ -123,6 +123,30 @@ Allonger les arrêts ne dégrade pas régulièrement le résultat : l'optimiseur
 éléments entre les lignes et retrouve souvent une solution à zéro retard. Ne lisez donc pas ces
 variantes comme une courbe — chacune est un plan différent.
 
+## Un jour de coulage par ligne
+
+Cinq lignes qui démarrent le même jour, ce sont cinq premières coulées le même jour : centrale
+à béton, grue et équipe de coffrage saturées en début de semaine puis désœuvrées ensuite. Chaque
+ligne PL reçoit donc **son jour de la semaine** — PL-1 le lundi, PL-2 le mardi, … PL-5 le
+vendredi par défaut, réglable ligne par ligne à l'étape 6 — et n'y lance un élément que ce
+jour-là. La règle est activable ; elle l'est par défaut. La ligne SPE n'est pas concernée : ses
+passages de zone viennent du planning P6.
+
+Le reste du cycle suit. À cadence entière, les neuf coulées de segment d'un élément tombent
+toutes ce même jour de semaine ; à cadence demi-entière (3,5 ou 2,5 ou 1,5 sem/segment) elles
+alternent entre deux jours — c'est le rythme qui l'impose, pas la règle.
+
+**Cette règle et le staggering se battaient.** Reporter un départ sur son jour de coulage laisse
+la phase de la ligne en retard de ce même écart ; le solveur y lisait « cible franchie » et lui
+faisait attendre un takt entier, à chaque cycle. Le dernier départ béton de PL-3 et PL-4 passait
+de juin 2029 à mars 2031. Deux corrections : la cible de phase du staggering est elle-même
+reportée sur le jour de coulage de la ligne, et la comparaison de phase tolère les quelques
+jours de retard que ce report crée.
+
+Le prix réel de la règle, mesuré sur le classeur de référence avec l'optimiseur de séquence :
+**4 éléments en retard, 17 jours au pire, 41 jours cumulés**, contre zéro sans la règle. C'est
+ce que coûte l'étalement de la charge de la centrale ; la case permet d'en juger.
+
 ## Quand une accélération prend effet
 
 Par défaut, le rythme d'un élément est **fixé à son lancement** et ne change plus jusqu'à sa
@@ -411,6 +435,47 @@ rétablit ; la mise en page vise l'A3 paysage.
 Les arrêts annuels de l'usine sont hachurés en travers de toutes les lignes, les ressources non
 modélisées gardent leur ligne en gris, et **chaque barre ouvre la fiche de l'élément** au clic.
 Une case permet de masquer les lignes non modélisées pour un tirage plus dense.
+
+### Les coulées, segment par segment
+
+Une barre de coulée porte ses **neuf segments numérotés**. Les dates viennent du solveur — c'est
+`datesSegments()` qui les calcule, arrêts d'usine compris, et le rapport ne les recalcule pas :
+les deux vues ne peuvent donc pas diverger. Un segment dure une à quatre semaines et ne ferait
+que quelques pixels sur un planning de six ans : son bloc reçoit une **largeur minimale** pour
+que le numéro reste lisible. L'élément garde ses vraies dates, seul l'affichage est élargi. Le
+numéro d'élément reste épinglé à gauche de la barre.
+
+### Compteurs de coulées
+
+Deux rangs au-dessus du planning, alignés sur la règle de temps : le nombre de coulées de
+segment **par semaine** et **par mois**, toutes lignes confondues. C'est ce que voit la centrale
+à béton. Une semaine qui dépasse une coulée par ligne se signale en rouge — c'est exactement la
+charge que la règle du jour de coulage cherche à lisser, et le compteur permet de vérifier
+qu'elle y parvient.
+
+### Cheminement des éléments
+
+Une case, décochée par défaut, relie les barres d'un même élément d'une ressource à la suivante :
+béton, outfitting, bassin, parking, ballast, immersion. Le tracé est une courbe en S terminée
+par une pointe, ramenée au bord de la tranche quand le saut en sort — un cheminement qui quitte
+la page reste lisible comme tel. Quatre-vingt-neuf éléments font beaucoup de traits : le faisceau
+est donc très pâle, et **survoler une barre isole le trajet de son élément**.
+
+### Retouches manuelles
+
+Une case *Ajuster à la main* rend les barres déplaçables : **de gauche à droite pour décaler les
+dates au jour près, de haut en bas pour changer de ressource**. Le solveur n'est pas rejoué — les
+retouches sont une couche par-dessus son résultat, ce qui permet de discuter une hypothèse (un
+arrêt technique, une immersion repoussée) sans perdre le reste du calcul.
+
+Chaque retouche est listée dans un bandeau au-dessus du planning, avec de quoi l'annuler pièce
+par pièce ou d'un coup, et la barre déplacée se borde d'orange. Sans ce relevé, une barre
+déplacée par mégarde se confondrait avec un résultat de calcul. Les compteurs de coulées se
+recalculent sur le planning retouché.
+
+Rien de tout cela ne remonte dans le solveur ni dans l'export : le format du planning peut donc
+continuer d'évoluer sans casser les retouches, qui ne dépendent que du couple *(élément,
+ressource, date d'origine)*.
 
 ## Travaux marins et finitions, repris du planning P6
 
