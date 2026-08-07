@@ -225,8 +225,6 @@
     <h4>4 — Paramètres du solveur</h4>
     <label class="field">Seuil saut Parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
     <label class="field">Durée Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
-    <label class="field">Durée Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
-    <label class="field">Durée Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
     <label class="check"><input type="checkbox" id="p-porte-unique" checked>
@@ -481,6 +479,11 @@ const REGLES = {
   bassinLibrePourFloatUp: true, // ne pas lancer un float-up vers un bassin encore occupé
   jourCoulage: true,        // chaque ligne coule son jour, pour étaler la semaine
   joursCoulage: {1: 1, 2: 2, 3: 3, 4: 4, 5: 5},  // 1 = lundi … 5 = vendredi
+  // Durée de ballast par défaut, en jours — un repli, pas un paramètre : le planning P6 donne
+  // la durée réelle par élément (activité de float-out), variable et non un forfait ; seuls
+  // les quelques éléments sans cette donnée y recourent. Non réglable depuis l'interface,
+  // pour ne plus s'ajouter à une durée réelle déjà connue.
+  ballastJoursDefaut: 7,
 };
 REGLES.defaut = JSON.parse(JSON.stringify(REGLES));
 function penteJours() { return REGLES.pentePeriodeMois * 30.44; }
@@ -1118,8 +1121,6 @@ function lireParamsUI() {
     dateRef: dref ? new Date(dref.value) : new Date(),
     seuilParkingSem: champ('p-seuilparking', 4),
     floatUpSem: champ('p-floatup', 1),
-    hookupSem: champ('p-hookup', 0.5),
-    ballastSem: champ('p-ballast', 1),
     placesStockageSPE: champ('p-stockagespe', 1),
     autoriserRalentissement: !!(document.getElementById('p-ralentir') || {}).checked,
     arretAuPlusTot: caseCochee('p-arret-tot', REGLES.arretAuPlusTot),
@@ -1290,7 +1291,7 @@ function runSimulation(paramsArg) {
         if (basinOccupee[g][place]) log(`As-built ${e.id} : place Basin ${g}/${place} déjà occupée — conflit à vérifier.`, 'warn');
         basinOccupee[g][place] = true; e.basinNum = g; e.basinPlace = place;
         e.dateDebutBasin = code.date || REF;
-        e.dateFinBasin = addDays(e.dateDebutBasin, PARAMS.hookupSem * 7);
+        e.dateFinBasin = addDays(e.dateDebutBasin, 1);  // repère d'affichage, ne bloque plus la sortie
         e.statut = 'Basin';
         break;
       }
@@ -1331,12 +1332,13 @@ function runSimulation(paramsArg) {
 
   // Temps de traversée complet (jours) d'un élément lancé au rythme R, du 1er segment béton
   // jusqu'à l'immersion. Le Parking est exclu : il n'ajoute pas de délai, il absorbe au contraire
-  // la marge éventuelle avant la date d'immersion.
+  // la marge éventuelle avant la date d'immersion. Le hook-up n'y figure pas non plus : il tient
+  // dans le délai de ballast déjà compté, ce n'est pas du temps en plus.
   function pipelineJours(ligne, dConcreteStart, R) {
     const dConcreteEnd = ajouterJoursTravail(dConcreteStart, R * 7 * REGLES.segments);
     const outDur = dureeOutfittingJoursForR(ligne, dConcreteEnd, R);
     const finOut = ajouterJoursTravail(dConcreteEnd, outDur);
-    return diffDays(finOut, dConcreteStart) + (PARAMS.floatUpSem * 7) + (PARAMS.hookupSem * 7) + (PARAMS.ballastSem * 7);
+    return diffDays(finOut, dConcreteStart) + (PARAMS.floatUpSem * 7) + REGLES.ballastJoursDefaut;
   }
 
   // Cadence de la ligne (takt) au rythme R : intervalle entre deux lancements successifs de béton.
@@ -1704,13 +1706,14 @@ function runSimulation(paramsArg) {
   // du bassin à l'immersion, ce que traduit une durée nulle.
   function dureeBallastJours(e) {
     if (e.ligne === 6) return 0;
-    return e.dureeBallastP6 || (PARAMS.ballastSem * 7);
+    return e.dureeBallastP6 || REGLES.ballastJoursDefaut;
   }
 
   // Une fois ballasté, l'élément est immergé directement : la fin du ballast EST l'immersion.
   function demarrerBallast(e, dCur) {
-    // Le hook-up standard occupe les 24 h précédant le Ballast Jetty.
-    e.dateHookup = addDays(dCur, -PARAMS.hookupSem * 7);
+    // Le hook-up occupe les 24 h précédant le Ballast Jetty — un repère d'affichage, tenu dans
+    // la durée de ballast déjà comptée, pas une durée qui s'y ajoute.
+    e.dateHookup = addDays(dCur, -1);
     e.dateBallast = dCur;
     e.dateFinBallast = addDays(dCur, dureeBallastJours(e));
     e.statut = 'Ballast';
@@ -1798,7 +1801,11 @@ function runSimulation(paramsArg) {
     // Chaque ligne a sa place attitrée dans le bassin de son groupe. Si le bassin compte
     // moins de places que de lignes, elles se partagent la dernière.
     const place = Math.min((e.ligne === 1 || e.ligne === 3 || e.ligne === 5) ? 1 : 2, REGLES.basinPlaces);
-    const dureeHookup = PARAMS.hookupSem * 7;
+    // dateFinBasin n'est qu'un repère d'affichage (durée du hook-up sur le Gantt) : il ne
+    // retient plus l'élément en bassin, la sortie réelle se décide plus loin, sur la date de
+    // ballast réelle. Une valeur fixe évite de rejouer la même durée forfaitaire qui s'ajoutait
+    // à cette date au lieu de s'y confondre.
+    const dureeAffichage = 1;
 
     // Basin C : les deux places sont indépendantes. Le SPE y stationne longtemps (jusqu'à son
     // immersion) pendant que les éléments normaux de PL-5 défilent au fur et à mesure — une
@@ -1806,7 +1813,7 @@ function runSimulation(paramsArg) {
     if (g === 3) {
       if (basinOccupee[g][place]) return;
       basinOccupee[g][place] = true;
-      e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup);
+      e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeAffichage);
       e.basinNum = g; e.basinPlace = place;
       return;
     }
@@ -1821,10 +1828,10 @@ function runSimulation(paramsArg) {
     if (Object.values(basinOccupee[g] || {}).some(Boolean)) return;
     const place2 = place === 1 ? 2 : 1;
     basinOccupee[g][place] = true;
-    e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeHookup); e.basinNum = g; e.basinPlace = place;
+    e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeAffichage); e.basinNum = g; e.basinPlace = place;
     if (idxPart) {
       basinOccupee[g][place2] = true;
-      idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeHookup); idxPart.basinNum = g; idxPart.basinPlace = place2;
+      idxPart.statut = 'Basin'; idxPart.dateDebutBasin = dCur; idxPart.dateFinBasin = addDays(dCur, dureeAffichage); idxPart.basinNum = g; idxPart.basinPlace = place2;
     }
   }
   function libererBasin(e) { basinOccupee[e.basinNum][e.basinPlace] = false; }
@@ -1892,7 +1899,10 @@ function runSimulation(paramsArg) {
         tenterEntreeBasin(e, dCur);
         break;
       case 'Basin': {
-        if (dCur < e.dateFinBasin) break;
+        // Le hook-up n'impose plus d'attente forfaitaire ici : il tient dans la durée de
+        // ballast réelle, comptée à rebours depuis l'immersion (dateDebutBallastDe) — l'ajouter
+        // en plus, à partir de l'entrée en bassin, retardait des éléments déjà tendus sur leur
+        // date réelle sans aucune raison physique.
         // Basin C : évacuer un élément normal impose d'inonder le bassin, donc d'attendre
         // que le SPE présent en zone UB soit étanche.
         if (ligne === 5 && speNonEtancheEnUB(dCur)) break;
@@ -2048,9 +2058,11 @@ function runSimulation(paramsArg) {
         case 'AttenteBasin': tenterEntreeBasin(e, dCur); break;
         case 'Basin': {
           // Un SPE n'est évacué du Basin C qu'avant son utilisation finale : il y stationne
-          // jusqu'au démarrage de son Ballast Jetty, bien au-delà de la fin du hook-up.
+          // jusqu'au démarrage de son Ballast Jetty. dateFinBasin n'est qu'un repère d'affichage
+          // (cf. tenterEntreeBasin) : sans date de ballast connue, on s'en sert de repli, mais
+          // elle ne retarde plus une date de ballast réelle déjà plus proche.
           const evac = dateEvacuationSPE(e);
-          const sortie = evac && evac > e.dateFinBasin ? evac : e.dateFinBasin;
+          const sortie = evac || e.dateFinBasin;
           if (dCur >= sortie) {
             if (!ballastAutorise(e)) { bloquesParOrdre.set(e.id, (bloquesParOrdre.get(e.id) || 0) + 1); break; }
             libererBasin(e); demarrerBallast(e, dCur);

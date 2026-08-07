@@ -455,8 +455,6 @@
         <label class="champ">Date de référence <input type="date" id="p-dateref"></label>
         <label class="champ">Seuil parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
         <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
-        <label class="champ">Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
-        <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
         <label class="champ" title="Délai minimal après la sortie de CP3 avant fermeture provisoire, quand le planning l'exige">
           Seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
         <label class="champ bascule" title="Autoriser la fermeture provisoire d'un SPE dès le seuil critique au lieu du seuil normal">
@@ -1611,7 +1609,7 @@ function aplatirSeq(seq) {
 }
 
 function signatureParams() {
-  return ['p-dateref', 'p-seuilparking', 'p-floatup', 'p-hookup', 'p-ballast', 'p-stockagespe',
+  return ['p-dateref', 'p-seuilparking', 'p-floatup', 'p-stockagespe',
           'p-etanche-critique', 'p-sequence', 'p-datedecision']
     .map(id => ($(id) || {}).value).join('|')
     + '|' + ['p-etanche-critique-ok', 'p-arret-tot', 'p-accel-cycle', 'p-vacances',
@@ -2321,7 +2319,7 @@ function tableauContraintes() {
   ['Date d\'immersion cible', 'une par élément', 'Planning P6', 'donnee',
    'Sans date, la simulation en dérive une à la fin du ballast — elle ne survit pas au calcul.'],
   ['Durée de ballast', '4 à 25 j selon l\'élément', 'Activités « Floatout, 1st Phase Ballast Concrete » du P6', 'donnee',
-   'Le paramètre « Ballast (sem) » ne sert que pour un élément absent du planning.'],
+   `À défaut, ${REGLES.ballastJoursDefaut} j pour un élément absent du planning.`],
   ['Passages de zone SPE', 'CPA → UB3, datés', 'Planning P6', 'donnee',
    'La ligne SPE suit le planning ; les durées fixes de Config_SPE ne servent qu\'à un SPE absent du P6.'],
   ['Clamping SPE', 'une date par SPE', 'Planning P6', 'donnee', 'Fermeture définitive.'],
@@ -2410,7 +2408,8 @@ function tableauContraintes() {
    'Si le bassin compte moins de places que de lignes, elles se partagent la dernière.'],
   ['Entrée bassins A et B', 'par paire, bassin entièrement libre', 'Structure', 'fige', ''],
   ['Entrée Basin C', 'places indépendantes', 'Structure', 'fige', ''],
-  ['Hook-up', `${n(p.hookupSem ?? 0.5)} sem`, 'Paramètre', 'reglable', 'Occupe aussi les 24 h précédant le Ballast Jetty.'],
+  ['Hook-up', '24 h précédant le Ballast Jetty', 'Calcul', 'fige',
+   'Repère d\'affichage, tenu dans la durée de ballast déjà comptée : il ne retarde plus la sortie du bassin.'],
   ['Sortie bloquée', 'PL-2 fait face à la sortie du bassin A, PL-4 du bassin B', 'Structure', 'fige',
    'L\'autre élément du bassin ne peut pas sortir avant lui. Le Basin C est libre.'],
   ['Stockage croisé', 'soupape quand le parking est saturé', 'Calcul', 'fige',
@@ -2447,7 +2446,8 @@ function tableauContraintes() {
   ['Ordre imposé', 'porte à l\'entrée du Ballast Jetty', 'Planning P6', 'fige',
    'Seul l\'élément en tête de file peut être ballasté : un élément non prêt bloque tous ceux qui le suivent.'],
   ['Un seul ballast à la fois', 'conséquence de la porte', 'Structure', 'fige', ''],
-  ['Durée de ballast', 'celle du P6, à défaut ' + n(p.ballastSem ?? 1) + ' sem', 'P6 + paramètre', 'reglable', ''],
+  ['Durée de ballast', `celle du P6, à défaut ${REGLES.ballastJoursDefaut} j`, 'P6 + repli', 'donnee',
+   'Le repli ne sert qu\'aux quelques éléments sans activité de float-out dans le P6.'],
   ['SPE', 'aucune phase de ballast', 'Structure', 'fige', 'Ils passent du bassin à l\'immersion.'],
   ['Immersion', 'la fin du ballast est l\'immersion', 'Structure', 'fige', ''],
   ['Entrée au Ballast Jetty', 'date d\'immersion cible moins la durée de ballast', 'Calcul', 'fige', ''],
@@ -2985,8 +2985,6 @@ function calculer(nomFichier) {
         dateRef,
         seuilParkingSem: nb($('p-seuilparking').value) || 4,
         floatUpSem: nb($('p-floatup').value) || 1,
-        hookupSem: nb($('p-hookup').value) || 0.5,
-        ballastSem: nb($('p-ballast').value) || 1,
         placesStockageSPE: nb($('p-stockagespe').value) || 0,
         etancheCritiqueSem: nb($('p-etanche-critique').value) || 8,
         autoriserEtancheCritique: $('p-etanche-critique-ok').checked,

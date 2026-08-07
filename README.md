@@ -929,14 +929,21 @@ l'immersion est assez proche, on évite le détour par le parking — sauf si la
 réclamée, auquel cas la production prime.
 
 **Ballast** : sa durée est celle de l'activité *Floatout, 1st Phase Ballast Concrete* du
-planning P6, propre à chaque élément (4, 5 ou 25 jours sur le classeur de référence). Le
-paramètre *Durée Ballast* de l'interface ne sert que de repli, pour un élément absent du
-planning.
+planning P6, propre à chaque élément (4, 5 ou 25 jours sur le classeur de référence). Sans
+cette donnée pour un élément, le solveur retombe sur `REGLES.ballastJoursDefaut` (7 jours) —
+un repli interne, plus un paramètre de l'interface : il ne s'ajoute à aucune durée réelle
+déjà connue.
 
 **Les SPE n'ont pas de phase de ballast.** Ils ne figurent pas dans les activités de float-out :
 un SPE passe du bassin à l'immersion, sans passer par le Ballast Jetty.
 
-**Hook-up** : 24 h, sur place, juste avant le Ballast Jetty.
+**Hook-up** : 24 h, sur place, juste avant le Ballast Jetty — tenues dans la durée de ballast
+déjà comptée à rebours depuis l'immersion cible, pas une durée en plus. Une version antérieure
+imposait, en plus de cette date réelle, une attente forfaitaire *depuis l'entrée en bassin* :
+un élément déjà tendu sur sa date de ballast pouvait ainsi être retardé une seconde fois par
+un jour de coulage sans rapport avec la contrainte physique. Corrigé : la sortie du bassin ne
+dépend plus que de la date de ballast réelle (et des règles d'ordre, d'étanchéité SPE et de
+sortie bloquée), plus d'aucune durée de hook-up réglable.
 
 **Parking** : 5 places sans limite de durée, plus une 6e réservée au déblocage ponctuel,
 ouverte seulement si les autres sont pleines et si l'élément repart dans le mois.

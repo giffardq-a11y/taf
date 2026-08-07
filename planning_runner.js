@@ -52,7 +52,7 @@ api.parseWorkbook(dateRef);
 // ne serait pas celui que l'utilisateur voit à l'écran.
 const params = {
   dateRef: new Date(dateRef),
-  seuilParkingSem: 4, floatUpSem: 1, hookupSem: 0.5, ballastSem: 1, placesStockageSPE: 1,
+  seuilParkingSem: 4, floatUpSem: 1, placesStockageSPE: 1,
   arretAuPlusTot: !option('flux-tendu', false),
   accelererEnCoursCycle: !option('sans-accel-cycle', false),
   vacances: !option('sans-vacances', false),
