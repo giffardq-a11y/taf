@@ -481,10 +481,11 @@
   <section>
     <div class="s-head">
       <h2 class="s-title">Mouvement des éléments sur le site</h2>
-      <p class="s-note">Le site reconstruit à partir des coordonnées du dossier de référence, les éléments
-        placés au jour près. Faites glisser le curseur ou lancez la lecture : la coulée béton grandit sur
-        son point d'entrée à l'est, l'élément traverse la halle d'outfitting, flotte jusqu'au Lower Basin,
-        stationne en épi au parking, puis rejoint le Ballast Jetty avant immersion.</p>
+      <p class="s-note">Les cotes du site relevées sur le plan d'installation générale, les éléments
+        placés au jour près sur le plan d'installation générale. Faites glisser le curseur ou lancez la
+        lecture : la coulée béton grandit vers l'ouest depuis sa station, l'élément est poussé dans la
+        travée d'outfitting, flotte jusqu'à son poste en bassin, gagne une place de parking, puis rejoint
+        le Ballast Jetty avant immersion.</p>
     </div>
     <div class="panel">
       <div class="plan-head">
@@ -498,12 +499,15 @@
         </select>
         <output id="plan-date">—</output>
       </div>
-      <div class="scroll"><svg id="plan" viewBox="4 42 60 42" role="img"
+      <div class="scroll"><svg id="plan" viewBox="4 42 60 29.74" role="img"
            aria-label="Plan schématique du site de production avec la position des éléments"></svg></div>
       <div class="legend" id="plan-legend" style="margin-left:0"></div>
-      <p class="plan-caveat">Schéma reconstruit d'après les coordonnées relatives du dossier de référence
-        (lignes PL-1 à PL-5 et SPE, bassins, parking en épi à −75°), superposé au plan d'installation
-        générale. Cliquez sur l'écoulement de production plus bas pour y déplacer la date.</p>
+      <p class="plan-caveat">Positions relevées sur le plan d'installation générale : lignes PL-1 à PL-5
+        et aires SPE, travées d'outfitting, postes des bassins A / B / C, six places de parking (deux au
+        môle nord, trois en biais au môle sud, une à quai dans l'Eastern Berth Area) et Ballast Jetty.
+        Les portes sont animées : la flottante ferme le bassin où se déroule un float-up, les coulissantes
+        s'ouvrent le temps d'un transfert. Cliquez sur l'écoulement de production plus bas pour y déplacer
+        la date, ou sur un élément pour ouvrir sa fiche.</p>
     </div>
   </section>
 
@@ -904,22 +908,44 @@
     s.append(sw, document.createTextNode("Date d'immersion cible")); gl.append(s); }
 
   /* ================================================================
-     Vue plan animée — géométrie du dossier de référence (coordonnées %)
+     Vue plan animée — cotes relevées sur le plan d'installation générale
+     ------------------------------------------------------------------
+     La géométrie du site n'est pas redéfinie ici : c'est celle du solveur (bloc GEO, en
+     pourcentage de l'image du plan). On la convertit simplement dans le repère du dessin,
+     où le fond occupe x 4→64 et y 42→84. Une seule source, donc pas de dérive possible
+     entre la vue en plan de l'outil et celle du rapport.
      ================================================================ */
-  const GEO = {
-    xEntry: 58.40, xHallEnd: 50.98, xOutfitEnd: 42.68, xBasin: 37.01,
-    y: { 'PL-1':71.71, 'PL-2':69.29, 'PL-3':60.66, 'PL-4':58.38, 'PL-5':51.83, 'SPE':48.23 },
-    lenStd: 7.42, lenSpe: 1.66, ep: 2.21,
-    park: { a:{x:16.31,y:80.97}, b:{x:10.25,y:47.13}, rot:-75, slots:6 },
+  const PX = p => 4 + 0.60 * p;      // % de largeur d'image → abscisse du schéma
+  const PY = p => 42 + 0.2974 * p;   // % de hauteur d'image → ordonnée du schéma
+  const KY = 0.2974;                 // même échelle qu'en abscisse : le site n'est pas déformé
+  const G = {
+    xEntry: PX(GEO.x_entry), xHallEnd: PX(GEO.x_hall_end),
+    xOutfitEnd: PX(GEO.x_outfit_end), xBasin: PX(GEO.x_basin),
+    y: { 'PL-1': PY(GEO.y_lines[1]), 'PL-2': PY(GEO.y_lines[2]), 'PL-3': PY(GEO.y_lines[3]),
+         'PL-4': PY(GEO.y_lines[4]), 'PL-5': PY(GEO.y_lines[5]), 'SPE': PY(GEO.y_lines[6]) },
+    lenStd: 0.60 * GEO.len_std, lenSpe: 0.60 * GEO.len_spe, ep: KY * GEO.thickness,
+    parkings: GEO.parkings.map(p => ({x: PX(p.x), y: PY(p.y), rot: p.rot})),
+    ballast: {x: PX(GEO.ballast.x), y: PY(GEO.ballast.y), rot: GEO.ballast.rot},
+    // Un poste par ligne dans chaque bassin : le float-up est un déplacement droit vers l'ouest.
+    bassins: {A: {g: 1}, B: {g: 2}, C: {g: 3}},
+    porteFl: {xFerme: PX(GEO.porteFlottante.xFerme), xSouille: PX(GEO.porteFlottante.xSouille),
+              ySouille: PY(GEO.porteFlottante.ySouille),
+              w: 0.60 * GEO.porteFlottante.w, h: KY * GEO.porteFlottante.h},
+    porteCo: {x: PX(GEO.porteCoulissante.x), w: 0.60 * GEO.porteCoulissante.w,
+              h: KY * GEO.thickness * GEO.porteCoulissante.hRel},
+    attente: {x: PX(GEO.attente.x), dy: KY * GEO.attente.dy, visibles: GEO.attente.visibles},
   };
-  GEO.ballast = { x: GEO.park.b.x + 0.3*(GEO.park.b.x-GEO.park.a.x),
-                  y: GEO.park.b.y + 0.3*(GEO.park.b.y-GEO.park.a.y) };
-  const lenOf = l => l === 'SPE' ? GEO.lenSpe : GEO.lenStd;
-  // Ligne SPE : 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3, ub1, ub2, ub3.
-  // Chacune a son emplacement propre, sinon les SPE se superposent au stockage.
-  GEO.speZones = 7;
-  GEO.speSlot = (GEO.xEntry - GEO.xBasin) / GEO.speZones;
-  const xZoneSPE = k => GEO.xEntry - (k - 0.5) * GEO.speSlot;
+  for (const k in G.bassins) {
+    const b = GEO.bassins[G.bassins[k].g];
+    G.bassins[k].postes = b.yPostes.map(PY);
+    G.bassins[k].yCentre = PY(b.yCentre);
+  }
+  const lenOf = l => l === 'SPE' ? G.lenSpe : G.lenStd;
+  // Ligne SPE : les aires successives repérées sur le plan, d'est en ouest. Le rapport ne
+  // connaît pas l'aire exacte de chaque SPE — l'export ne porte que ses dates — mais il sait
+  // combien il y en a : la progression est répartie sur les aires réelles.
+  const NB_SPE = GEO.speStations.length;
+  const aireSPE = k => PX(GEO.speStations[Math.max(0, Math.min(NB_SPE - 1, k - 1))]);
   const NS = 'http://www.w3.org/2000/svg';
   const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
@@ -939,56 +965,89 @@
   const decor = svgEl('g', {});
   plan.append(decor);
 
-  // zones de production, de l'entrée est jusqu'au bassin
-  for (const [name, yc] of Object.entries(GEO.y)) {
-    const L = lenOf(name), h = GEO.ep;
-    decor.append(svgEl('rect', { x: GEO.xEntry - L, y: yc - h/2, width: L, height: h,
-      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.12 }));
-    decor.append(svgEl('rect', { x: GEO.xOutfitEnd, y: yc - h/2, width: GEO.xHallEnd - GEO.xOutfitEnd,
-      height: h, fill: 'var(--surface-2)', stroke: 'var(--line)', 'stroke-width': 0.1 }));
-    decor.append(svgEl('line', { x1: GEO.xBasin, y1: yc, x2: GEO.xOutfitEnd, y2: yc,
-      stroke: 'var(--line)', 'stroke-width': 0.1, 'stroke-dasharray': '0.6 0.5' }));
-    const t = svgEl('text', { x: GEO.xEntry + 0.7, y: yc + 0.6, 'font-size': 1.5,
-      fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t.textContent = name; decor.append(t);
-  }
+  const etiquette = (x, y, txt, couleur, ancre) => {
+    const t = svgEl('text', { x, y, 'font-size': 0.9, fill: couleur, 'font-family': 'var(--mono)' });
+    if (ancre) t.setAttribute('text-anchor', ancre);
+    t.textContent = txt; decor.append(t);
+  };
 
-  // bassins : A = PL1+2, B = PL3+4, C = PL5+SPE
-  [['A','PL-1','PL-2'], ['B','PL-3','PL-4'], ['C','PL-5','SPE']].forEach(([nom, l1, l2]) => {
-    const top = Math.min(GEO.y[l1], GEO.y[l2]) - GEO.ep, bot = Math.max(GEO.y[l1], GEO.y[l2]) + GEO.ep;
-    decor.append(svgEl('rect', { x: GEO.xBasin - lenOf(l1)/2 - 0.6, y: top, width: lenOf(l1) + 1.2,
-      height: bot - top, fill: 'none', stroke: 'var(--ph-basin)', 'stroke-width': 0.13, 'stroke-dasharray': '0.7 0.4' }));
-    const t = svgEl('text', { x: GEO.xBasin, y: top - 0.5, 'font-size': 1.3, 'text-anchor': 'middle',
-      fill: 'var(--ph-basin)', 'font-family': 'var(--mono)' });
-    t.textContent = 'Basin ' + nom; decor.append(t);
+  // Lignes de production : poste de coulée à l'est, travée d'outfitting à l'ouest de la porte
+  // coulissante, puis la route du float-up jusqu'au bassin.
+  for (const [name, yc] of Object.entries(G.y)) {
+    const L = lenOf(name), h = G.ep;
+    if (name !== 'SPE') {
+      decor.append(svgEl('rect', { x: G.xEntry - L, y: yc - h/2, width: L, height: h,
+        fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.09, 'stroke-dasharray': '0.5 0.4' }));
+      decor.append(svgEl('rect', { x: G.xOutfitEnd, y: yc - h/2, width: G.xHallEnd - G.xOutfitEnd,
+        height: h, fill: 'var(--surface-2)', opacity: 0.5, stroke: 'var(--line)', 'stroke-width': 0.08 }));
+    }
+    decor.append(svgEl('line', { x1: G.xBasin, y1: yc, x2: G.xOutfitEnd, y2: yc,
+      stroke: 'var(--line)', 'stroke-width': 0.08, 'stroke-dasharray': '0.4 0.4' }));
+    etiquette(G.xEntry + 0.5, yc + 0.45, name, 'var(--ink-3)');
+  }
+  // Aires successives de la ligne SPE.
+  for (let k = 1; k <= NB_SPE; k++)
+    decor.append(svgEl('rect', { x: aireSPE(k) - G.lenSpe/2, y: G.y.SPE - G.ep/2,
+      width: G.lenSpe, height: G.ep, fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.07 }));
+
+  // Bassins : deux postes chacun, dans l'axe des deux lignes qu'il dessert.
+  Object.entries(G.bassins).forEach(([nom, b]) => {
+    const top = Math.min(...b.postes) - G.ep * 0.8, bas = Math.max(...b.postes) + G.ep * 0.8;
+    decor.append(svgEl('rect', { x: G.xBasin - G.lenStd/2 - 0.4, y: top, width: G.lenStd + 0.8,
+      height: bas - top, fill: 'none', stroke: 'var(--ph-basin)', 'stroke-width': 0.1,
+      'stroke-dasharray': '0.6 0.4' }));
+    etiquette(G.xBasin, top - 0.35, 'Basin ' + nom, 'var(--ph-basin)', 'middle');
   });
 
-  // parking en épi et point de ballast
-  decor.append(svgEl('line', { x1: GEO.park.a.x, y1: GEO.park.a.y, x2: GEO.park.b.x, y2: GEO.park.b.y,
-    stroke: 'var(--ph-park)', 'stroke-width': 0.12, 'stroke-dasharray': '0.8 0.5' }));
-  for (let i = 0; i < GEO.park.slots; i++) {
-    const r = i / (GEO.park.slots - 1);
-    const px = GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r;
-    const py = GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r;
-    decor.append(svgEl('rect', { x: px - GEO.lenStd/2, y: py - GEO.ep/2, width: GEO.lenStd, height: GEO.ep,
-      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.08,
-      transform: `rotate(${GEO.park.rot} ${px} ${py})` }));
+  // Places de parking, relevées une à une : deux au môle nord, trois en biais au môle sud,
+  // la sixième à quai dans l'Eastern Berth Area.
+  G.parkings.forEach((p, i) => {
+    decor.append(svgEl('rect', { x: p.x - G.lenStd/2, y: p.y - G.ep/2, width: G.lenStd, height: G.ep,
+      fill: 'none', stroke: 'var(--ph-park)', 'stroke-width': 0.08, 'stroke-dasharray': '0.5 0.4',
+      transform: `rotate(${p.rot || 0} ${p.x} ${p.y})` }));
+    if (i === 0) etiquette(p.x + G.lenStd/2 + 0.4, p.y + 0.4, 'Parking', 'var(--ph-park)');
+  });
+
+  // Ballast Jetty : l'élément s'y amarre dans l'axe du quai, nord-sud.
+  decor.append(svgEl('rect', { x: G.ballast.x - G.lenStd/2, y: G.ballast.y - G.ep/2,
+    width: G.lenStd, height: G.ep, fill: 'none', stroke: 'var(--ph-ballast)', 'stroke-width': 0.1,
+    'stroke-dasharray': '0.5 0.4', transform: `rotate(${G.ballast.rot} ${G.ballast.x} ${G.ballast.y})` }));
+  etiquette(G.ballast.x - G.ep, G.ballast.y + G.lenStd/2 + 0.9, 'Ballast Jetty', 'var(--ph-ballast)', 'middle');
+  etiquette(G.xEntry - G.lenStd/2, G.y['SPE'] - G.ep * 1.6, '◄ coulée béton', 'var(--ink-3)', 'middle');
+  etiquette((G.xHallEnd + G.xOutfitEnd)/2, G.y['PL-1'] + G.ep * 1.8, 'outfitting', 'var(--ink-3)', 'middle');
+  etiquette(G.attente.x - G.lenStd/2 - 0.5, G.bassins.B.yCentre + 0.3, 'attente à flot', 'var(--ph-fu)', 'end');
+
+  /* ---- portes, seule partie mobile du décor ----
+     La flottante ferme le bassin où un float-up est en cours et regagne sinon sa souille ;
+     les coulissantes ferment le passage entre zone béton et zone d'outfitting, ligne par ligne. */
+  const porteFl = svgEl('rect', { width: G.porteFl.w, height: G.porteFl.h, rx: 0.1,
+    stroke: 'var(--surface)', 'stroke-width': 0.06 });
+  porteFl.append(svgEl('title'));
+  decor.append(porteFl);
+  const portesCo = {};
+  for (const l of ['PL-1','PL-2','PL-3','PL-4','PL-5']) {
+    const r = svgEl('rect', { x: G.porteCo.x - G.porteCo.w/2, y: G.y[l] - G.porteCo.h/2,
+      width: G.porteCo.w, height: G.porteCo.h, rx: 0.08,
+      stroke: 'var(--surface)', 'stroke-width': 0.05 });
+    r.append(svgEl('title'));
+    decor.append(r); portesCo[l] = r;
   }
-  {
-    const t = svgEl('text', { x: GEO.park.a.x + 2, y: GEO.park.a.y + 1.8, 'font-size': 1.3,
-      fill: 'var(--ph-park)', 'font-family': 'var(--mono)' });
-    t.textContent = 'Parking'; decor.append(t);
-    decor.append(svgEl('circle', { cx: GEO.ballast.x, cy: GEO.ballast.y, r: 0.8,
-      fill: 'none', stroke: 'var(--ph-ballast)', 'stroke-width': 0.15 }));
-    const t2 = svgEl('text', { x: GEO.ballast.x + 1.4, y: GEO.ballast.y + 0.5, 'font-size': 1.3,
-      fill: 'var(--ph-ballast)', 'font-family': 'var(--mono)' });
-    t2.textContent = 'Ballast Jetty'; decor.append(t2);
-    const t3 = svgEl('text', { x: GEO.xEntry - GEO.lenStd/2, y: 45.6, 'font-size': 1.3,
-      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t3.textContent = '◄ coulée béton'; decor.append(t3);
-    const t4 = svgEl('text', { x: (GEO.xHallEnd + GEO.xOutfitEnd)/2, y: 45.6, 'font-size': 1.3,
-      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t4.textContent = 'outfitting'; decor.append(t4);
+  function majPortes(bassinFerme, lignesOuvertes) {
+    const b = bassinFerme && G.bassins[bassinFerme];
+    porteFl.setAttribute('x', (b ? G.porteFl.xFerme : G.porteFl.xSouille) - G.porteFl.w/2);
+    porteFl.setAttribute('y', (b ? b.yCentre : G.porteFl.ySouille) - G.porteFl.h/2);
+    porteFl.setAttribute('fill', b ? 'var(--ph-ballast)' : 'none');
+    porteFl.setAttribute('stroke', b ? 'var(--surface)' : 'var(--ph-ballast)');
+    porteFl.querySelector('title').textContent = b
+      ? `Porte flottante — ferme le Basin ${bassinFerme} le temps du float-up`
+      : 'Porte flottante — dans sa souille, bassins ouverts';
+    for (const l in portesCo) {
+      const ouverte = lignesOuvertes.has(l);
+      portesCo[l].setAttribute('fill', ouverte ? 'none' : 'var(--ph-park)');
+      portesCo[l].setAttribute('stroke', ouverte ? 'var(--ph-park)' : 'var(--surface)');
+      portesCo[l].querySelector('title').textContent =
+        `Porte coulissante ${l} — ${ouverte ? 'ouverte, transfert en cours' : 'fermée'}`;
+    }
   }
 
   const couche = svgEl('g', {});
@@ -996,48 +1055,67 @@
   appliquerFondPlan();
 
   /* ---- position d'un élément à une date donnée ---- */
+  // Bassin desservi par une ligne, et poste occupé dans ce bassin.
+  const BASSIN_DE = {'PL-1':'A', 'PL-2':'A', 'PL-3':'B', 'PL-4':'B', 'PL-5':'C', 'SPE':'C'};
+  function posteBassin(e) {
+    const b = G.bassins[BASSIN_DE[e.l]];
+    const y = b && b.postes[(e.bp === 2 ? 2 : 1) - 1];
+    return {x: G.xBasin, y: isFinite(y) ? y : G.y[e.l]};
+  }
+
   function poser(e, ms) {
     const A = k => t(e[k]);
-    const y = GEO.y[e.l], L = lenOf(e.l);
+    const y = G.y[e.l], L = lenOf(e.l);
     const seg = (a, b) => (a && b && b > a) ? (ms - a) / (b - a) : 0;
+    const borne = p => Math.max(0, Math.min(1, p));
 
+    // Ligne SPE : elle traverse des aires successives. Quand le planning P6 en date les
+    // passages, on s'en sert ; sinon l'avancement est réparti sur les aires réelles.
+    const aireCourante = () => {
+      if (e.zones) {
+        let k = 0;
+        for (const [z, d] of Object.entries(e.zones)) { const j = t(d); if (j && ms >= j) k = Math.max(k, +z); }
+        if (k) return Math.min(NB_SPE, k);
+      }
+      const p = borne(seg(A('bD'), A('oF') || A('bF')));
+      return 1 + Math.floor(p * (NB_SPE - 1));
+    };
     if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF')) {
-      const p = Math.max(0, Math.min(1, seg(A('bD'), A('bF'))));
-      // SPE : passage successif par cpa, cp1, cp2, cp3 — pas une coulée qui s'allonge.
-      if (e.l === 'SPE') return { ph:'beton', x: xZoneSPE(1 + Math.min(3, Math.floor(p * 4))), y, w: L, anchor:'center' };
-      return { ph:'beton', x: GEO.xEntry, y, w: L * p, anchor:'right' };
+      const p = borne(seg(A('bD'), A('bF')));
+      if (e.l === 'SPE') return { ph:'beton', x: aireSPE(aireCourante()), y, w: L, anchor:'center' };
+      return { ph:'beton', x: G.xEntry, y, w: L * p, anchor:'right' };
     }
     // Béton terminé, poussé hors des positions de coulée, en attente de la zone d'outfitting.
     if (A('bF') && ms >= A('bF') && A('oD') && ms < A('oD'))
-      return { ph:'outfitting', x: GEO.xHallEnd, y, w: L, anchor:'center', attente:true };
+      return { ph:'beton', x: G.xEntry, y, w: L, anchor:'right', attente:true };
     if (A('oD') && ms >= A('oD') && A('oF') && ms < A('oF')) {
-      const p = Math.max(0, Math.min(1, seg(A('oD'), A('oF'))));
-      if (e.l === 'SPE') {
-        // Progression d'ub1 à ub3, chacune sur son aire.
-        const k = 5 + Math.min(2, Math.floor(p * 3));
-        return { ph:'outfitting', x: xZoneSPE(k), y, w: L, anchor:'center' };
-      }
-      // Transféré dans la zone UB, l'élément y reste statique jusqu'au float-up.
-      return { ph:'outfitting', x: (GEO.xHallEnd + GEO.xOutfitEnd) / 2, y, w: L, anchor:'center' };
+      if (e.l === 'SPE') return { ph:'outfitting', x: aireSPE(aireCourante()), y, w: L, anchor:'center' };
+      // Transféré dans la travée UB, l'élément y reste statique jusqu'au float-up.
+      return { ph:'outfitting', x: (G.xHallEnd + G.xOutfitEnd) / 2, y, w: L, anchor:'center' };
     }
+    const xPret = e.l === 'SPE' ? aireSPE(NB_SPE) : (G.xHallEnd + G.xOutfitEnd) / 2;
     if (A('oF') && ms >= A('oF') && A('fu') && ms < A('fu'))
-      return { ph:'outfitting', x: GEO.xOutfitEnd, y, w: L, anchor:'center', attente:true };
-    if (A('fu') && ms >= A('fu') && A('ba') && ms < A('ba')) {
-      const p = Math.max(0, Math.min(1, seg(A('fu'), A('ba'))));
-      return { ph:'floatup', x: GEO.xOutfitEnd + (GEO.xBasin - GEO.xOutfitEnd) * p, y, w: L, anchor:'center' };
+      return { ph:'outfitting', x: xPret, y, w: L, anchor:'center', attente:true };
+    const finFU = A('fuF') || A('ba');
+    if (A('fu') && ms >= A('fu') && finFU && ms < finFU) {
+      const p = borne(seg(A('fu'), finFU));
+      const q = posteBassin(e);
+      return { ph:'floatup', x: xPret + (q.x - xPret) * p, y: y + (q.y - y) * p, w: L, anchor:'center' };
     }
+    // Float-up terminé mais poste encore occupé : l'élément est à flot devant son bassin.
+    if (finFU && ms >= finFU && A('ba') && ms < A('ba'))
+      return { ph:'floatup', w: L, anchor:'center', attente:true, file: BASSIN_DE[e.l], x: 0, y: 0 };
     const finBasin = A('pk') || A('bl');
     if (A('ba') && ms >= A('ba') && finBasin && ms < finBasin) {
-      const dy = e.bp === 2 ? GEO.ep * 0.6 : -GEO.ep * 0.6;
-      return { ph:'basin', x: GEO.xBasin, y: y + dy, w: L, anchor:'center' };
+      const q = posteBassin(e);
+      return { ph:'basin', x: q.x, y: q.y, w: L, anchor:'center' };
     }
     if (A('pk') && ms >= A('pk') && A('bl') && ms < A('bl')) {
-      const r = (Math.max(1, e.pn) - 1) / (GEO.park.slots - 1);
-      return { ph:'parking', x: GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r,
-               y: GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r, w: L, anchor:'center', rot: GEO.park.rot };
+      const p = G.parkings[Math.max(1, e.pn) - 1] || G.parkings[G.parkings.length - 1];
+      return { ph:'parking', x: p.x, y: p.y, w: L, anchor:'center', rot: p.rot };
     }
     if (A('bl') && ms >= A('bl') && A('fb') && ms < A('fb'))
-      return { ph:'ballast', x: GEO.ballast.x, y: GEO.ballast.y, w: L * 0.55, anchor:'center' };
+      return { ph:'ballast', x: G.ballast.x, y: G.ballast.y, w: G.lenStd, anchor:'center', rot: G.ballast.rot };
     return null;
   }
 
@@ -1064,23 +1142,62 @@
       curseur.dataset.date = fr(iso);
     } else curseur.hidden = true;
     couche.textContent = '';
-    let n = 0;
+    let n = 0, bassinFerme = null;
+    const lignesOuvertes = new Set();
+    // Deux éléments d'une même ligne peuvent occuper la même travée : le modèle raisonne en
+    // zones, pas en mètres linéaires. On les écarte en ordonnée plutôt que de les superposer.
+    const poses = [];
     D.elements.forEach(e => {
       const p = poser(e, ms);
       if (!p) return;
+      p.e = e;
+      // Le bassin n'est fermé que pendant le float-up lui-même : un élément qui attend un
+      // poste, à flot, ne mobilise plus la porte.
+      if (p.ph === 'floatup' && !p.attente) bassinFerme = BASSIN_DE[e.l];
+      // Transfert vers l'outfitting : la porte de la ligne est ouverte les deux premiers jours.
+      if (t(e.oD) && ms >= t(e.oD) && ms - t(e.oD) < 2 * day) lignesOuvertes.add(e.l);
+      poses.push(p);
+    });
+    // File d'attente à flot, devant chaque bassin. Au-delà de ce que le plan peut montrer,
+    // le reste est résumé par un compteur plutôt que dessiné hors cadre.
+    const files = {}, reste = {};
+    for (const p of poses) {
+      if (!p.file) continue;
+      const r = files[p.file] = (files[p.file] || 0) + 1;
+      const b = G.bassins[p.file];
+      p.x = G.attente.x;
+      p.y = b.yCentre + (Math.min(r, G.attente.visibles) - (G.attente.visibles + 1) / 2) * G.attente.dy;
+      if (r > G.attente.visibles) { p.masque = true; reste[p.file] = r - G.attente.visibles; }
+    }
+    const dessinables = poses.filter(p => !p.masque);
+    ecarter(dessinables);
+    majPortes(bassinFerme, lignesOuvertes);
+    for (const nom in reste) {
+      const b = G.bassins[nom];
+      const t2 = svgEl('text', { x: G.attente.x, 'font-size': 1.0, 'text-anchor': 'middle',
+        y: b.yCentre + (G.attente.visibles + 1 - (G.attente.visibles + 1) / 2) * G.attente.dy,
+        fill: 'var(--ph-fu)', 'font-family': 'var(--mono)' });
+      t2.textContent = '+' + reste[nom] + ' à flot';
+      const ti2 = svgEl('title');
+      ti2.textContent = `${reste[nom]} élément(s) de plus à flot devant le Basin ${nom}, en attente d'un poste`;
+      t2.append(ti2);
+      couche.append(t2);
+    }
+    dessinables.forEach(p => {
+      const e = p.e;
       n++;
       const enRetard = t(e.im) && ms > t(e.im) && (!t(e.ir) || ms <= t(e.ir));
       const x = p.anchor === 'right' ? p.x - p.w : p.x - p.w / 2;
       const g = svgEl('g', p.rot ? { transform: `rotate(${p.rot} ${p.x} ${p.y})` } : {});
-      g.append(svgEl('rect', { x, y: p.y - GEO.ep/2, width: Math.max(p.w, 0.25), height: GEO.ep,
+      g.append(svgEl('rect', { x, y: p.y - G.ep/2, width: Math.max(p.w, 0.25), height: G.ep,
         fill: PHASE_COLOR[p.ph], opacity: p.attente ? 0.55 : 1,
         stroke: enRetard ? 'var(--crit)' : 'var(--surface)', 'stroke-width': enRetard ? 0.28 : 0.08 }));
-      const glyphe = svgEl('text', { x: p.w > 3 ? x + 1.1 : x + p.w/2, y: p.y + 0.5, 'font-size': 1.5,
+      const glyphe = svgEl('text', { x: p.w > 3 ? x + 0.7 : x + p.w/2, y: p.y + 0.35, 'font-size': 1.0,
         'text-anchor': 'middle', fill: '#fff', 'pointer-events': 'none', opacity: 0.9 });
       glyphe.textContent = PHASE_ICONE[p.ph] || '·';
       g.append(glyphe);
       if (p.w > 3) {
-        const tx = svgEl('text', { x: x + p.w/2 + 0.8, y: p.y + 0.5, 'font-size': 1.15, 'text-anchor': 'middle',
+        const tx = svgEl('text', { x: x + p.w/2 + 0.5, y: p.y + 0.32, 'font-size': 0.9, 'text-anchor': 'middle',
           fill: '#fff', 'font-family': 'var(--mono)', 'pointer-events': 'none' });
         tx.textContent = e.id; g.append(tx);
       }
@@ -1093,6 +1210,26 @@
       couche.append(g);
     });
     return n;
+  }
+
+  // Écarte en ordonnée les bandes qui se chevauchent, pour qu'aucune n'en masque une autre.
+  function ecarter(poses) {
+    const amas = [];
+    for (const p of poses) {
+      const droit = !p.rot || Math.abs(p.rot) < 15;
+      const demi = droit ? p.w / 2 : G.ep / 2;
+      const cx = p.anchor === 'right' ? p.x - p.w / 2 : p.x;
+      const x0 = cx - demi, x1 = cx + demi;
+      const a = amas.find(a => Math.abs(a.y - p.y) < G.ep * 0.9 && a.x0 < x1 - 0.1 && x0 < a.x1 - 0.1);
+      if (a) { a.membres.push(p); a.x0 = Math.min(a.x0, x0); a.x1 = Math.max(a.x1, x1); }
+      else amas.push({y: p.y, x0, x1, membres: [p]});
+    }
+    for (const a of amas) {
+      if (a.membres.length < 2) continue;
+      const pas = G.ep * 0.55, nb = a.membres.length;
+      const yc = a.membres.reduce((s, p) => s + p.y, 0) / nb;
+      a.membres.forEach((p, i) => { p.y = yc + (i - (nb - 1) / 2) * pas; });
+    }
   }
 
   if (!slider.dataset.lie) {
@@ -2234,8 +2371,8 @@ function rendreEnTete(nomFichier, dateRef) {
    ================================================================ */
 const $ = id => document.getElementById(id);
 let planURL = null;
-// Fond de plan livré avec la page : image détourée du plan d'installation, cadrée sur la
-// même fenêtre que le schéma (x 4→64 %, y 42→84 % du plan général).
+// Fond de plan livré avec la page : le plan d'installation générale, placé dans le repère
+// du dessin (x 4→64, y 42→71,74) à son échelle, sans déformation.
 const PLAN_LIVRE = /*__PLAN__*/ null;
 
 // Date de référence par défaut : aujourd'hui.
@@ -2424,9 +2561,11 @@ function afficherJournal(entrees) {
 function appliquerFondPlan() {
   const svg = $('plan');
   if (!svg) return;
-  // Une image chargée par l'utilisateur est supposée couvrir le plan général entier ;
-  // le fond livré, lui, est déjà cadré sur la fenêtre du schéma.
-  const src = planURL ? {href: planURL, x: 0, y: 0, w: 100, h: 100} : PLAN_LIVRE;
+  // Les cotes du décor sont relevées sur le plan d'installation générale : une image chargée
+  // par l'utilisateur n'est superposable que si c'est le même plan, donc même cadre que le
+  // fond livré. Sans fond livré, on ne sait pas où caler — on n'affiche rien.
+  const cadre = PLAN_LIVRE || {x: 4, y: 42, w: 60, h: 29.74};
+  const src = planURL ? {...cadre, href: planURL} : PLAN_LIVRE;
   if (!src) return;
   let img = svg.querySelector('image.fond');
   if (!img) {

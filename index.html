@@ -131,6 +131,16 @@
   .segment.ballast { background: var(--ballast); }
   .segment.stockage-spe { background: var(--stockage-spe); color: #fff; }
   .segment.late { animation: pulse-late 1s infinite; box-shadow: 0 0 0 2px var(--late); }
+  /* Portes : fermée = barre pleine en travers du passage, ouverte = contour seul. */
+  .porte { position: absolute; z-index: 9; border-radius: 1px; transition: left .3s, top .3s; }
+  .porte.porte-flottante { background: #ff9f43; box-shadow: 0 0 0 1px #2a1a05; }
+  .porte.porte-coulissante { background: #ffd166; box-shadow: 0 0 0 1px #2a2205; }
+  .porte.ouverte { background: transparent; box-shadow: inset 0 0 0 1px #ff9f43; opacity: .65; }
+  .attente-reste {
+    position: absolute; z-index: 10; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #fff; border-radius: 2px;
+    background: rgba(90,110,130,.75); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+  }
   /* Icône de statut : elle survit au rétrécissement de l'élément, l'identifiant non. */
   .segment .ico { flex: 0 0 auto; font-size: 9px; line-height: 1; margin-right: 3px; opacity: .9; }
   .segment .nom { overflow: hidden; text-overflow: ellipsis; }
@@ -273,7 +283,7 @@
     <div class="legend-item"><div class="legend-swatch" style="background:var(--outfit-wait)"></div>Outfitting — en attente partenaire</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--floatup)"></div>Float-up (couplé)</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--basin)"></div>Lower Basin (Hook-up)</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:var(--parking)"></div>Parking (épi -75°)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--parking)"></div>Parking (6 places relevées)</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--stockage-spe)"></div>Stockage SPE (zone dédiée)</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--ballast)"></div>Ballast Jetty</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--late);box-shadow:none"></div>Retard vs. date d'immersion</div>
@@ -344,28 +354,73 @@
    pour qu'il n'existe qu'une seule implémentation du solveur. */
 
 /* ================================================================
-   1. GEOMETRIE DU SITE — coordonnées relatives (%) "pixel perfect"
+   1. GEOMETRIE DU SITE — coordonnées relatives (%) du plan d'installation générale
+   ------------------------------------------------------------------
+   Toutes les valeurs ci-dessous sont relevées sur le fond de plan lui-même
+   (TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A, 2000 × 991 px), soit par lecture directe des
+   ouvrages dessinés — halles, bassins, jetée —, soit par report des rectangles bleus
+   tracés par l'utilisateur sur le PDF, calés sur le fond par corrélation d'image
+   (rapport 0,990, décalage 135 / 999 points). Ce ne sont plus des extrapolations.
+   Conversion : x% = px / 20 ; y% = px / 9,91.
    ================================================================ */
 const GEO = {
-  x_entry: 58.40,      // point d'entrée (Est) — la coulée béton grandit depuis ce point
-  x_hall_end: 50.98,   // sortie de halle = début zone outfitting
-  x_outfit_end: 42.68, // fin de zone outfitting = point de float-up
-  x_basin: 37.01,       // Lower Basin (Ouest)
-  y_lines: { 1: 71.71, 2: 69.29, 3: 60.66, 4: 58.38, 5: 51.83, 6: 48.23 }, // PL-1..PL-5, 6=SPE
-  len_std: 7.42,
-  len_spe: 1.66,
-  thickness: 2.21,
-  parking: { start: {x: 16.31, y: 80.97}, end: {x: 10.25, y: 47.13}, rot: -75, slots: 6 },
+  // Poste de coulée, à l'est : l'élément y grandit segment par segment vers l'ouest,
+  // son extrémité est restant à la station (d'où l'ancrage à droite).
+  x_entry: 85.10,      // 1702 px — station de coulée
+  x_hall_end: 76.85,   // 1537 px — extrémité est de l'emplacement d'outfitting
+  x_outfit_end: 64.75, // 1295 px — extrémité ouest = quai de float-up
+  x_basin: 55.75,      // 1115 px — axe des postes en bassin
+  // Ordonnées relevées sur les éléments dessinés dans les halles : PL-1 et PL-2 au sud
+  // (Basin A), PL-3 et PL-4 au centre (Basin B), PL-5 et SPE au nord (Basin C).
+  y_lines: { 1: 70.53, 2: 64.73, 3: 44.75, 4: 39.00, 5: 18.97, 6: 12.76 },
+  len_std: 12.10,      // 242 px = 217 m — mesuré sur les éléments en zone d'outfitting
+  len_spe: 2.20,       //  44 px =  39 m
+  thickness: 4.44,     //  44 px de largeur, rapportés à la hauteur du plan
 };
-// Point du Ballast Jetty : non fourni par le cahier des charges — estimé par extrapolation
-// de l'axe du parking au-delà de son extrémité Ouest. A recalibrer si vous avez la vraie position.
-GEO.ballast = {
-  x: GEO.parking.end.x + 0.3 * (GEO.parking.end.x - GEO.parking.start.x),
-  y: GEO.parking.end.y + 0.3 * (GEO.parking.end.y - GEO.parking.start.y),
+
+/* Les six places de parking ne sont pas alignées : deux le long du môle nord, à
+   l'horizontale, trois en biais le long du môle sud, et la sixième à quai dans l'Eastern
+   Berth Area, loin des autres — c'est la réserve. L'inclinaison des trois places du môle
+   sud se déduit de leur décalage mutuel : elles sont côte à côte, pas bout à bout. */
+GEO.parkings = [
+  {x: 14.60, y: 17.46, rot:   0},   // môle nord, place haute
+  {x: 11.70, y: 25.63, rot:   0},   // môle nord, place basse
+  {x: 16.98, y: 73.03, rot: -50},   // môle sud, en biais
+  {x: 20.54, y: 79.02, rot: -50},
+  {x: 24.11, y: 85.02, rot: -50},
+  {x: 43.22, y: 87.82, rot:  90},   // réserve, à quai dans l'Eastern Berth Area
+];
+// Ballast Jetty : le quai nord-sud à l'ouest des bassins. L'élément s'y amarre dans l'axe,
+// segments S1 au nord à S9 au sud — c'est un seul poste, pas neuf.
+GEO.ballast = {x: 41.55, y: 20.69, rot: 90};
+// Zone de stockage SPE, dans l'angle nord-ouest du Basin C.
+GEO.stockageSPE = {x: 52.50, y: 10.09};
+// Un poste par ligne dans chaque bassin, dans l'axe de la ligne : l'élément flotte tout
+// droit vers l'ouest. Sans cela les deux éléments d'une même paire se superposaient.
+// Place 1 = ligne impaire (PL-1, PL-3, PL-5), place 2 = ligne paire (PL-2, PL-4, SPE).
+GEO.bassins = {
+  1: {yPostes: [70.53, 64.73], yCentre: 65.59},   // Basin A, au sud
+  2: {yPostes: [44.75, 39.00], yCentre: 41.68},   // Basin B
+  3: {yPostes: [18.97, 12.76], yCentre: 14.73},   // Basin C, au nord
 };
-// Zone de stockage dédiée aux éléments spéciaux, à part du parking. Position non fournie :
-// estimée à l'ouest du Basin C, sur l'axe de la ligne SPE. A recalibrer.
-GEO.stockageSPE = {x: 27.0, y: 45.5};
+// Portes du site. La flottante ferme le bassin où se déroule un float-up et regagne sinon
+// sa souille, à l'ouest du chenal ; la coulissante ferme, ligne par ligne, le passage entre
+// la zone béton et la zone d'outfitting.
+GEO.porteFlottante = {xFerme: 47.90, xSouille: 46.55, ySouille: 39.35, w: 1.15, h: 5.45};
+GEO.porteCoulissante = {x: 77.50, w: 0.50, hRel: 1.30};
+// Aires successives de la ligne SPE, d'est en ouest : les sept emplacements marqués sur le
+// plan. Un nombre d'aires différent dans le classeur est réparti sur la même emprise.
+GEO.speStations = [89.80, 86.65, 83.10, 79.70, 75.55, 72.20, 67.05];
+// Aire d'attente à flot. Un élément en « attente de poste » a déjà fait son float-up : il est
+// dans l'eau, pas dans la travée d'outfitting. Faute d'un mouillage dessiné sur le plan, on
+// le montre au large, devant son bassin. Au-delà de quatre, la file déborderait du cadre :
+// les suivants sont résumés par un compteur, l'encombrement reste lisible sans noyer le plan.
+GEO.attente = {x: 33.0, dy: 5.6, visibles: 4};
+function xZoneSPE(n, nbZones) {
+  if (nbZones === GEO.speStations.length) return GEO.speStations[n - 1];
+  const a = GEO.speStations[0], b = GEO.speStations[GEO.speStations.length - 1];
+  return nbZones <= 1 ? a : a + (b - a) * (n - 1) / (nbZones - 1);
+}
 
 const LIGNE_NOM = {1:'PL-1', 2:'PL-2', 3:'PL-3', 4:'PL-4', 5:'PL-5', 6:'SPE'};
 const GROUPES = [[1,2],[3,4],[5,6]];
@@ -2126,12 +2181,27 @@ function runSimulation(paramsArg) {
     if (!PARAMS.sansTimeline) {
       const key = dCur.toISOString().slice(0,10);
       const frame = [];
-      for (const e of elements) {
-        if (e.statut === 'EnAttente' || e.statut === 'Immerge') continue;
-        const item = renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx);
+      const enJeu = elements.filter(e => e.statut !== 'EnAttente' && e.statut !== 'Immerge');
+      // Rang dans la file d'attente à flot, par bassin : c'est lui qui écarte les éléments
+      // les uns des autres au mouillage.
+      const rangAttente = new Map(), filesAttente = {};
+      for (const e of enJeu) {
+        if (e.statut !== 'AttenteBasin' && e.statut !== 'AttenteParking') continue;
+        const g = groupeId(e.ligne);
+        rangAttente.set(e.id, filesAttente[g] = (filesAttente[g] || 0) + 1);
+      }
+      for (const e of enJeu) {
+        const item = renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx, rangAttente);
         if (item) frame.push(item);
       }
-      simTimeline[key] = frame;
+      // Compteur du reste de la file, quand elle dépasse ce que le plan peut montrer.
+      for (const g in filesAttente) {
+        const reste = filesAttente[g] - GEO.attente.visibles;
+        if (reste > 0) frame.push({type:'attente-reste', n: reste, x: GEO.attente.x, w: 6, anchor:'center',
+          y: yAttente(+g, GEO.attente.visibles + 1, GEO.y_lines[1]),
+          titre: `${reste} élément(s) de plus à flot devant le Basin ${'ABC'[g-1]}, en attente d'un poste`});
+      }
+      simTimeline[key] = itemsPortes(dCur, enJeu).concat(desuperposer(frame));
     }
 
     if (elements.every(e => e.termine)) break;
@@ -2692,72 +2762,139 @@ const ICONES = {
   'ballast':       ['▼', 'Ballast Jetty'],
 };
 
-function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx) {
+function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx, rangAttente) {
   const ligne = e.ligne;
   const len = lenOf(ligne);
   const y = GEO.y_lines[ligne];
   const late = e.dateImmersion && dCur > e.dateImmersion && e.statut !== 'Immerge';
   const base = {id: e.id, ligne, late};
 
+  // Emplacement d'outfitting : l'élément y est poussé d'un bloc depuis la zone béton et y
+  // reste immobile jusqu'au float-up. Il occupe exactement la travée x_outfit_end..x_hall_end.
+  const xOutfit = (GEO.x_hall_end + GEO.x_outfit_end) / 2;
+  // Poste en bassin : dans l'axe de la ligne, pour que le float-up soit un déplacement droit.
+  const posteBassin = () => {
+    const b = GEO.bassins[e.basinNum || groupeId(ligne)];
+    const yp = b && b.yPostes[(e.basinPlace || 1) - 1];
+    return {x: GEO.x_basin, y: isFinite(yp) ? yp : y};
+  };
+
   switch (e.statut) {
     case 'Beton': {
-      let progress;
-      if (ligne <= 5) {
-        progress = e.dateFinBeton > e.dateDebutBeton ? diffDays(dCur, e.dateDebutBeton) / diffDays(e.dateFinBeton, e.dateDebutBeton) : 0;
-      } else {
-        const stepIdx = speBetonIdx.indexOf(e.zoneSPE);
-        const zc = zonesSPE[e.zoneSPE-1];
-        const localFrac = zc.dureeEff > 0 ? (jourCourant - zc.jourEntree) / zc.dureeEff : 0;
-        progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speBetonIdx.length;
-      }
+      // Ligne SPE : l'élément occupe une aire successive, il n'y grandit pas — c'est son
+      // passage d'aire en aire, d'est en ouest, qui marque l'avancement.
+      if (ligne === 6)
+        return {...base, type:'concrete', anchor:'center', x: xZoneSPE(e.zoneSPE, zonesSPE.length), y, w: len};
+      const progress = e.dateFinBeton > e.dateDebutBeton
+        ? diffDays(dCur, e.dateDebutBeton) / diffDays(e.dateFinBeton, e.dateDebutBeton) : 0;
       return {...base, type:'concrete', anchor:'right', x: GEO.x_entry, y, w: len * Math.max(0,Math.min(1,progress))};
     }
     case 'AttenteOutfitting':
       return {...base, type:'concrete-wait', anchor:'right', x: GEO.x_entry, y, w: len};
-    case 'Outfitting': {
-      let progress;
-      if (ligne <= 5) {
-        progress = e.dateFinOut > e.dateDebutOut ? diffDays(dCur, e.dateDebutOut) / diffDays(e.dateFinOut, e.dateDebutOut) : 0;
-      } else {
-        const stepIdx = speOutIdx.indexOf(e.zoneSPE);
-        const zc = zonesSPE[e.zoneSPE-1];
-        const localFrac = zc.dureeEff > 0 ? (jourCourant - zc.jourEntree) / zc.dureeEff : 0;
-        progress = (stepIdx + Math.max(0,Math.min(1,localFrac))) / speOutIdx.length;
-      }
-      // Un élément PL est transféré dans la zone UB et y reste statique : l'outfitting s'y
-      // déroule sur place jusqu'au float-up. Seule la ligne SPE traverse réellement des zones
-      // successives, et son abscisse suit sa progression.
-      const x = ligne <= 5 ? (GEO.x_hall_end + GEO.x_outfit_end) / 2
-                           : lerp(GEO.x_hall_end, GEO.x_outfit_end, progress);
-      return {...base, type:'outfitting', anchor:'center', x, y, w: len};
-    }
+    case 'Outfitting':
+      return {...base, type:'outfitting', anchor:'center', y, w: len,
+              x: ligne <= 5 ? xOutfit : xZoneSPE(e.zoneSPE, zonesSPE.length)};
     case 'AttenteFloatUp':
-      return {...base, type:'outfitting-wait', anchor:'center', x: GEO.x_outfit_end, y, w: len};
+      return {...base, type:'outfitting-wait', anchor:'center', y, w: len,
+              x: ligne <= 5 ? xOutfit : xZoneSPE(zonesSPE.length, zonesSPE.length)};
     case 'FloatUp': {
       const progress = e.dateFinFU > e.dateDebutFU ? diffDays(dCur, e.dateDebutFU) / diffDays(e.dateFinFU, e.dateDebutFU) : 0;
-      const x = lerp(GEO.x_outfit_end, GEO.x_basin, progress);
-      return {...base, type:'floatup', anchor:'center', x, y, w: len};
+      const p = posteBassin();
+      const depart = ligne <= 5 ? xOutfit : xZoneSPE(zonesSPE.length, zonesSPE.length);
+      return {...base, type:'floatup', anchor:'center', x: lerp(depart, p.x, progress),
+              y: lerp(y, p.y, progress), w: len};
     }
     case 'AttenteBasin':
-      return {...base, type:'basin-wait', anchor:'center', x: GEO.x_basin, y, w: len};
-    case 'Basin':
-      return {...base, type:'basin', anchor:'center', x: GEO.x_basin, y, w: len};
-    case 'AttenteParking':
-      return {...base, type:'basin-wait', anchor:'center', x: GEO.x_basin, y, w: len};
+    case 'AttenteParking': {
+      // À flot devant son bassin, en file : l'élément attend un poste ou une place de parking.
+      const rang = (rangAttente && rangAttente.get(e.id)) || 1;
+      if (rang > GEO.attente.visibles) return null;          // résumé par le compteur
+      return {...base, type:'basin-wait', anchor:'center', w: len,
+              x: GEO.attente.x, y: yAttente(groupeId(ligne), rang, y)};
+    }
+    case 'Basin': {
+      const p = posteBassin();
+      return {...base, type:'basin', anchor:'center', x: p.x, y: p.y, w: len};
+    }
     case 'Parking': {
-      const r = (e.parkingNum - 1) / (GEO.parking.slots - 1);
-      const x = lerp(GEO.parking.start.x, GEO.parking.end.x, r);
-      const py = lerp(GEO.parking.start.y, GEO.parking.end.y, r);
-      return {...base, type:'parking', anchor:'center', x, y:py, w: len, rot: GEO.parking.rot};
+      const p = GEO.parkings[Math.max(1, e.parkingNum) - 1] || GEO.parkings[GEO.parkings.length - 1];
+      return {...base, type:'parking', anchor:'center', x: p.x, y: p.y, w: len, rot: p.rot};
     }
     case 'StockageSPE':
       return {...base, type:'stockage-spe', anchor:'center',
               x: GEO.stockageSPE.x, y: GEO.stockageSPE.y + (e.stockageSPENum - 1) * GEO.thickness * 1.4, w: len};
     case 'Ballast':
-      return {...base, type:'ballast', anchor:'center', x: GEO.ballast.x, y: GEO.ballast.y, w: len * 0.6};
+      return {...base, type:'ballast', anchor:'center', x: GEO.ballast.x, y: GEO.ballast.y,
+              w: len, rot: GEO.ballast.rot};
     default:
       return null;
   }
+}
+
+// Ordonnée d'un élément au mouillage : la file se déploie de part et d'autre de l'axe du
+// bassin qu'il attend, du plus ancien au plus récent.
+function yAttente(groupe, rang, yDefaut) {
+  const b = GEO.bassins[groupe];
+  const yc = b ? b.yCentre : yDefaut;
+  return yc + (rang - (GEO.attente.visibles + 1) / 2) * GEO.attente.dy;
+}
+
+/* ---- Désuperposition ----
+   Le modèle raisonne en zones d'occupation, pas en mètres linéaires : il tolère qu'une ligne
+   porte à la fois un élément fini en attente et le suivant en coulée, ce que sa longueur réelle
+   n'autorise pas toujours. Plutôt que de masquer le cas, on écarte les bandes en ordonnée :
+   les deux éléments restent lisibles et l'encombrement de la ligne se voit. */
+function desuperposer(items) {
+  const ep = GEO.thickness;
+  const etendue = it => {
+    const droit = !it.rot || Math.abs(it.rot) < 15;      // pivoté : c'est l'épaisseur qui occupe x
+    const demi = droit ? (it.w || 0) / 2 : ep / 2;
+    const cx = it.anchor === 'right' ? it.x - it.w / 2 : it.x;
+    return [cx - demi, cx + demi];
+  };
+  const groupes = [];
+  for (const it of items) {
+    const [x0, x1] = etendue(it);
+    const g = groupes.find(g => Math.abs(g.y - it.y) < ep * 0.9 && g.x0 < x1 - 0.2 && x0 < g.x1 - 0.2);
+    if (g) { g.membres.push(it); g.x0 = Math.min(g.x0, x0); g.x1 = Math.max(g.x1, x1); }
+    else groupes.push({y: it.y, x0, x1, membres: [it]});
+  }
+  for (const g of groupes) {
+    if (g.membres.length < 2) continue;
+    const pas = ep * 0.55, n = g.membres.length;
+    const yMoyen = g.membres.reduce((s, it) => s + it.y, 0) / n;
+    g.membres.forEach((it, i) => { it.y = yMoyen + (i - (n - 1) / 2) * pas; it.serre = true; });
+  }
+  return items;
+}
+
+/* ---- Les deux portes du site, dessinées avec les éléments ----
+   Elles ne sont pas décoratives : ce sont les deux contraintes d'occupation que le solveur
+   applique déjà. La flottante ferme le bassin où un float-up est en cours — un seul à la
+   fois — et regagne sa souille dès qu'aucun n'est en route. La coulissante s'ouvre, ligne
+   par ligne, le temps du transfert de la zone béton vers l'outfitting.
+   `speOutIdx`/`speBetonIdx` ne servent pas ici : l'état des portes se lit sur les éléments. */
+function itemsPortes(dCur, enJeu) {
+  const items = [];
+  const fu = enJeu.find(e => e.statut === 'FloatUp');
+  const g = fu ? groupeId(fu.ligne) : 0;
+  const b = GEO.bassins[g];
+  items.push({type:'porte-flottante', ouverte: !fu,
+              x: fu ? GEO.porteFlottante.xFerme : GEO.porteFlottante.xSouille,
+              y: fu && b ? b.yCentre : GEO.porteFlottante.ySouille,
+              w: GEO.porteFlottante.w, h: GEO.porteFlottante.h,
+              titre: fu ? `Porte flottante — ferme le Basin ${'ABC'[g-1]} (float-up ${fu.id})`
+                        : 'Porte flottante — dans sa souille, bassins ouverts'});
+  // Une ligne PL dont l'élément vient d'entrer en outfitting : la porte est encore ouverte.
+  for (let l = 1; l <= 5; l++) {
+    const passe = enJeu.some(e => e.ligne === l && e.statut === 'Outfitting'
+                                  && e.dateDebutOut && diffDays(dCur, e.dateDebutOut) <= 1);
+    items.push({type:'porte-coulissante', ouverte: passe, ligne: l,
+                x: GEO.porteCoulissante.x, y: GEO.y_lines[l],
+                w: GEO.porteCoulissante.w, h: GEO.thickness * GEO.porteCoulissante.hRel,
+                titre: `Porte coulissante ${LIGNE_NOM[l]} — ${passe ? 'ouverte, transfert en cours' : 'fermée'}`});
+  }
+  return items;
 }
 
 /* ==== SOLVEUR-CORE-FIN ==== */
@@ -2837,7 +2974,22 @@ function rendrePlanLegende() {
   box.dataset.faite = '1';
   box.innerHTML = Object.entries(ICONES).map(([type, [glyphe, libelle]]) =>
     `<span><i class="segment ${type}" style="position:static">${glyphe}</i>${libelle}</span>`).join('')
-    + '<span><i style="box-shadow:0 0 0 2px var(--late)"></i>Date cible dépassée</span>';
+    + '<span><i style="box-shadow:0 0 0 2px var(--late)"></i>Date cible dépassée</span>'
+    + '<span><i style="background:#ff9f43"></i>Porte flottante (fermée)</span>'
+    + '<span><i style="background:#ffd166"></i>Porte coulissante (fermée)</span>'
+    + '<span><i style="box-shadow:inset 0 0 0 2px #ff9f43;opacity:.65"></i>Porte ouverte</span>';
+}
+
+// Une porte se dessine comme un élément, mais avec sa propre hauteur et sans identifiant.
+function divPorte(el) {
+  const div = document.createElement('div');
+  div.className = `porte ${el.type}${el.ouverte ? ' ouverte' : ''}`;
+  div.title = el.titre;
+  div.style.left = (el.x - el.w/2) + '%';
+  div.style.top = (el.y - el.h/2) + '%';
+  div.style.width = el.w + '%';
+  div.style.height = el.h + '%';
+  return div;
 }
 
 function render(idx) {
@@ -2852,6 +3004,19 @@ function render(idx) {
   const layer = document.getElementById('production-layer');
   layer.innerHTML = '';
   items.forEach(el => {
+    if (el.type.startsWith('porte-')) { layer.appendChild(divPorte(el)); return; }
+    if (el.type === 'attente-reste') {
+      const chip = document.createElement('div');
+      chip.className = 'attente-reste';
+      chip.title = el.titre;
+      chip.textContent = '+' + el.n;
+      chip.style.left = (el.x - el.w/2) + '%';
+      chip.style.top = (el.y - GEO.thickness/2) + '%';
+      chip.style.width = el.w + '%';
+      chip.style.height = GEO.thickness + '%';
+      layer.appendChild(chip);
+      return;
+    }
     const div = document.createElement('div');
     const waitClass = el.type.endsWith('-wait') ? ' wait-state' : '';
     div.className = `segment ${el.type}${waitClass}${el.late ? ' late' : ''}`;

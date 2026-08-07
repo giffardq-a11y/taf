@@ -77,7 +77,7 @@ def main() -> None:
     ap.add_argument(
         "--plan",
         default="vendor_plan.png",
-        help="image de fond du plan, cadrée sur x 4→64 %% / y 42→84 %% du plan général",
+        help="image de fond du plan (plan d'installation générale complet)",
     )
     args = ap.parse_args()
 
@@ -93,7 +93,7 @@ def main() -> None:
         b64 = base64.b64encode(chemin_plan.read_bytes()).decode("ascii")
         mime = "image/png" if chemin_plan.suffix.lower() == ".png" else "image/jpeg"
         plan = (
-            '{href: "data:%s;base64,%s", x: 4, y: 42, w: 60, h: 42}' % (mime, b64)
+            '{href: "data:%s;base64,%s", x: 4, y: 42, w: 60, h: 29.74}' % (mime, b64)
         )
     else:
         print(f"Pas de fond de plan ({chemin_plan}) — schéma seul.", file=sys.stderr)

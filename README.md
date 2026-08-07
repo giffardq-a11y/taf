@@ -578,10 +578,11 @@ Le solveur n'y est jamais recopié : il est prélevé entre les marqueurs
 implémentation. C'est le build **mini** de SheetJS qui est inliné — suffisant pour du
 `.xlsx`/`.xlsm`, là où le build *full* embarque les tables de pages de code héritées.
 
-La page affiche le mouvement des éléments sur un schéma reconstruit d'après les
-coordonnées du dossier de référence, superposé au plan d'installation générale.
-La ligne SPE y est découpée en 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3,
-ub1, ub2, ub3 — chacune à son emplacement propre.
+La page affiche le mouvement des éléments sur le plan d'installation générale lui-même.
+Elle ne redéfinit pas la géométrie du site : elle reprend le bloc `GEO` du solveur et le
+convertit dans le repère du dessin, ce qui interdit toute dérive entre les deux vues. La
+ligne SPE y occupe les sept aires repérées sur le plan, d'est en ouest — cpa, cp1, cp2, cp3,
+ub1, ub2, ub3 — et les portes y sont animées.
 
 ## La ligne SPE suit le planning P6
 
@@ -726,15 +727,35 @@ groupe n'ont pas la même longueur (PL-5 compte 15 éléments, SPE 10). Quand la
 jumelle est épuisée, les derniers éléments partent seuls — sans cette règle ils
 resteraient bloqués indéfiniment. Ces départs solo sont signalés dans le journal.
 
-## Géométrie du plan (coordonnées relatives %, "pixel perfect")
+## Géométrie du plan (coordonnées relatives %, relevées sur le plan général)
+
+Toutes les cotes sont mesurées sur le plan d'installation générale lui-même
+(`vendor_plan.png`, 2000 × 991 px du plan TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A), soit par
+lecture des ouvrages dessinés, soit par report des rectangles bleus tracés sur le PDF et
+calés sur le fond par corrélation d'image (rapport 0,990, décalage 135 / 999 points).
+Conversion : `x% = px / 20`, `y% = px / 9,91`.
 
 | Repère | Valeur |
 |---|---|
-| Épaisseur (Y) | 2,21 % |
-| Longueur standard (PL1-5) / spéciale (SPE) | 7,42 % / 1,66 % |
-| X entrée (Est) → fin de halle → fin outfitting → bassin (Ouest) | 58,40 → 50,98 → 42,68 → 37,01 |
-| Y PL-1 / PL-2 / PL-3 / PL-4 / PL-5 / SPE | 71,71 / 69,29 / 60,66 / 58,38 / 51,83 / 48,23 |
-| Parking (épi -75°) | de [16,31 ; 80,97] à [10,25 ; 47,13] |
+| Largeur d'un élément (Y) | 4,44 % (44 px) |
+| Longueur standard (PL1-5) / spéciale (SPE) | 12,10 % (242 px = 217 m) / 2,20 % (44 px = 39 m) |
+| X station de coulée → porte coulissante → travée outfitting → bassin | 85,10 → 76,85 → 64,75 → 55,75 |
+| Y PL-1 / PL-2 / PL-3 / PL-4 / PL-5 / SPE | 70,53 / 64,73 / 44,75 / 39,00 / 18,97 / 12,76 |
+| Parkings (6 places relevées une à une) | môle nord [14,60 ; 17,46] et [11,70 ; 25,63] à 0° ; môle sud [16,98 ; 73,03], [20,54 ; 79,02], [24,11 ; 85,02] à −50° ; réserve [43,22 ; 87,82] à 90° |
+| Ballast Jetty (un seul poste, dans l'axe du quai) | [41,55 ; 20,69] à 90° |
+| Postes en bassin (un par ligne, dans son axe) | A : 70,53 / 64,73 — B : 44,75 / 39,00 — C : 18,97 / 12,76, tous à x = 55,75 |
+| Stockage SPE (angle nord-ouest du Basin C) | [52,50 ; 10,09] |
+| Aires de la ligne SPE, d'est en ouest | 89,80 / 86,65 / 83,10 / 79,70 / 75,55 / 72,20 / 67,05 |
+| Porte flottante | souille [46,55 ; 39,35] ; fermeture à x = 47,90, sur l'axe du bassin concerné |
+| Porte coulissante (une par ligne PL) | x = 77,50 |
+| Aire d'attente à flot | x = 33,00, quatre places visibles par bassin puis un compteur |
+
+Deux positions ne se lisent pas sur le plan parce qu'elles ne correspondent à aucun ouvrage :
+l'aire d'attente à flot (un élément dont le float-up est fait mais dont le poste en bassin
+n'est pas libre est au mouillage, sans emplacement dessiné) et l'écart en ordonnée appliqué
+quand deux éléments d'une même ligne occupent la même travée — le modèle raisonne en zones
+d'occupation, pas en mètres linéaires, et tolère une situation que la longueur réelle de la
+ligne n'autorise pas toujours. Plutôt que de la masquer, la vue écarte les deux bandes.
 
 ## Règles spécifiques au Basin C (paire PL-5 / SPE)
 
