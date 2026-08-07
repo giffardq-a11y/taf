@@ -525,6 +525,31 @@ Mesuré sur le classeur de référence : repousser la coulée de STE-42 de deux 
 retards de 4 à 13, le pire de 17 à 84 jours, et bloque 27 éléments. L'annulation restitue
 exactement l'état initial.
 
+### Le rapport de conséquences
+
+Forcer une date rejoue tout : la séquence est réoptimisée, les retards et les blocages
+recalculés, le planning d'occupation redessiné. Un tableau de bord dont les chiffres changent
+n'apprend pourtant rien sans point de comparaison — d'où la section **« Conséquences des dates
+imposées »**, qui apparaît dès qu'une date est forcée et se referme quand on la rend au solveur.
+
+Elle donne l'écart contre **le dernier calcul sans aucune date forcée** : éléments en retard,
+retard maximum et cumulé, éléments bloqués, date d'arrêt de l'usine, dernière immersion. Puis
+l'onde de choc : combien d'autres éléments ont vu leur départ béton se déplacer et de combien,
+lesquels manquent désormais leur date d'immersion sans la manquer avant, lesquels au contraire
+la tiennent maintenant, lesquels ne sont plus immergés dans l'horizon.
+
+Deux précautions y sont écrites plutôt que tues :
+
+- **la séquence a été rejouée.** Quand l'optimiseur est actif il en choisit une nouvelle, et les
+  déplacements affichés mêlent alors l'effet de la date forcée et celui de ce nouveau choix. Le
+  panneau dit combien d'éléments ont changé de place et de ligne, et invite à décocher
+  l'optimiseur pour isoler le seul effet de la date. Sans cela on attribuerait à un glissement
+  d'un jour des décalages d'un an ;
+- **la référence peut vieillir.** Elle est prise à la volée, au dernier calcul sans imposition,
+  plutôt qu'en rejouant une simulation de contrôle à chaque geste — deux passages de l'optimiseur
+  par glissement rendraient l'outil inutilisable. Si un paramètre change entre-temps, sa signature
+  ne correspond plus et le panneau le signale en rouge.
+
 Rien de tout cela ne remonte dans l'export : le format du planning peut donc continuer d'évoluer
 sans casser les retouches, qui ne dépendent que du couple *(élément, ressource, date d'origine)*.
 

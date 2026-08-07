@@ -314,6 +314,20 @@
   .retouche { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
     background: var(--surface-2); padding: 2px 8px; white-space: nowrap; }
   .retouche.impose { border-color: var(--accent); color: var(--accent); }
+  /* Conséquences d'une date imposée : l'écart contre le calcul de référence. */
+  .cons-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 14px; }
+  .cons-case { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; }
+  .cons-case .c-lab { font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3); }
+  .cons-case .c-val { font-family: var(--mono); font-size: 17px; font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  .cons-case .c-ecart { font-size: 12px; font-family: var(--mono); }
+  .cons-case .c-ecart.pire { color: var(--crit); }
+  .cons-case .c-ecart.mieux { color: var(--ok); }
+  .cons-case .c-ecart.egal { color: var(--ink-3); }
+  .cons-liste { font-size: 13px; color: var(--ink-2); margin: 0 0 8px; }
+  .cons-liste b { font-family: var(--mono); color: var(--ink); font-weight: 600; }
   /* Cheminement d'un élément d'une ressource à la suivante. */
   .pl-piste { position: relative; }
   .pl-flux { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -475,6 +489,16 @@
   <section>
     <div class="s-head"><h2 class="s-title">Vue d'ensemble</h2></div>
     <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section id="s-consequences" hidden>
+    <div class="s-head">
+      <h2 class="s-title">Conséquences des dates imposées</h2>
+      <p class="s-note">Ce que votre changement a coûté ou rapporté, mesuré contre le dernier calcul
+        sans aucune date forcée. La séquence a été rejouée, les retards et les blocages recalculés,
+        et le planning d'occupation redessiné sur ce nouveau résultat.</p>
+    </div>
+    <div class="panel" id="consequences"></div>
   </section>
 
   <section id="s-sequence" hidden>
@@ -741,10 +765,14 @@
 
   function toutRendre(nomFichier, dateRef) {
     document.getElementById('verdict').hidden = false;
+    // La référence se prend avant tout rendu, et seulement quand rien n'est forcé : c'est
+    // l'état auquel toute date imposée sera ensuite comparée.
+    capturerReference();
     rendreEnTete(nomFichier, dateRef);
     afficherJournal(lastJournal);
     rendreSequence();
     rendreGrilleSequence();
+    rendreConsequences();
     rendreGantt();
     brancherFinitions();
     rendreContraintes();
@@ -1543,6 +1571,156 @@ const G_LEGENDE = {beton: 'Casting', outfitting: 'Outfitting', zone: 'Ligne SPE 
   hookup: 'Hookup', ballast: 'Ballast jetty', immersion: 'Immersion',
   'p6:gravel': 'Travaux marins (P6)', 'p6:omega': 'Finitions (P6)'};
 const G_MOIS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+
+/* ---- Effet d'une date imposée ----
+   Forcer une coulée ou une immersion rejoue tout : la séquence est réoptimisée, les retards et
+   les blocages recalculés, le planning redessiné. Reste à dire ce que le changement a coûté —
+   sans point de comparaison, un tableau de bord qui change de valeurs n'apprend rien.
+
+   La référence est l'état du dernier calcul sans aucune date forcée. On la capture à la volée
+   plutôt que de rejouer une simulation de contrôle à chaque glissement : deux passages de
+   l'optimiseur par geste rendraient l'outil inutilisable. En contrepartie, elle vieillit si un
+   paramètre change entre-temps — d'où la signature, et l'avertissement quand elle ne colle plus. */
+let REFERENCE = null;
+
+// `sequenceCourante()` rend {ligne: [ids]}, pas une liste : on l'aplatit en id → {ligne, rang}
+// pour pouvoir comparer deux séquences élément par élément.
+function aplatirSeq(seq) {
+  const out = {};
+  if (!seq) return null;
+  for (const l in seq) (seq[l] || []).forEach((id, i) => { out[id] = {l: +l, i}; });
+  return out;
+}
+
+function signatureParams() {
+  return ['p-dateref', 'p-seuilparking', 'p-floatup', 'p-hookup', 'p-ballast', 'p-stockagespe',
+          'p-etanche-critique', 'p-sequence', 'p-datedecision']
+    .map(id => ($(id) || {}).value).join('|')
+    + '|' + ['p-etanche-critique-ok', 'p-arret-tot', 'p-accel-cycle', 'p-vacances',
+             'p-jour-coulage', 'p-stagger', 'p-optimiser', 'p-reaffecter']
+      .map(id => ($(id) || {}).checked ? 1 : 0).join('');
+}
+
+function kpiCourants() {
+  const finsHalles = D.elements.map(e => t(e.oF) || t(e.bF)).filter(Boolean);
+  return {
+    retards: D.retards.length,
+    max: D.retards.length ? D.retards[0].retardJours : 0,
+    cumul: D.retards.reduce((s, r) => s + r.retardJours, 0),
+    bloques: D.elements.filter(e => !e.fini).length,
+    arret: finsHalles.length ? Math.max(...finsHalles) : null,
+    fin: Math.max(...D.elements.map(e => t(e.ir) || t(e.im) || 0)),
+  };
+}
+
+function capturerReference() {
+  if (!D || IMPOSITIONS.size) return;
+  REFERENCE = {
+    signature: signatureParams(),
+    kpi: kpiCourants(),
+    seq: aplatirSeq(D.sequence && D.sequence.apresSeq),
+    el: Object.fromEntries(D.elements.map(e => [e.id, {bD: e.bD, ir: e.ir, im: e.im,
+                                                      fini: e.fini, ln: e.ln}])),
+  };
+}
+
+function rendreConsequences() {
+  const sec = document.getElementById('s-consequences');
+  const box = document.getElementById('consequences');
+  if (!sec || !box) return;
+  sec.hidden = !(D && IMPOSITIONS.size && REFERENCE);
+  if (sec.hidden) return;
+  box.textContent = '';
+
+  if (REFERENCE.signature !== signatureParams()) {
+    const av = el('p', 'cons-liste');
+    av.innerHTML = '⚠ Un paramètre de calcul a changé depuis la référence : les écarts ci-dessous '
+      + 'mélangent l\'effet des dates imposées et celui du paramètre. Rendez les dates au solveur '
+      + 'pour reprendre une référence propre.';
+    av.style.color = 'var(--crit)';
+    box.append(av);
+  }
+
+  const k = kpiCourants(), r = REFERENCE.kpi;
+  const jour = ms => ms ? fr(new Date(ms).toISOString().slice(0, 10)) : '—';
+  const ecartJours = (a, b) => (a && b) ? Math.round((a - b) / day) : null;
+  const cases = [
+    ['Éléments en retard', k.retards, k.retards - r.retards, ''],
+    ['Retard maximum', k.max + ' j', k.max - r.max, ' j'],
+    ['Retard cumulé', k.cumul + ' j', k.cumul - r.cumul, ' j'],
+    ['Éléments bloqués', k.bloques, k.bloques - r.bloques, ''],
+    ['Arrêt de l\'usine', jour(k.arret), ecartJours(k.arret, r.arret), ' j'],
+    ['Dernière immersion', jour(k.fin), ecartJours(k.fin, r.fin), ' j'],
+  ];
+  const grille = el('div', 'cons-kpis');
+  cases.forEach(([lab, val, d, unite]) => {
+    const c = el('div', 'cons-case');
+    const cls = d === null ? 'egal' : (d > 0 ? 'pire' : (d < 0 ? 'mieux' : 'egal'));
+    const txt = d === null ? '—' : (d === 0 ? 'inchangé' : (d > 0 ? '+' : '') + d + unite);
+    c.append(el('div', 'c-lab', lab), el('div', 'c-val', String(val)),
+             el('div', 'c-ecart ' + cls, txt));
+    grille.append(c);
+  });
+  box.append(grille);
+
+  // L'onde de choc : combien d'éléments, autres que ceux qu'on a forcés, ont bougé.
+  const bouges = [], nouveauxRetards = [], soulages = [], nouveauxBloques = [];
+  D.elements.forEach(e => {
+    const ref = REFERENCE.el[e.id];
+    if (!ref) return;
+    const d = ecartJours(t(e.bD), t(ref.bD));
+    if (d && Math.abs(d) >= 1 && !IMPOSITIONS.has(e.id)) bouges.push({id: e.id, d});
+    const avant = ref.ir && ref.im && t(ref.ir) > t(ref.im);
+    const apres = e.ir && e.im && t(e.ir) > t(e.im);
+    if (apres && !avant) nouveauxRetards.push(e.id);
+    if (avant && !apres) soulages.push(e.id);
+    if (!e.fini && ref.fini) nouveauxBloques.push(e.id);
+  });
+  const dire = (n, txt, liste) => {
+    if (!n) return;
+    const p = el('p', 'cons-liste');
+    p.innerHTML = `<b>${n}</b> ${txt}` + (liste.length ? ' — ' + liste.slice(0, 12).join(', ')
+      + (liste.length > 12 ? '…' : '') : '') + '.';
+    box.append(p);
+  };
+  dire(IMPOSITIONS.size, 'élément(s) portent une date forcée', [...IMPOSITIONS.keys()]);
+
+  // La séquence a-t-elle bougé ? Si l'optimiseur est actif il en choisit une nouvelle, et les
+  // déplacements ci-dessous mélangent alors l'effet de la date forcée et celui de ce nouveau
+  // choix. Le taire ferait attribuer à un glissement d'un jour des décalages d'un an.
+  const seq = aplatirSeq(D.sequence && D.sequence.apresSeq);
+  if (seq && REFERENCE.seq) {
+    let rang = 0, ligne = 0;
+    for (const id in seq) {
+      const av = REFERENCE.seq[id];
+      if (!av) continue;
+      if (av.l !== seq[id].l) ligne++;
+      else if (av.i !== seq[id].i) rang++;
+    }
+    if (rang || ligne) {
+      const p = el('p', 'cons-liste');
+      p.innerHTML = `La séquence de production a été rejouée : <b>${rang + ligne}</b> élément(s) `
+        + `ont changé de place` + (ligne ? `, dont <b>${ligne}</b> de ligne` : '')
+        + `. Les déplacements de départ béton ci-dessous mêlent donc l'effet de la date forcée `
+        + `et celui de cette nouvelle séquence. Décochez « Optimiser la séquence » pour isoler `
+        + `le seul effet de la date.`;
+      box.append(p);
+    }
+  }
+  bouges.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  dire(bouges.length, 'autre(s) élément(s) ont vu leur départ béton se déplacer',
+       bouges.map(b => `${b.id} ${b.d > 0 ? '+' : ''}${b.d} j`));
+  dire(nouveauxRetards.length, 'élément(s) manquent leur date d\'immersion et ne la manquaient pas',
+       nouveauxRetards);
+  dire(soulages.length, 'élément(s) tiennent désormais leur date alors qu\'ils la manquaient', soulages);
+  dire(nouveauxBloques.length, 'élément(s) ne sont plus immergés dans l\'horizon de simulation',
+       nouveauxBloques);
+  if (!bouges.length && !nouveauxRetards.length && !soulages.length && !nouveauxBloques.length) {
+    const p = el('p', 'cons-liste');
+    p.textContent = 'Aucun autre élément n\'est affecté : le changement reste local.';
+    box.append(p);
+  }
+}
 
 /* ---- Retouches manuelles ----
    Le planning est le résultat du solveur ; il arrive qu'on veuille en décaler une barre pour
