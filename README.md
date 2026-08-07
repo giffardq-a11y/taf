@@ -73,6 +73,35 @@ cadence à faire appliquer aux opérateurs.
 
 Rythmes autorisés : **1,0 / 1,5 / 2,0 / 2,5 / 3,0 / 3,5 / 4,0** semaines par segment.
 
+## Bassin libre avant float-up
+
+Un float-up fait passer l'élément de l'Upper Basin au Lower Basin : le mouvement suppose les
+deux bassins au même niveau, donc **le bassin d'arrivée doit être libre**. Le solveur lançait
+pourtant le mouvement vers un bassin encore occupé par la paire précédente, et l'élément se
+retrouvait à flot sans poste — un état qui n'existe pas sur le chantier, et qui se voyait à
+l'écran : deux éléments en bassin, deux autres en float-up vers le même bassin.
+
+Le contrôle reprend exactement celui de l'entrée en bassin : bassin **entièrement libre** pour
+les groupes A et B, dont les deux lignes entrent par paire ; **poste par poste** pour le Basin C,
+où PL-5 et la ligne SPE sont indépendants.
+
+Une conséquence non évidente a dû être corrigée en même temps. Un élément ne quitte son poste
+que si quelqu'un le réclame, et cette réclamation se lisait sur les éléments en attente de
+bassin. La file ne se formant plus à flot mais en amont, en fin d'outfitting, il fallait l'y
+lire : sans cela plus personne ne réclamait, le bassin ne se vidait jamais et tout se bloquait —
+62 éléments jamais immergés au premier essai.
+
+**Le prix est lourd et il faut le savoir.** Sur le classeur de référence, avec l'optimiseur :
+retards 4 → 31, retard maximum 17 → 69 jours, cumulé 41 → 993 jours. Ce n'est pas la règle qui
+coûte, c'est ce qu'elle révèle : le planning ne tenait qu'en s'autorisant un mouvement
+impossible. Les journaux disent où — sur cet essai, **1 990 jours** où un float-up a été repoussé
+faute de poste libre. La case permet de revenir à l'ancien comportement pour comparer.
+
+Ajouter des places de parking ne répare rien (essais à 5, 7, 9 et 12 places) : le goulot n'est
+pas là. Les deux causes dominantes du séjour en bassin, mesurées en jours-élément, sont l'échec
+de la sortie vers parking ou stockage (5 354) et le blocage par l'élément qui fait face à la
+sortie (3 966).
+
 ## Une seule paire de portes
 
 Le site n'a qu'une paire de portes : **un seul float-up à la fois**. Le groupe dont l'élément

@@ -314,6 +314,7 @@
   .retouche { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
     background: var(--surface-2); padding: 2px 8px; white-space: nowrap; }
   .retouche.impose { border-color: var(--accent); color: var(--accent); }
+  .retouche.impose.repousse { border-color: var(--warn); color: var(--warn); }
   /* Conséquences d'une date imposée : l'écart contre le calcul de référence. */
   .cons-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 14px; }
@@ -466,6 +467,8 @@
           Décision d'accélérer <input type="date" id="p-datedecision"></label>
         <label class="champ bascule" title="Deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.">
           <input type="checkbox" id="p-vacances" checked> Arrêts annuels de l'usine</label>
+        <label class="champ bascule" title="Un élément ne monte pas dans un Lower Basin que la paire précédente n'a pas quitté : le mouvement suppose les deux bassins au même niveau. Décochée, l'élément part vers un poste occupé et attend à flot.">
+          <input type="checkbox" id="p-bassin-libre" checked> Bassin libre avant float-up</label>
         <label class="champ bascule" title="Chaque ligne ne lance un élément que son jour de la semaine — PL-1 lundi … PL-5 vendredi — pour ne pas saturer la centrale à béton un seul jour. L'attente est d'au plus six jours par élément.">
           <input type="checkbox" id="p-jour-coulage" checked> Un jour de coulage par ligne</label>
         <label class="champ bascule" title="La ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme">
@@ -1893,17 +1896,33 @@ function rendreRetouches() {
 
   // Les dates imposées, d'abord : elles ont changé le calcul, pas seulement le dessin.
   if (IMPOSITIONS.size) {
-    const t = el('span');
-    t.append(document.createTextNode('Dates imposées : '));
-    t.append(el('b', null, String(IMPOSITIONS.size)));
-    t.append(document.createTextNode(' élément(s) — le planning ci-dessous en découle.'));
-    boite.append(t);
+    // `t` est la fonction de conversion de date du module : ne pas la masquer ici.
+    const entete = el('span');
+    entete.append(document.createTextNode('Dates imposées : '));
+    entete.append(el('b', null, String(IMPOSITIONS.size)));
+    entete.append(document.createTextNode(' élément(s) — le planning ci-dessous en découle.'));
+    boite.append(entete);
+    const parId = Object.fromEntries(D.elements.map(e => [e.id, e]));
     [...IMPOSITIONS.entries()].slice(0, 10).forEach(([id, imp]) => {
-      const quoi = [imp.beton ? 'coulée ' + fr(new Date(imp.beton).toISOString().slice(0, 10)) : null,
-                    imp.immersion ? 'immersion ' + fr(new Date(imp.immersion).toISOString().slice(0, 10)) : null]
-        .filter(Boolean).join(' · ');
-      const chip = el('span', 'retouche impose', `${id} · ${quoi}`);
-      chip.title = 'Cliquer pour rendre cet élément au solveur et relancer';
+      // Ce qui a été demandé, et ce qui a été obtenu. Une date de coulée imposée est un
+      // « au plus tôt » : la halle, le déphasage, le jour de coulage ou l'ordre d'immersion
+      // peuvent la repousser. Sans cet écart affiché, la barre revient à sa place calculée et
+      // l'on croit que rien ne s'est passé.
+      const e = parId[id] || {};
+      const morceaux = [];
+      let tenu = true;
+      if (imp.beton) {
+        const voulu = new Date(imp.beton).toISOString().slice(0, 10);
+        const obtenu = e.bD || null;
+        const ec = obtenu ? Math.round((t(obtenu) - t(voulu)) / day) : null;
+        morceaux.push('coulée ' + fr(voulu) + (ec ? ` → ${fr(obtenu)} (+${ec} j)` : ''));
+        if (ec) tenu = false;
+      }
+      if (imp.immersion) morceaux.push('immersion ' + fr(new Date(imp.immersion).toISOString().slice(0, 10)));
+      const chip = el('span', 'retouche impose' + (tenu ? '' : ' repousse'), `${id} · ${morceaux.join(' · ')}`);
+      chip.title = (tenu ? '' : 'La date demandée n\'a pas pu être tenue : une date de coulée '
+                    + 'imposée retarde, elle n\'avance jamais — la halle n\'est pas libre plus tôt.\n')
+                    + 'Cliquer pour rendre cet élément au solveur et relancer';
       chip.style.cursor = 'pointer';
       chip.addEventListener('click', () => { IMPOSITIONS.delete(id); relance(); });
       boite.append(chip);
@@ -2975,6 +2994,7 @@ function calculer(nomFichier) {
         accelererEnCoursCycle: $('p-accel-cycle').checked,
         vacances: $('p-vacances').checked,
         jourCoulage: $('p-jour-coulage').checked,
+        bassinLibre: $('p-bassin-libre').checked,
         dateDecision: $('p-datedecision').value ? new Date($('p-datedecision').value) : null,
       };
       STAGGER.actif = $('p-stagger').checked;

@@ -233,6 +233,8 @@
       <span><b>Une seule paire de portes</b> — un seul float-up à la fois. Le groupe dont l'élément est le plus urgent passe d'abord, les autres attendent la porte. Le staggering décale les départs béton, pas les sorties d'outfitting : sans cette règle, deux ou trois bassins se remplissent parfois le même jour.</span></label>
     <label class="check"><input type="checkbox" id="p-vacances" checked>
       <span><b>Arrêts annuels de l'usine</b> — deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Les durées se règlent à l'étape 6. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.</span></label>
+    <label class="check"><input type="checkbox" id="p-bassin-libre" checked>
+      <span><b>Bassin libre avant float-up</b> — un élément ne monte pas dans un Lower Basin que la paire précédente n'a pas quitté : le mouvement suppose les deux bassins au même niveau. Décochée, la règle d'avant, qui laissait partir l'élément vers un poste occupé et le faisait attendre à flot.</span></label>
     <label class="check"><input type="checkbox" id="p-jour-coulage" checked>
       <span><b>Un jour de coulage par ligne</b> — chaque ligne ne lance un élément que son jour de la semaine (PL-1 lundi … PL-5 vendredi par défaut, réglable à l'étape 6). Sans cette règle, cinq premières coulées peuvent tomber le même jour et saturer la centrale à béton. L'attente est d'au plus six jours par élément.</span></label>
     <label class="field">Date de décision d'accélérer <input type="date" id="p-datedecision"></label>
@@ -476,6 +478,7 @@ const REGLES = {
   vacances: true,           // arrêts annuels de l'usine
   noelSemaines: 2,          // de la semaine du 25 décembre, couvre Noël et le jour de l'an
   paquesSemaines: 1,        // semaine sainte
+  bassinLibrePourFloatUp: true, // ne pas lancer un float-up vers un bassin encore occupé
   jourCoulage: true,        // chaque ligne coule son jour, pour étaler la semaine
   joursCoulage: {1: 1, 2: 2, 3: 3, 4: 4, 5: 5},  // 1 = lundi … 5 = vendredi
 };
@@ -1123,6 +1126,7 @@ function lireParamsUI() {
     accelererEnCoursCycle: caseCochee('p-accel-cycle', REGLES.accelererEnCoursCycle),
     vacances: caseCochee('p-vacances', REGLES.vacances),
     jourCoulage: caseCochee('p-jour-coulage', REGLES.jourCoulage),
+    bassinLibre: caseCochee('p-bassin-libre', REGLES.bassinLibrePourFloatUp),
     floatUpUnique: caseCochee('p-porte-unique', REGLES.floatUpUnique),
     dateDecision: dateChamp('p-datedecision'),
     etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
@@ -1189,6 +1193,7 @@ function runSimulation(paramsArg) {
   const changements = []; // changements de rythme décidés par le solveur (rapport opérateurs)
   const accelerationsEnCours = []; // éléments dont la coulée a été raccourcie en cours de route
   const portesEnAttente = []; // float-ups repoussés faute de porte libre
+  const bassinsPleins = [];   // float-ups repoussés faute de poste libre à l'arrivée
   const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
@@ -1758,7 +1763,8 @@ function runSimulation(paramsArg) {
   function evacuerVersStockageSPE(e, dCur) {
     if (dCur < e.dateFinBasin) return;                       // hook-up à terminer d'abord
     const reclamant = elements.some(x => x !== e && !x.termine && x.ligne === 6
-      && x.statut === 'AttenteBasin' && x.rangImmersion < e.rangImmersion);
+      && (x.statut === 'AttenteBasin' || x.statut === 'AttenteFloatUp')
+      && x.rangImmersion < e.rangImmersion);
     if (!reclamant) return;
     // Sortir du Basin C impose de l'inonder : tout SPE encore en zone UB doit être étanche.
     if (speNonEtancheEnUB(dCur)) return;
@@ -1901,8 +1907,13 @@ function runSimulation(paramsArg) {
 
         // Le seuil de parking évite un mouvement coûteux quand l'immersion est proche — mais
         // il ne doit jamais retenir un élément dont la place est réclamée par la production.
+        // Qui réclame la place ? Depuis que le float-up ne part plus vers un bassin occupé,
+        // la file ne se forme plus à flot mais en amont, en fin d'outfitting : c'est là qu'il
+        // faut la lire. La chercher encore en `AttenteBasin` reviendrait à ne voir personne
+        // réclamer, donc à ne jamais libérer le bassin — et tout se bloque.
         const placeReclamee = elements.some(x => x !== e && !x.termine
-          && groupeId(x.ligne) === e.basinNum && x.statut === 'AttenteBasin');
+          && groupeId(x.ligne) === e.basinNum
+          && (x.statut === 'AttenteBasin' || x.statut === 'AttenteFloatUp'));
         const immersionProche = dBallast && diffDays(dBallast, dCur) <= PARAMS.seuilParkingSem * 7;
         if (immersionProche && !placeReclamee) break;
         if (!placeReclamee) break; // rien ne presse : inutile de consommer une place de parking
@@ -2091,7 +2102,10 @@ function runSimulation(paramsArg) {
       }
       for (const [lA, lB] of GROUPES) {
         const p = partantsDuGroupe(lA, lB);
-        if (p && p.length) candidats.push({lA, lB, p});
+        if (!p || !p.length) continue;
+        if (!basinPretAAccueillir(p)) { bassinsPleins.push({date: new Date(dCur), groupe: 'ABC'[groupeId(lA)-1],
+          ids: p.map(e => e.id)}); continue; }
+        candidats.push({lA, lB, p});
       }
       if (!candidats.length) return;
       candidats.sort((a, b) => urgenceGroupe(a.p) - urgenceGroupe(b.p));
@@ -2105,8 +2119,29 @@ function runSimulation(paramsArg) {
     }
     for (const [lA, lB] of GROUPES) {
       const p = partantsDuGroupe(lA, lB);
-      if (p && p.length) lancerFloatUp(p, dCur);
+      if (!p || !p.length) continue;
+      if (!basinPretAAccueillir(p)) { bassinsPleins.push({date: new Date(dCur), groupe: 'ABC'[groupeId(lA)-1],
+        ids: p.map(e => e.id)}); continue; }
+      lancerFloatUp(p, dCur);
     }
+  }
+
+  /* Le bassin de destination a-t-il de quoi accueillir ces partants ?
+     Un float-up fait passer l'élément de l'Upper au Lower Basin : le bassin d'arrivée doit
+     être en état de le recevoir. Sans ce contrôle, le solveur lançait le mouvement vers un
+     bassin encore occupé par la paire précédente, et l'élément se retrouvait à flot sans
+     poste — un état qui n'existe pas sur le chantier. Le test reprend exactement celui de
+     `tenterEntreeBasin` : entrée par paire pour les bassins A et B, donc bassin entièrement
+     libre ; poste par poste pour le Basin C, où le SPE et PL-5 sont indépendants. */
+  function basinPretAAccueillir(partants) {
+    if (PARAMS.bassinLibre === false) return true;
+    const g = groupeId(partants[0].ligne);
+    const occ = basinOccupee[g] || {};
+    if (g !== 3) return !Object.values(occ).some(Boolean);
+    return partants.every(e => {
+      const place = Math.min(e.ligne === 5 ? 1 : 2, REGLES.basinPlaces);
+      return !occ[place];
+    });
   }
 
   // Éléments qu'un groupe ferait partir aujourd'hui, ou null s'il n'est pas prêt.
@@ -2262,7 +2297,7 @@ function runSimulation(paramsArg) {
       // les uns des autres au mouillage.
       const rangAttente = new Map(), filesAttente = {};
       for (const e of enJeu) {
-        if (e.statut !== 'AttenteBasin' && e.statut !== 'AttenteParking') continue;
+        if (e.statut !== 'AttenteBasin') continue;
         const g = groupeId(e.ligne);
         rangAttente.set(e.id, filesAttente[g] = (filesAttente[g] || 0) + 1);
       }
@@ -2340,6 +2375,14 @@ function runSimulation(paramsArg) {
         + `(${impositions.ordreChange.slice(0, 6).join(', ')}${impositions.ordreChange.length > 6 ? '…' : ''}). `
         + `C'est une donnée du planning P6 : à confirmer avant d'en tirer une conclusion.`, 'err');
     }
+  }
+  if (bassinsPleins.length) {
+    const jours = new Set(bassinsPleins.map(b => +b.date)).size;
+    log(`Bassin d'arrivée : ${jours} jour(s) où un float-up a été repoussé faute de poste libre `
+      + `dans le Lower Basin — ${bassinsPleins.length} report(s), du `
+      + `${fmt(new Date(Math.min(...bassinsPleins.map(b => +b.date))))} au `
+      + `${fmt(new Date(Math.max(...bassinsPleins.map(b => +b.date))))}. Un élément ne peut pas `
+      + `monter dans un bassin que la paire précédente n'a pas quitté.`);
   }
   if (PARAMS.jourCoulage) {
     const total = [1,2,3,4,5].reduce((s, l) => s + attenteJourCoulage[l], 0);
@@ -2921,9 +2964,17 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx, rang
       return {...base, type:'floatup', anchor:'center', x: lerp(depart, p.x, progress),
               y: lerp(y, p.y, progress), w: len};
     }
-    case 'AttenteBasin':
     case 'AttenteParking': {
-      // À flot devant son bassin, en file : l'élément attend un poste ou une place de parking.
+      // L'élément a fini son hook-up et cherche une place de parking : il n'a pas bougé, il
+      // est toujours à son poste dans le bassin. Le montrer ailleurs serait un déplacement
+      // que personne n'a fait.
+      const p = posteBassin();
+      return {...base, type:'basin-wait', anchor:'center', x: p.x, y: p.y, w: len};
+    }
+    case 'AttenteBasin': {
+      // Float-up fait mais poste occupé. Avec la règle du bassin libre, le cas ne devrait
+      // plus se produire ; il reste possible quand elle est décochée, et l'élément est alors
+      // à flot devant son bassin, faute d'un mouillage dessiné sur le plan.
       const rang = (rangAttente && rangAttente.get(e.id)) || 1;
       if (rang > GEO.attente.visibles) return null;          // résumé par le compteur
       return {...base, type:'basin-wait', anchor:'center', w: len,
