@@ -898,7 +898,7 @@ Conversion : `x% = px / 20`, `y% = px / 9,91`.
 |---|---|
 | Largeur d'un élément (Y) | 4,44 % (44 px) |
 | Longueur standard (PL1-5) / spéciale (SPE) | 12,10 % (242 px = 217 m) / 2,20 % (44 px = 39 m) |
-| X station de coulée → porte coulissante → travée outfitting → bassin | 85,10 → 76,85 → 64,75 → 55,75 |
+| X station de coulée → porte coulissante → travée outfitting → bassin | 90,48 → 76,85 → 64,75 → 55,75 |
 | Y PL-1 / PL-2 / PL-3 / PL-4 / PL-5 / SPE | 70,53 / 64,73 / 44,75 / 39,00 / 18,97 / 12,76 |
 | Parkings (6 places relevées une à une) | môle nord [14,60 ; 17,46] et [11,70 ; 25,63] à 0° ; môle sud [16,98 ; 73,03], [20,54 ; 79,02], [24,11 ; 85,02] à −50° ; réserve [43,22 ; 87,82] à 90° |
 | Ballast Jetty (un seul poste, dans l'axe du quai) | [41,55 ; 20,69] à 90° |
@@ -908,6 +908,12 @@ Conversion : `x% = px / 20`, `y% = px / 9,91`.
 | Porte flottante | souille [46,55 ; 39,35] ; fermeture à x = 47,90, sur l'axe du bassin concerné |
 | Porte coulissante (une par ligne PL) | x = 77,50 |
 | Aire d'attente à flot | x = 33,00, quatre places visibles par bassin puis un compteur |
+
+La station de coulée n'est pas au bord de halle relevé sur le fond (1702 px) mais **quatre
+segments plus à l'est** (1810 px) : les quatre premiers segments d'un élément sont coulés à
+l'intérieur des halles. Sans ce report, un élément en fin de coulée empiétait sur la travée
+d'outfitting, ce qui ne se peut pas — le décalage supprime les 3 239 chevauchements que la
+simulation produisait entre un béton et un outfitting de la même ligne.
 
 Deux positions ne se lisent pas sur le plan parce qu'elles ne correspondent à aucun ouvrage :
 l'aire d'attente à flot (un élément dont le float-up est fait mais dont le poste en bassin

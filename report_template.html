@@ -1158,6 +1158,21 @@
       const p = borne(seg(A('bD'), A('oF') || A('bF')));
       return 1 + Math.floor(p * (NB_SPE - 1));
     };
+    // Ligne SPE : le solveur ne lui donne pas de dates de coulée — un spécial ne se coule pas
+    // par segments, il traverse des aires successives datées par le planning P6. Ce sont donc
+    // ses passages de zone qui le positionnent, et son entrée en outfitting qui dit la phase.
+    // Sans cette branche, aucun SPE n'apparaissait en CPA ni en CP1-3 : le test sur les dates
+    // de béton ci-dessous ne pouvait jamais passer, faute de `bF`, et l'élément ne se montrait
+    // qu'une fois en Upper Basin.
+    if (e.l === 'SPE' && e.zones) {
+      const passages = Object.values(e.zones).map(t).filter(Boolean).sort((a, b) => a - b);
+      const sortie = A('fu') || A('oF');
+      if (passages.length && ms >= passages[0] && (!sortie || ms < sortie)) {
+        const enUB = A('oD') && ms >= A('oD');
+        return { ph: enUB ? 'outfitting' : 'beton', x: aireSPE(aireCourante()),
+                 y, w: L, anchor: 'center' };
+      }
+    }
     if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF')) {
       const p = borne(seg(A('bD'), A('bF')));
       if (e.l === 'SPE') return { ph:'beton', x: aireSPE(aireCourante()), y, w: L, anchor:'center' };

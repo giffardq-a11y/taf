@@ -368,7 +368,11 @@
 const GEO = {
   // Poste de coulée, à l'est : l'élément y grandit segment par segment vers l'ouest,
   // son extrémité est restant à la station (d'où l'ancrage à droite).
-  x_entry: 85.10,      // 1702 px — station de coulée
+  // Les quatre premiers segments sont coulés à l'intérieur des halles : la station est donc
+  // plus à l'est que le bord de halle relevé sur le plan, de quatre segments — soit 4/9 de la
+  // longueur d'un élément, 108 px. Sans ce report, un élément en fin de coulée empiétait sur
+  // la travée d'outfitting, ce qui ne se peut pas.
+  x_entry: 90.48,      // 1810 px = bord de halle 1702 px + 4 segments
   x_hall_end: 76.85,   // 1537 px — extrémité est de l'emplacement d'outfitting
   x_outfit_end: 64.75, // 1295 px — extrémité ouest = quai de float-up
   x_basin: 55.75,      // 1115 px — axe des postes en bassin
