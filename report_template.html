@@ -278,6 +278,32 @@
     text-align: center; overflow: hidden; white-space: nowrap; color: #10202a;
     border: 1px solid rgba(0,0,0,.22); cursor: pointer; }
   .pl-barre:hover { outline: 1px solid var(--ink); z-index: 3; }
+  /* Une barre de coulée porte ses segments : on efface son propre libellé, chaque bloc
+     portant le sien, et le numéro d'élément reste dans l'infobulle. */
+  .pl-barre-seg { color: transparent; }
+  .pl-nom { position: absolute; left: 0; top: 0; height: 12px; line-height: 12px; z-index: 2;
+    font-size: 7.5px; padding: 0 2px; color: #10202a; background: rgba(255,255,255,.72);
+    border-right: 1px solid rgba(0,0,0,.3); pointer-events: none; }
+  .pl-seg { position: absolute; top: 0; bottom: 0; min-width: 8px; font-size: 7.5px;
+    line-height: 12px; text-align: center; color: #10202a; overflow: hidden;
+    border-left: 1px solid rgba(0,0,0,.45); box-sizing: border-box; }
+  .pl-seg:hover { background: rgba(255,255,255,.45); }
+  /* Compteurs de coulées, alignés sur la règle de temps. */
+  .pl-compte { height: 15px; flex: 0 0 15px; position: relative; border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2); }
+  .pl-compte-lib { height: 15px; flex: 0 0 15px; font-size: 9px; line-height: 15px; padding: 0 6px;
+    color: var(--ink-3); border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  .pl-cnt { position: absolute; top: 0; height: 15px; font-size: 8.5px; line-height: 15px;
+    text-align: center; font-family: var(--mono); color: var(--ink-2); overflow: hidden;
+    border-left: 1px solid var(--line-soft); }
+  .pl-cnt.charge { background: var(--crit-soft); color: var(--crit); font-weight: 600; }
+  /* Cheminement d'un élément d'une ressource à la suivante. */
+  .pl-piste { position: relative; }
+  .pl-flux { position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 4; overflow: visible; }
+  .pl-flux path { fill: none; stroke: var(--accent); color: var(--accent);
+    stroke-width: .7; opacity: .22; }
+  .pl-flux path.vif { opacity: 1; stroke-width: 1.6; }
   .pl-vac { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg,
     rgba(168,50,38,.16) 0 4px, transparent 4px 8px); pointer-events: none; }
   .pl-legende { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 10px; font-size: 10.5px;
@@ -409,6 +435,8 @@
           Décision d'accélérer <input type="date" id="p-datedecision"></label>
         <label class="champ bascule" title="Deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.">
           <input type="checkbox" id="p-vacances" checked> Arrêts annuels de l'usine</label>
+        <label class="champ bascule" title="Chaque ligne ne lance un élément que son jour de la semaine — PL-1 lundi … PL-5 vendredi — pour ne pas saturer la centrale à béton un seul jour. L'attente est d'au plus six jours par élément.">
+          <input type="checkbox" id="p-jour-coulage" checked> Un jour de coulage par ligne</label>
         <label class="champ bascule" title="La ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme">
           <input type="checkbox" id="p-accel-cycle" checked> Accélérer en cours de cycle</label>
         <label class="champ bascule" title="Chaque ligne tourne au rythme le plus rapide que la pente autorise et s'éteint dès sa file vidée, quitte à produire longtemps avant l'immersion. Décoché : production à flux tendu.">
@@ -639,6 +667,8 @@
           </select></label>
         <label class="champ bascule"><input type="checkbox" id="planning-vides" checked>
           Garder les ressources non modélisées</label>
+        <label class="champ bascule" title="Relie les barres d'un même élément d'une ressource à la suivante : béton, outfitting, bassin, parking, ballast, immersion. Survolez une barre pour isoler son cheminement.">
+          <input type="checkbox" id="planning-flux"> Cheminement des éléments</label>
         <button type="button" id="planning-imprimer">Imprimer le planning</button>
         <span class="seq-hint" id="planning-hint"></span>
       </div>
@@ -1512,16 +1542,13 @@ function occupationsGantt() {
     if (e.ln <= 5) {
       const casting = `Line ${e.ln} - STE Casting`;
       pousser(casting, e.bD, e.bF, e);
-      // Les neuf coulées de segment, réparties au rythme de la ligne : le repère qu'un
+      // Les neuf coulées de segment, aux dates calculées par le solveur : le repère qu'un
       // chef de production regarde, plutôt qu'une seule grande tâche.
-      if (e.bD && e.bF && e.r) {
-        const segs = [];
-        for (let k = 1; k <= REGLES.segments; k++) {
-          const j = t(e.bD) + k * e.r * 7 * day;
-          if (j <= t(e.bF) + day) segs.push(j);
-        }
+      if (e.sg && e.sg.length) {
         const barre = out[out.length - 1];
-        if (barre && barre.res === casting) barre.segs = segs;
+        if (barre && barre.res === casting)
+          barre.segs = e.sg.map((d, i) => ({k: i + 1, d: t(d),
+            f: t(e.sg[i + 1]) || Math.max(t(e.bF), t(d) + day)}));
       }
       // Big push : le transfert de la zone béton vers la zone d'outfitting. Il occupe
       // l'intervalle entre la fin de coulée et le départ du suivant sur la même ligne.
@@ -1571,6 +1598,51 @@ function bandesVacances(t0, t1) {
   return out;
 }
 
+/* Cheminement d'un élément : un trait de la fin d'une occupation au début de la suivante,
+   ressource après ressource. Quatre-vingt-neuf éléments font beaucoup de traits — ils sont
+   donc effacés par défaut, et survoler une barre isole le trajet de son élément. Les rangs
+   étant de hauteur fixe, la géométrie se calcule sans mesurer le DOM : le tracé est juste
+   même avant que la page soit peinte, et ne bouge pas à l'impression. */
+const PL_RANG_H = 14, PL_TETE_H = 30, PL_COMPTES_H = 30;
+function tracerFlux(etapes, pc, nbRessources) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'pl-flux');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const hauteur = PL_TETE_H + PL_COMPTES_H + nbRessources * PL_RANG_H;
+  svg.setAttribute('viewBox', `0 0 100 ${hauteur}`);
+  const y = rang => PL_TETE_H + PL_COMPTES_H + rang * PL_RANG_H + PL_RANG_H / 2;
+  // Pointe de flèche, à la taille du tracé : c'est elle qui donne le sens du parcours.
+  const defs = document.createElementNS(NS, 'defs');
+  defs.innerHTML = '<marker id="pl-pointe" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5"'
+    + ' markerHeight="5" markerUnits="strokeWidth" orient="auto">'
+    + '<path d="M0 0 L6 3 L0 6 z" fill="currentColor"/></marker>';
+  svg.append(defs);
+
+  const parElement = {};
+  etapes.forEach(e => { if (!e.push) (parElement[e.id] = parElement[e.id] || []).push(e); });
+  // Les extrémités hors page sont ramenées au bord : un cheminement qui sort de la tranche
+  // reste lisible comme tel, alors que le supprimer laisserait croire qu'il n'existe pas.
+  const borne = v => Math.max(-1, Math.min(101, v));
+  for (const id in parElement) {
+    const suite = parElement[id].sort((a, b) => a.d - b.d || a.rang - b.rang);
+    for (let i = 1; i < suite.length; i++) {
+      const a = suite[i - 1], b = suite[i];
+      if (b.rang === a.rang) continue;
+      const x1 = borne(pc(a.f)), y1 = y(a.rang), x2 = borne(pc(b.d)), y2 = y(b.rang);
+      if (x2 < 0 || x1 > 100) continue;              // segment entièrement hors de la tranche
+      const p = document.createElementNS(NS, 'path');
+      // Courbe en S : verticale près des barres, pour qu'un faisceau reste lisible.
+      p.setAttribute('d', `M${x1} ${y1} C${x1} ${(y1 + y2) / 2} ${x2} ${(y1 + y2) / 2} ${x2} ${y2}`);
+      p.setAttribute('vector-effect', 'non-scaling-stroke');
+      p.setAttribute('marker-end', 'url(#pl-pointe)');
+      p.dataset.id = id;
+      svg.append(p);
+    }
+  }
+  return svg;
+}
+
 function rendreGantt() {
   const boite = document.getElementById('planning');
   if (!boite) return;
@@ -1581,6 +1653,13 @@ function rendreGantt() {
   const gardeVides = document.getElementById('planning-vides').checked;
   const ressources = G_RESSOURCES.filter(r => gardeVides || r[1]);
   const moisParPage = parseInt(document.getElementById('planning-tranche').value, 10);
+
+  // Toutes les coulées de segment du programme, à plat : de quoi compter la charge par
+  // semaine et par mois. Une semaine à plus d'une coulée par ligne se signale en rouge —
+  // c'est le cas que le jour de coulage cherche à éviter.
+  const COULEES = OCC.flatMap(o => (o.segs || []).map(s => s.d)).sort((a, b) => a - b);
+  const SEUIL_SEM = 6;
+  const flux = document.getElementById('planning-flux').checked;
 
   let T0 = Math.min(...OCC.map(o => o.d)), T1 = Math.max(...OCC.map(o => o.f));
   const d0 = new Date(T0); T0 = +new Date(d0.getFullYear(), d0.getMonth(), 1);
@@ -1605,6 +1684,8 @@ function rendreGantt() {
     const corps = el('div', 'pl-corps');
     const cols = el('div', 'pl-libelles');
     cols.append(el('div', 'pl-tete'));
+    cols.append(el('div', 'pl-compte-lib', 'Coulées / semaine'));
+    cols.append(el('div', 'pl-compte-lib', 'Coulées / mois'));
     ressources.forEach(([lib, src]) => cols.append(el('div', 'pl-lib' + (src ? '' : ' vide'), lib)));
     corps.append(cols);
 
@@ -1629,7 +1710,37 @@ function rendreGantt() {
     }
     piste.append(tete);
 
+    // Charge de coulée : le nombre de segments coulés dans chaque semaine, puis dans chaque
+    // mois, toutes lignes confondues. C'est ce que voit la centrale à béton — la grandeur que
+    // la règle du jour de coulage cherche à lisser.
+    const rangSem = el('div', 'pl-compte');
+    for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+      if (+w < pa) continue;
+      const fin = +w + 7 * day;
+      const n = COULEES.filter(j => j >= +w && j < fin).length;
+      const c = el('div', 'pl-cnt' + (n >= SEUIL_SEM ? ' charge' : ''), n ? String(n) : '');
+      c.style.left = pc(+w) + '%';
+      c.style.width = (7 * day / span * 100) + '%';
+      c.title = `Semaine ${semaineIso(w)} — ${n} coulée(s) de segment`;
+      rangSem.append(c);
+    }
+    piste.append(rangSem);
+    const rangMois = el('div', 'pl-compte');
+    for (let m = new Date(pa); +m < pb;) {
+      const suiv = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      const n = COULEES.filter(j => j >= +m && j < +suiv).length;
+      const c = el('div', 'pl-cnt', n ? String(n) : '');
+      c.style.left = pc(+m) + '%';
+      c.style.width = (pc(Math.min(+suiv, pb)) - pc(+m)) + '%';
+      c.title = `${G_MOIS[m.getMonth()]} ${m.getFullYear()} — ${n} coulée(s) de segment`;
+      rangMois.append(c);
+      m = suiv;
+    }
+    piste.append(rangMois);
+
+    const etapes = [];
     ressources.forEach(([lib, src], i) => {
+      const rangIdx = i;
       const rang = el('div', 'pl-rang' + (i % 2 ? ' alt' : ''));
       // Semaines : un filet discret, pour lire une date sans règle.
       for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
@@ -1657,22 +1768,39 @@ function rendreGantt() {
                         barre.style.fontSize = '7px'; }
           if (o.fu) { barre.style.background = '#6A5FA8'; barre.style.color = '#fff';
                       barre.style.borderRadius = '50%'; barre.textContent = ''; }
-          // Les coulées de segment : un filet clair par segment à l'intérieur de la barre.
-          (o.segs || []).forEach(j => {
-            if (j < pa || j > pb) return;
-            const tr = el('div');
-            tr.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35)';
-            tr.style.left = ((pc(j) - pc(a)) / (pc(b) - pc(a)) * 100) + '%';
-            barre.append(tr);
+          // Les coulées de segment, numérotées à l'intérieur de la barre. Un segment dure
+          // une à quatre semaines : à l'échelle d'un planning de six ans, son bloc ne fait
+          // que quelques pixels. On lui impose donc une largeur minimale — l'élément garde
+          // ses vraies dates, seul le numéro est rendu lisible.
+          if (o.segs && o.segs.length) {
+            barre.classList.add('pl-barre-seg');
+            // Le numéro d'élément reste affiché, épinglé à gauche : c'est lui qu'on cherche
+            // d'abord, les numéros de segment ne servent qu'ensuite.
+            if ((b - a) / span > 0.02) barre.append(el('span', 'pl-nom', o.lab));
+          }
+          (o.segs || []).forEach(s => {
+            if (s.f <= pa || s.d >= pb) return;
+            const bloc = el('div', 'pl-seg', String(s.k));
+            const g = (pc(Math.max(s.d, a)) - pc(a)) / Math.max(pc(b) - pc(a), 1e-9) * 100;
+            const w = (pc(Math.min(s.f, b)) - pc(Math.max(s.d, a))) / Math.max(pc(b) - pc(a), 1e-9) * 100;
+            bloc.style.left = g + '%';
+            bloc.style.width = w + '%';
+            bloc.title = `${o.id} — segment ${s.k}/${REGLES.segments}`
+              + `\ncoulé le ${fr(new Date(s.d).toISOString().slice(0,10))}`;
+            barre.append(bloc);
           });
           barre.title = `${o.id} — ${lib}\n${fr(new Date(o.d).toISOString().slice(0,10))}`
             + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`;
+          barre.dataset.id = o.id;
           barre.addEventListener('click', () => ouvrirFiche(o.id));
           rang.append(barre);
         });
       }
+      if (flux && src) OCC.filter(o => o.res === lib)
+        .forEach(o => etapes.push({id: o.id, rang: rangIdx, d: o.d, f: o.f, push: !!o.push}));
       piste.append(rang);
     });
+    if (flux) piste.append(tracerFlux(etapes, pc, ressources.length));
     corps.append(piste);
     page.append(corps);
     boite.append(page);
@@ -2467,6 +2595,7 @@ function calculer(nomFichier) {
         arretAuPlusTot: $('p-arret-tot').checked,
         accelererEnCoursCycle: $('p-accel-cycle').checked,
         vacances: $('p-vacances').checked,
+        jourCoulage: $('p-jour-coulage').checked,
         dateDecision: $('p-datedecision').value ? new Date($('p-datedecision').value) : null,
       };
       STAGGER.actif = $('p-stagger').checked;
@@ -2513,6 +2642,7 @@ function construireD() {
       im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
       ri: e.rangImmersion,
       fuF: iso(e.dateFinFU), baF: iso(e.dateFinBasin), hk: iso(e.dateHookup),
+      sg: datesSegments(e).map(iso),
       zones: e.passagesSim
         ? Object.fromEntries(Object.entries(e.passagesSim).map(([z, d]) => [z, iso(d)])) : null,
       stk: iso(e.dateDebutStockageSPE), sp: e.stockageSPENum, st: e.statut, zs: e.zoneSPE,
@@ -2586,6 +2716,17 @@ function appliquerFondPlan() {
   const redessiner = () => { if (D) rendreGantt(); };
   document.getElementById('planning-tranche').addEventListener('change', redessiner);
   document.getElementById('planning-vides').addEventListener('change', redessiner);
+  document.getElementById('planning-flux').addEventListener('change', redessiner);
+  // Survoler une barre isole le cheminement de son élément dans le faisceau.
+  const planning = document.getElementById('planning');
+  planning.addEventListener('mouseover', ev => {
+    const barre = ev.target.closest('.pl-barre');
+    const id = barre && barre.dataset.id;
+    planning.querySelectorAll('.pl-flux path').forEach(p => p.classList.toggle('vif', !!id && p.dataset.id === id));
+  });
+  planning.addEventListener('mouseleave', () => {
+    planning.querySelectorAll('.pl-flux path.vif').forEach(p => p.classList.remove('vif'));
+  });
   document.getElementById('planning-imprimer').addEventListener('click', () => {
     document.body.classList.add('impr-planning');
     const rendre = () => document.body.classList.remove('impr-planning');
