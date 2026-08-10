@@ -194,31 +194,96 @@ ZONES = {
         'fichiers': ['General_Tempo_Staggering.xlsx', 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
                      'TEMPO_N2_Presentation_Casting_Team_10062026.pptx',
                      'TEMPO_N2_presentation_CAS__BUF___May_26.pptx',
-                     'Tempo_full_schedule_linked_V4_70_jour.mpp', 'Cranes_conclusions.xlsx (non encore dépouillé)'],
+                     'Tempo_full_schedule_linked_V4_70_jour.mpp', 'Cranes_conclusions.xlsx'],
     },
-    'T': {'aire': 'Curing Hall', 'unite': 'R1', 'donnees': [], 'hypotheses': [], 'contradictions': [],
-          'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx']},
+    'T': {'aire': 'Curing Hall', 'unite': 'R1',
+          'donnees': [
+              {'texte': "Le planning MS Project confirme, pour chacun des 9 segments d'un élément "
+                        "(« TE 01 »), une paire de tâches « Casting » (≈1,5 jour, ressource FLC "
+                        "WORKER) suivie de « Pushing » (≈0,35 jour soit ~8h, ressource Skidding "
+                        "team) — le « push » qui fait avancer l'élément d'une position à l'autre "
+                        "dans la ligne de coulée. C'est la mécanique concrète derrière le skidding "
+                        "déjà évoqué en zone S.", 'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp '
+                        '(tâches Casting/Pushing TE 01 -Segment 01 à 09)', 'statut': 'confirme'},
+          ], 'hypotheses': [], 'contradictions': [],
+          'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp']},
     'U+K': {'aire': 'Curing Hall', 'unite': 'R2', 'donnees': [], 'hypotheses': [], 'contradictions': [],
              'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx']},
     'L': {'aire': 'Curing Hall', 'unite': 'R3', 'donnees': [], 'hypotheses': [], 'contradictions': [],
           'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx']},
 }
 
+# Zones A-F (Outfitting) et G-I (Upper Basin) : le classeur N3 ne les détaille pas (statut
+# de brouillon V0.1), mais le planning MS Project de l'outfitting (`tempo/lire_mpp.py`) est
+# précisément le document qui couvre cette partie — 631 tâches pour un seul élément (« TE 01 »),
+# organisées par segment (S1 à S9) plutôt que par code de zone OF1-OF5/SG ou UB-S9/S8/S7. Les
+# deux découpages (zones N3/N1 vs segments MPP) ne sont pas encore mis en correspondance —
+# voir l'hypothèse ci-dessous plutôt qu'une contradiction : ce n'est pas un vrai trou de donnée,
+# c'est un système de repérage différent à faire concorder.
+_DONNEES_OUTFITTING_MPP = [
+    {'texte': "Le planning MS Project de l'outfitting détaille, par segment (S1 à S9) et par "
+              "élément (« TE 01 »), un volume important de tâches : réparations de fissures et "
+              "reprises béton (int./ext.), protection incendie, scellement des joints (« ALL "
+              "tubes patching », injection waterstop), réseaux électriques et câblage, éclairage, "
+              "protection cathodique, système de réalignement, GINA, et post-tension (voir "
+              "ci-dessous) — 631 tâches au total pour un seul élément.",
+     'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+]
+_HYPOTHESE_MAPPING_MPP = {
+    'texte': "Correspondance non établie entre le découpage du planning MPP (par segment S1-S9 "
+             "d'un élément « TE 01 ») et les codes de zone N1/N3 (OF1-OF5/SG pour l'Outfitting "
+             "Area, UB-S9/S8/S7 pour l'Upper Basin). Les deux décrivent vraisemblablement les "
+             "mêmes travaux vus sous deux découpages différents (par position physique dans "
+             "l'aire vs par segment de l'élément), mais rien ne le confirme explicitement.",
+    'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher',
+}
+
 for _z in ['A', 'B', 'C', 'D', 'E', 'F']:
     ZONES[_z] = {
         'aire': 'Outfitting Area', 'unite': {'A': 'OF1', 'B': 'OF2', 'C': 'OF3', 'D': 'OF4', 'E': 'OF5', 'F': 'SG'}[_z],
-        'donnees': [], 'hypotheses': [],
+        'donnees': list(_DONNEES_OUTFITTING_MPP), 'hypotheses': [dict(_HYPOTHESE_MAPPING_MPP)],
         'contradictions': [{'texte': "Aucune tâche détaillée dans le classeur N3 pour cette zone — "
-                             "cohérent avec son statut de brouillon V0.1, pas nécessairement une "
-                             "anomalie.", 'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx']}],
-        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
+                             "cohérent avec son statut de brouillon V0.1. Le planning MS Project "
+                             "couvre bien ces travaux (voir Données ci-dessus), mais sans code de "
+                             "zone N3 assignable directement — pas une anomalie en soi, mais un "
+                             "travail de correspondance restant à faire.",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
+                                          'Tempo_full_schedule_linked_V4_70_jour.mpp']}],
+        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
+_DONNEES_UPPER_BASIN_MPP = [
+    {'texte': "« Big Push » = le nom donné dans le planning au mouvement de l'élément complet "
+              "vers l'Upper Basin (tâches « TE 01 - Big Push Start » puis « TE 01 Movement to "
+              "Upper Basin (Start of Big Push) », toutes deux portées par la Skidding team, à un "
+              "jour d'écart dans cette version V4 du planning). C'est un jalon, pas une tâche "
+              "durée — l'élément termine tout son outfitting (voir zones A-F) avant ce mouvement.",
+     'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+    {'texte': "La post-tension (« PT Threading » 3,25j, « PT Stressing » 3,25j, « PT Grout » "
+              "2,5j, ressource Dywidag) est planifiée après le Big Push dans cette version V4 du "
+              "planning — ce qui situerait cette opération en Upper Basin plutôt qu'en amont, "
+              "mais ce n'est déduit que de l'ordre chronologique des tâches, pas d'une "
+              "affectation de zone explicite dans le fichier.",
+     'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'provisoire'},
+    {'texte': "La fin de séquence de l'élément dans le planning couvre aussi : fermeture de la "
+              "porte coulissante (« Close Sliding Gate »), test de la GINA et du système de "
+              "réalignement, essai des ballasts (« Ballast Tank Water Test »), puis flottaison "
+              "(« Float-up », « Float-Down », « Floating Gate closure ») — cohérent avec l'Upper "
+              "Basin comme zone de mise à l'eau, mais la correspondance avec les codes UB-S9/S8/"
+              "S7 spécifiquement n'est pas faite (voir hypothèse).",
+     'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+]
+
 for _z, _u in [('G', 'UB-S9'), ('H', 'UB-S8'), ('I', 'UB-S7')]:
     ZONES[_z] = {
-        'aire': 'Upper Basin', 'unite': _u, 'donnees': [], 'hypotheses': [],
-        'contradictions': [{'texte': "Aucune tâche détaillée dans le classeur N3 pour cette zone.",
-                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx']}],
-        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
+        'aire': 'Upper Basin', 'unite': _u,
+        'donnees': list(_DONNEES_UPPER_BASIN_MPP), 'hypotheses': [dict(_HYPOTHESE_MAPPING_MPP)],
+        'contradictions': [{'texte': "Aucune tâche détaillée dans le classeur N3 pour cette zone. "
+                             "Le planning MS Project couvre la séquence de fin (Big Push, "
+                             "post-tension, flottaison — voir Données ci-dessus), sans code de "
+                             "zone N3 assignable directement.",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
+                                          'Tempo_full_schedule_linked_V4_70_jour.mpp']}],
+        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
 
 LOGISTIQUE = {
@@ -372,4 +437,8 @@ REGISTRE_VALIDATION = [
     {'point': "Nombre de places de parking remorques : 13 ou 59 selon le document (périmètres "
               "probablement différents)", 'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'faible'},
+    {'point': "Correspondance à établir entre le découpage du planning MPP outfitting (par "
+              "segment S1-S9 d'un élément) et les codes de zone N1/N3 (OF1-OF5/SG, UB-S9/S8/S7)",
+     'zone': 'A, B, C, D, E, F, G, H, I', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'moyen — nécessaire pour rattacher les 631 tâches MPP à un code de zone exploitable'},
 ]
