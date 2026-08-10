@@ -399,6 +399,15 @@ LOGISTIQUE = {
                   "de calage direct — mais ça invalide un calage naïf par « date de livraison la "
                   "plus ancienne », resté non tenté pour cette raison.",
              'sources': ['MASTERVIEW.xlsm (feuille DeliveryPlan, calculé)']},
+        {'texte': "Le nombre de livraisons/jour recalculé directement depuis DeliveryPlan "
+                  "(tempo/moteur/logistique.py) donne une moyenne de 11,6/jour et un pic à 22, très "
+                  "loin des « 96 livraisons/jour » cités par ailleurs (LAYOUT_RF.pptx + "
+                  "TRAILER_QUANTITY_PER_FLOW.xlsx) — facteur 8 environ. Explication probable : "
+                  "DeliveryPlan (912 lignes) ne couvre qu'une partie du flux logistique total (un "
+                  "flux ou une fenêtre temporelle particuliers), pas la totalité des livraisons "
+                  "sitewide citée dans le chiffre de 96 — mais ce n'est pas confirmé.",
+             'sources': ['MASTERVIEW.xlsm (feuille DeliveryPlan, calculé via tempo/moteur/logistique.py)',
+                          'LAYOUT_RF.pptx', 'TRAILER_QUANTITY_PER_FLOW.xlsx']},
     ],
     'fichiers': ['MASTERVIEW.xlsm', 'TRAILER_QUANTITY_PER_FLOW.xlsx', 'FLOW_BRESTLYON.pptx',
                  'LAYOUT_RF.pptx', 'TRAILER_CAPACITY.pptx', 'EXCEPTIONS_TWO_STOPS_DELIVERIES.pptx',
@@ -456,4 +465,9 @@ REGISTRE_VALIDATION = [
               "segment S1-S9 d'un élément) et les codes de zone N1/N3 (OF1-OF5/SG, UB-S9/S8/S7)",
      'zone': 'A, B, C, D, E, F, G, H, I', 'responsable': 'Valery Claise / Joanna',
      'impact': 'moyen — nécessaire pour rattacher les 631 tâches MPP à un code de zone exploitable'},
+    {'point': "Livraisons/jour recalculées depuis DeliveryPlan (11,6 en moyenne, pic 22) très "
+              "inférieures aux 96/jour cités ailleurs — périmètre de DeliveryPlan (912 lignes) à "
+              "clarifier : flux partiel ou fenêtre temporelle partielle ?",
+     'zone': 'Logistique', 'responsable': 'équipe logistique',
+     'impact': 'élevé — conditionne le dimensionnement de flotte si DeliveryPlan doit servir de référence'},
 ]

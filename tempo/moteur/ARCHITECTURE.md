@@ -76,12 +76,13 @@ arrive.
   réunion : réagir après chaque poste si on lui donne la progression). Suppose d'abord
   l'ordonnancement détaillé ci-dessus — sans lui, il n'y a rien de assez précis à
   comparer à un avancement réel.
-- **La logistique amont** (camions, stockage, racks, livraisons). Aucune donnée reçue à
-  ce jour ne le permet (le tableau des camions « Jules Tab » et les comptages de racks de
-  Valery manquent toujours — `tempo/DONNEES.md` §1). Le modèle de ressource
-  (`Ressource` dans `modele.py`) est générique et accueillera un camion ou une place de
-  stockage exactement comme un ouvrier ou une grue le jour où ces données arrivent — mais
-  rien n'est pré-rempli pour l'instant.
+- **La logistique amont, en partie construite.** `logistique.py` calcule désormais la
+  charge de livraisons/jour depuis `MASTERVIEW.xlsm` (DeliveryPlan), avec de vraies dates
+  calendaires — voir plus bas. Reste à faire : le rapprochement avec le fichier `LIST`
+  (camions par lot, fenêtres relatives à la coulée plutôt que dates absolues — même
+  hurdle de calage que `charge.py`), la prise en compte des racks/stockage comme
+  ressource propre, et l'unification avec la charge de main-d'œuvre sur un seul axe
+  temporel une fois le calage calendaire de celle-ci confirmé.
 - **Les pannes matérielles et les retards** (objectif de réaffectation à chaud) — supposent
   eux aussi l'ordonnancement détaillé : replanifier, c'est reprendre un ordonnancement
   existant et le rejouer avec une contrainte en moins (une ressource indisponible) ou une
@@ -93,9 +94,12 @@ arrive.
 tempo/moteur/
   ARCHITECTURE.md   ce document
   modele.py         les classes de données (Ressource, Tache, ParametresCalage, Calendrier)
-  charge.py         construit la charge agrégée par ressource et par jour calendaire absolu
+  charge.py         construit la charge de main-d'œuvre agrégée, calée sur un jour tempo relatif
   goulots.py        diagnostic goulots : pic, récurrence, dépassement de capacité, et
                      le nombre d'équipes tournantes qu'impose chaque hypothèse de poste
+  logistique.py     charge logistique (livraisons/camions) depuis MASTERVIEW.xlsm, calée
+                     d'emblée sur de vraies dates calendaires — pas la même échelle de temps
+                     que charge.py tant que le calage de celui-ci n'est pas confirmé
 ```
 
 `python3 -m tempo.moteur.charge <n1.xlsx> <n3.xlsx>` fait tourner la charge seule.
@@ -152,3 +156,18 @@ Concrètement : retenir un poste de 12h plutôt que 8h/9h/10h réduit d'un tiers
 d'équipes distinctes à constituer pour couvrir la même amplitude — un argument chiffré
 de plus pour la réunion de conciliation sur ce point (`tempo/reunion_conciliation.md`),
 qui ne tranche rien à sa place.
+
+## Logistique : premier résultat, et un écart à réconcilier
+
+`python3 -m tempo.moteur.logistique MASTERVIEW.xlsm`, sur les 912 livraisons de
+`DeliveryPlan`, donne un pic de **22 livraisons/jour** (moyenne 11,6/jour) sitewide. En
+retenant 3 à 4 livraisons par plateforme et par jour (milieu de fourchette 3,5, cité dans
+`TOPICS_RISK_ANALYSIS_SUB_ELEMENT_SIZIING.xlsx`), ça correspondrait à environ **6
+plateformes simultanées** au pic — très inférieur aux **24 plateformes** recommandées
+dans `TRAILER_QUANTITY_PER_FLOW.xlsx` pour le seul flux Stock→Halls.
+
+Cet écart n'est **pas** résolu ici : les deux chiffres ne couvrent probablement pas le
+même périmètre (`DeliveryPlan` semble ne couvrir qu'une partie du flux total — voir aussi
+l'écart similaire, facteur ~8, entre les 11,6/jour recalculés ici et les « 96
+livraisons/jour » cités par ailleurs dans `LAYOUT_RF.pptx`), mais ce n'est pas confirmé.
+Inscrit au registre de validation (`tempo/dossier_zones.py`) pour l'équipe logistique.
