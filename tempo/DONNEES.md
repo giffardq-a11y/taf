@@ -199,42 +199,93 @@ quatre autres feuilles du même classeur (`Data`, `Sheet1`, `Sheet1 (2)`, `Sheet
 36+27+2+19 = 84 éléments, exactement le compte d'`ALL ELEMENTS`) — cohérent, mais à
 confirmer qu'aucune n'est *plus* à jour que la consolidation plutôt que l'inverse.
 
-## 8. Fichiers reçus, pas encore dépouillés
+## 8. Fichiers reçus, dépouillement
 
-Reçus en lot après `MASTERVIEW.xlsm` ; seule leur structure (feuilles, dimensions) a été
-relevée, pas leur contenu :
+Reçus en lot après `MASTERVIEW.xlsm`. Statut à jour :
 
-- **Détail des tâches, plus fin que le N3 actuel** : `Tempo_Bottomslabs.xlsx`,
-  `Tempo_Bottomslabs_LCA_rev2.xlsx`, `Tempo_topslabs.xlsx`, `Tempo_Walls.xlsx`.
-- **Logistique camions/trailers** : `Truck_for_All_Set__V2.xlsx`,
-  `Trailer_Allocation_Plan.xlsx`, `TRAILER_QUANTITY_PER_FLOW.xlsx`,
-  `Detailed_Truck__Loading_Time.xlsx`, `TRAILER_CAPACITY.pptx`,
-  `EXCEPTIONS_TWO_STOPS_DELIVERIES.pptx`, `FLOW_BRESTLYON.pptx`, `LAYOUT_RF.pptx`.
-- **Ressources et capacité** : `Cranes_conclusions.xlsx`, `ESS_PLANNING.xlsx`,
-  `Quantity__Designation__Surface.xlsx`.
-- **Arbitrage / consolidation** : `General_Tempo_Staggering__MDI_V5` (version plus
-  récente que le V4 utilisé jusqu'ici), `Comparison_N1_shifts_to_target.xlsx`,
-  `TOPICS__RISK_ANALYSIS__SUB_ELEMENT_SIZIING.xlsx`, `JUSTIFICATION_STORAGE.pptx`,
-  `PROCESS.xlsx`, `LIST_FLUX_ET_QUANTITE__MISE_EN_STOCK.xlsx`,
-  `Explanations_Takt_time_files.pptx`.
+- **Dépouillés** (contenu lu et exploité, voir §10) : `Truck_for_All_Set__V2.xlsx`,
+  `TRAILER_QUANTITY_PER_FLOW.xlsx`, `TRAILER_CAPACITY.pptx`,
+  `EXCEPTIONS_TWO_STOPS_DELIVERIES.pptx`, `FLOW_BRESTLYON.pptx`, `LAYOUT_RF.pptx`,
+  `Detailed_Truck__Loading_Time.xlsx`, `Trailer_Allocation_Plan.xlsx`,
+  `Cranes_conclusions.xlsx`, `ESS_PLANNING.xlsx`, `Quantity__Designation__Surface.xlsx`,
+  `TOPICS__RISK_ANALYSIS__SUB_ELEMENT_SIZIING.xlsx`, `JUSTIFICATION_STORAGE.pptx` (les
+  deux exemplaires reçus sont un doublon binaire exact — un seul dépouillé),
+  `PROCESS.xlsx` (classeur vide, aucune donnée), `LIST_FLUX_ET_QUANTITE__MISE_EN_STOCK.xlsx`,
+  `General_Tempo_Staggering__MDI_V5` (seule la feuille `HYPOTHESE PL` a été dépouillée —
+  le reste du classeur, plus lourd, ne l'est pas encore).
+- **Toujours pas dépouillés** : `Tempo_Bottomslabs.xlsx`, `Tempo_Bottomslabs_LCA_rev2.xlsx`,
+  `Tempo_topslabs.xlsx`, `Tempo_Walls.xlsx` (séquences takt time détaillées, sheet par
+  sheet, par segment/paire de segments — ce sont vraisemblablement les fichiers source
+  des feuilles N3 `PeP`/`CP`/`PoP` ; à ouvrir seulement si un comportement précis d'un
+  segment donné a besoin d'être vérifié, le volume ne justifie pas un dépouillement
+  systématique pour l'instant), `Explanations_Takt_time_files.pptx`.
 
-**Écart trouvé et non résolu**, à traiter en priorité dès que ces fichiers sont
-dépouillés : l'onglet `N3 Overview (Missing)` de `Comparison_N1_shifts_to_target.xlsx` —
-un suivi officiel des segments manquants — donne un résultat différent du §5bis
-ci-dessus (leur tableau : BS et TS complets partout, seuls les Walls manquent sur les
-segments impairs S1/S3/S5/S7/S9 ; le nôtre : BS manquant sur S5-S8, Walls sur S4-S5
-seulement, et une catégorie « TS » que nous n'avions pas isolée séparément de « BS »).
-Deux explications possibles, aucune vérifiée : leur classeur de référence a évolué
-depuis le V0.1 lu ici, ou le critère de « manquant » diffère entre les deux lectures.
+**Écart trouvé et toujours non résolu** : l'onglet `N3 Overview (Missing)` de
+`Comparison_N1_shifts_to_target.xlsx` — un suivi officiel des segments manquants —
+donne un résultat différent du §5bis ci-dessus (leur tableau : BS et TS complets
+partout, seuls les Walls manquent sur les segments impairs S1/S3/S5/S7/S9 ; le nôtre :
+BS manquant sur S5-S8, Walls sur S4-S5 seulement, et une catégorie « TS » que nous
+n'avions pas isolée séparément de « BS »). Deux explications possibles, aucune
+vérifiée : leur classeur de référence a évolué depuis le V0.1 lu ici, ou le critère de
+« manquant » diffère entre les deux lectures. Inscrit au registre de validation
+(voir §10) pour arbitrage par Valery Claise / Joanna.
 
 ## 9. Prochaines étapes proposées
 
-1. Dépouiller les fichiers de la section 8, dans l'ordre : logistique camions/trailers
-   (comble le dernier vrai trou du modèle), puis réconciliation de l'écart de la
-   section 8, puis le reste.
+1. Tenir la réunion de conciliation dont la matière est prête : voir le registre de
+   validation (§10 et `tempo/dossier_zones.py`), directement exploitable comme ordre du
+   jour.
 2. Recaler `ParametresCalage` (`tempo/moteur/modele.py`) sur les vraies dates de
    `DeliveryPlan`/`Planning` plutôt que sur les deux hypothèses actuelles, une fois la
    correspondance ligne/zone/tempo bien comprise.
 3. Étendre le moteur de charge (`tempo/moteur/charge.py`) pour intégrer les camions et
    les colis de `MASTERVIEW.xlsm` comme une ressource de plus, sur le même principe que
    la main-d'œuvre.
+4. Si besoin d'un point précis sur un segment, ouvrir le fichier `Tempo_*` correspondant
+   (§8, liste des fichiers non encore dépouillés).
+
+## 10. Dossier par zone, schéma interactif et registre de validation (10/08/2026)
+
+Toute la matière « données / hypothèses / contradictions / fichiers sources » collectée
+zone par zone (et pour la logistique amont) a été transcrite dans
+`tempo/dossier_zones.py` — un module Python, pas un document de plus : chaque entrée y
+porte sa source, pour rester exploitable par un script (l'export JSON qui alimente le
+schéma interactif) autant que par une lecture humaine.
+
+Ce module alimente le schéma interactif (`tempo_zones.html`, republié à la même URL
+qu'avant) : cliquer sur une zone du schéma, ou sur le bouton « Logistique amont »,
+ouvre un panneau listant tout ce qu'on sait sur cette zone — données confirmées,
+hypothèses en cours (avec la personne à qui les faire valider), contradictions
+relevées entre documents (avec leurs sources précises), et la liste des fichiers dont
+c'est issu. Une pastille de comptage sur chaque case du schéma indique en un coup
+d'œil s'il y a des contradictions non résolues (rouge) ou seulement des données/
+hypothèses (couleur du site).
+
+Le même module porte `REGISTRE_VALIDATION` : une liste à plat de tous les points
+encore ouverts, tous zones confondues, chacun avec une personne responsable pressentie
+et un niveau d'impact (critique/élevé/moyen/faible). Elle est affichée en table,
+triée par impact, dans une section dédiée du schéma interactif — pensée pour être
+reprise telle quelle comme ordre du jour d'une réunion de conciliation, pas comme un
+rapport de plus à lire. Douze points y figurent à ce jour, notamment :
+
+- la durée de poste (9h/10h/8h-12h/~4h45 selon le document) — le point le plus
+  structurant, à arbitrer par Olivier Bonnot ;
+- le système de postes de l'équipe de coulée (3×8h vs 2×12h, non décidé) ;
+- l'écart entre notre relevé des segments N3 manquants et le suivi officiel (§8) ;
+- le pic d'effectif BC en Casting Pit (228 calculé vs 105-117 cité) ;
+- le travail du week-end (hypothèse « aucun » contredite par quatre sources
+  indépendantes, dont deux plannings ESS réels datés montrant des livraisons le
+  samedi) ;
+- le nombre de camions à Lyon 2 et Brest 2, divergent entre deux fichiers ;
+- si Lyon/Brest/Toulouse/Varsovie/Cracovie/Monaco/Drogo/Sogod désignent des
+  destinations réelles ou des noms de code internes de zones de stockage — l'hypothèse
+  initiale (Lyon/Brest = points de chargement réels) doit être révisée à la lumière
+  d'un fichier de dimensionnement stockage qui utilise ces mêmes noms pour des zones
+  sur site ;
+- le risque logistique le mieux documenté du registre RF officiel (score 50/25 :
+  plateformes insuffisantes pour l'approvisionnement production), qui répond
+  directement au besoin de « replanifier les ressources en cas de retard/casse
+  matériel » exprimé pour ce simulateur.
+
+Rien de tout cela n'a été tranché depuis ce dossier : c'est le but précisément
+d'avoir un support prêt pour que les personnes responsables le fassent.
