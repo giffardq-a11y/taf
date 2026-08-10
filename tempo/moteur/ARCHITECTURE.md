@@ -83,10 +83,13 @@ arrive.
   hurdle de calage que `charge.py`), la prise en compte des racks/stockage comme
   ressource propre, et l'unification avec la charge de main-d'œuvre sur un seul axe
   temporel une fois le calage calendaire de celle-ci confirmé.
-- **Les pannes matérielles et les retards** (objectif de réaffectation à chaud) — supposent
-  eux aussi l'ordonnancement détaillé : replanifier, c'est reprendre un ordonnancement
-  existant et le rejouer avec une contrainte en moins (une ressource indisponible) ou une
-  tâche en retard. Rien à replanifier tant qu'il n'y a pas de planning détaillé de base.
+- **Les pannes matérielles et les retards, en partie construits.** Un vrai
+  réordonnancement (reprendre un planning détaillé et le rejouer avec une ressource en
+  moins ou une tâche en retard) suppose toujours l'ordonnancement détaillé ci-dessus,
+  qui n'existe pas. Ce qui est construit à la place (`alea.py`) : une évaluation
+  d'impact sur la charge déjà connue — perte de C unités pendant D jours, déficit que ça
+  crée, tampon minimal pour l'absorber. Un premier niveau de réponse, pas la
+  réaffectation à chaud complète évoquée en réunion — voir plus bas.
 
 ## Organisation des fichiers
 
@@ -100,6 +103,8 @@ tempo/moteur/
   logistique.py     charge logistique (livraisons/camions) depuis MASTERVIEW.xlsm, calée
                      d'emblée sur de vraies dates calendaires — pas la même échelle de temps
                      que charge.py tant que le calage de celui-ci n'est pas confirmé
+  alea.py           évalue l'impact d'une perte de capacité (retard/panne) sur une charge
+                     déjà calculée — pas un réordonnancement, cf. plus bas
 ```
 
 `python3 -m tempo.moteur.charge <n1.xlsx> <n3.xlsx>` fait tourner la charge seule.
@@ -171,3 +176,32 @@ même périmètre (`DeliveryPlan` semble ne couvrir qu'une partie du flux total 
 l'écart similaire, facteur ~8, entre les 11,6/jour recalculés ici et les « 96
 livraisons/jour » cités par ailleurs dans `LAYOUT_RF.pptx`), mais ce n'est pas confirmé.
 Inscrit au registre de validation (`tempo/dossier_zones.py`) pour l'équipe logistique.
+
+## Réponse à un aléa (`alea.py`) : premier scénario, pas un réordonnancement
+
+`alea.py` répond à l'objectif « replanifier les ressources en cas de retard/casse
+matériel », dans la limite de ce que le moteur permet aujourd'hui : **pas** un
+réordonnancement (ça suppose l'ordonnancement détaillé tâche par tâche, toujours pas
+construit), mais une évaluation d'impact — perte de C unités de capacité pendant D
+jours à partir du jour J, sur une charge déjà calculée par `charge.py` ou
+`logistique.py`. Le rapport distingue explicitement le déficit qui existait déjà sans
+l'aléa (un aléa aggrave un problème préexistant, il ne le crée pas seul) du déficit
+pendant l'incident, et donne le tampon minimal qui ramènerait ce dernier à zéro.
+
+**Exemple sur le risque n°1 du registre RF officiel** (« plateformes insuffisantes »,
+score 50/25, action proposée : tampon de 3 à 5 remorques — voir
+`tempo/dossier_zones.py`, `LOGISTIQUE`) : en simulant la perte de 5 plateformes sur la
+flotte de 24 recommandée, pendant la semaine du pic de livraisons observé dans
+`DeliveryPlan` (22 livraisons le 25/06/2026), le déficit atteint jusqu'à **3**
+plateformes/jour sur 3 jours consécutifs — la flotte recommandée n'absorbe donc pas
+totalement la perte maximale envisagée dans le registre de risques, à ce niveau de
+demande. Cette conclusion hérite cependant de la réserve posée plus haut : si
+`DeliveryPlan` ne couvre bien qu'une fraction du flux réel (le facteur ~8 par rapport
+aux « 96 livraisons/jour » cités ailleurs), la vraie exposition au risque est
+probablement plus large que ce calcul ne le montre — à revérifier une fois cet écart
+réconcilié.
+
+```
+python3 -m tempo.moteur.alea <n1.xlsx> <n3.xlsx> --ressource BC --zone S \
+    --capacite 85 --perte 20 --jour-debut 90 --duree 10
+```
