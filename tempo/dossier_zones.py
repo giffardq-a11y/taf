@@ -391,6 +391,50 @@ ZONES_PHYSIQUES_REELLES = {
                                                     # rattachée — voir le point critique du registre.
 }
 
+# ZONES_REELLES : vue « zone physique d'abord », demandée par l'utilisateur le 10/08/2026
+# après la clarification phase/zone — c'est la structure qui alimente désormais le schéma
+# interactif en priorité (cliquer sur une zone -> détail par phase), ZONES (phase par
+# phase) restant disponible pour la traçabilité de comment chaque donnée a été lue.
+#
+# Reprend le contenu de ZONES[lettre] tel quel (données/hypothèses/contradictions/
+# fichiers) sous la clé du nom de zone réel que la feuille Data déclarait pour cette
+# lettre — légitime pour le contenu qualitatif (les présentations Rebar/Casting Team
+# parlent bien de Murs/Coulée, quelle que soit la lettre sous laquelle on les avait
+# classées), pas pour la répartition de tâches N3 par lettre (remplacée ici par
+# ZONES_PHYSIQUES_REELLES, la seule source fiable pour « combien de tâches, sur quelles
+# phases »).
+_LETTRE_VERS_ZONE_REELLE = {
+    'M': 'Panel Factory', 'N': 'Walls', 'O': 'Base Slab', 'P': 'LASCA', 'Q': 'Buffer',
+    'R': 'P/U Point', 'S': 'Casting Pit', 'T': 'R1', 'U+K': 'R2', 'L': 'R3',
+    'A': 'OF1', 'B': 'OF2', 'C': 'OF3', 'D': 'OF4', 'E': 'OF5', 'F': 'SG',
+    'G': 'UB-S9', 'H': 'UB-S8', 'I': 'UB-S7',
+}
+_AIRE_PAR_ZONE_REELLE = {
+    'Panel Factory': 'Panel Factory',
+    'Walls': 'Rebar Hall', 'Base Slab': 'Rebar Hall', 'LASCA': 'Rebar Hall',
+    'Buffer': 'Production Hall', 'P/U Point': 'Production Hall', 'Casting Pit': 'Production Hall',
+    'R1': 'Curing Hall', 'R2': 'Curing Hall', 'R3': 'Curing Hall',
+    'OF1': 'Outfitting Area', 'OF2': 'Outfitting Area', 'OF3': 'Outfitting Area',
+    'OF4': 'Outfitting Area', 'OF5': 'Outfitting Area', 'SG': 'Outfitting Area',
+    'UB-S9': 'Upper Basin', 'UB-S8': 'Upper Basin', 'UB-S7': 'Upper Basin',
+}
+
+ZONES_REELLES = {}
+for _lettre, _nom in _LETTRE_VERS_ZONE_REELLE.items():
+    _source = ZONES[_lettre]
+    _infos_taches = ZONES_PHYSIQUES_REELLES.get(_nom, {'total': 0, 'phases': []})
+    ZONES_REELLES[_nom] = {
+        'aire': _AIRE_PAR_ZONE_REELLE[_nom],
+        'lettre_origine': _lettre,
+        'phases': _infos_taches['phases'],
+        'total_taches': _infos_taches['total'],
+        'donnees': [d for d in _source['donnees']
+                    if not d['texte'].startswith('Répartition réelle des UNIT')],
+        'hypotheses': list(_source['hypotheses']),
+        'contradictions': list(_source['contradictions']),
+        'fichiers': list(_source['fichiers']),
+    }
+
 LOGISTIQUE = {
     'nom': 'Logistique amont — livraisons Lyon/Brest → stock → halls',
     'donnees': [
