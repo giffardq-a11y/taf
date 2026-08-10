@@ -28,11 +28,20 @@ métier (quelle ressource est la plus rare, quel tampon est vraiment intouchable
 import argparse
 import re
 import sys
+import unicodedata
 import warnings
 
 from openpyxl import load_workbook
 
 warnings.filterwarnings('ignore', module='openpyxl')
+
+
+def _normalise(v):
+    """Le tableur mélange des caractères visuellement identiques mais distincts en
+    Unicode — la colonne « Ω » y est écrite avec le signe Ohm (U+2126), pas la lettre
+    grecque Omega (U+03A9). Sans cette normalisation, la colonne de fin de grille horaire
+    n'est jamais reconnue et la comparaison déborde sur les colonnes de métadonnées."""
+    return unicodedata.normalize('NFKC', v) if isinstance(v, str) else v
 
 _DUREE_RE = re.compile(r'(?:(\d+(?:[.,]\d+)?)\s*h)?\s*(?:(\d+)\s*min)?')
 
@@ -166,7 +175,7 @@ def lire_taches_n3(chemin_n3):
     for nom_feuille in _feuilles_taches(wb):
         ws = wb[nom_feuille]
         ligne_entete = 4
-        entetes = [ws.cell(ligne_entete, c).value for c in range(1, ws.max_column + 1)]
+        entetes = [_normalise(ws.cell(ligne_entete, c).value) for c in range(1, ws.max_column + 1)]
         # Colonnes de métadonnées : celles qui suivent la grille horaire, repérées par leur
         # libellé exact (voir COLONNES_METADATA), en s'arrêtant à la première rencontrée.
         col_meta_debut = next((c for c, h in enumerate(entetes, start=1) if h in COLONNES_METADATA), None)
