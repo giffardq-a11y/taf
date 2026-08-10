@@ -14,6 +14,30 @@ réponses proposées.
 
 ---
 
+## ⚠ Point critique ajouté le 10/08/2026 — Valery Claise / Joanna
+
+**Sujet : le code zone (lettres A-I / M-L, utilisé partout dans ce dossier et le schéma)
+n'est pas fiable.** Contrôle croisé : sur les 3243 tâches du classeur N3, **aucune**
+n'est étiquetée `UNIT=« Panel Factory »`, alors que la feuille `Data` du classeur
+déclare que la lettre M désigne « Panel Factory » — la plupart des tâches des feuilles
+`*__M` sont en réalité étiquetées `UNIT=« Casting Pit »`. Le même écart existe pour les
+18 autres lettres. La zone S (Casting Pit) est le cas le plus proche d'une lecture
+correcte (51% de ses tâches sont bien `UNIT=Casting Pit`), mais 49% ne le sont pas.
+
+**Conséquence :** tout chiffre « par zone lettre » calculé avant aujourd'hui dans ce
+dossier (le pic BC en « zone S », par exemple) est à prendre avec cette réserve. Les
+courbes de main-d'œuvre ajoutées le 10/08/2026 regroupent désormais par la colonne
+`UNIT` (l'attribut fiable), pas par la lettre.
+
+**Question à trancher :** que représentent réellement ces lettres si ce n'est pas
+l'aire physique de la feuille `Data` — un repère de gabarit/position dans le cycle de
+70 jours tempo, une autre convention ?
+
+*Zones concernées : toutes. Impact : critique — remet en question l'attribution
+physique de toute donnée « par zone » calculée avant le 10/08/2026.*
+
+---
+
 ## Olivier Bonnot — arbitrage transverse
 
 **Sujet : durée d'un poste de travail.** Quatre valeurs différentes trouvées selon
