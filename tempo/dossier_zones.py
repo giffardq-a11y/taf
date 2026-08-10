@@ -347,6 +347,50 @@ for _z, _repartition in _REPARTITION_REELLE_UNIT.items():
                    '10/08/2026)', 'statut': 'confirme',
     })
 
+# Vue inverse de _REPARTITION_REELLE_UNIT : pour chaque zone physique réelle (colonne
+# UNIT), la liste des phases (lettres) où ses tâches apparaissent dans le classeur N3,
+# avec le nombre de tâches par phase — confirme directement ce que l'utilisateur a
+# précisé le 10/08/2026 : une zone physique peut être travaillée sur plusieurs phases
+# (plusieurs lettres), ce n'est pas une correspondance 1 lettre = 1 zone.
+ZONES_PHYSIQUES_REELLES = {
+    'Casting Pit': {'total': 1184, 'phases': [('L', 162), ('T', 153), ('M', 125), ('N', 123),
+                     ('P', 122), ('S', 120), ('R', 118), ('O', 114), ('Q', 114), ('U+K', 33)]},
+    'LASCA': {'total': 296, 'phases': [('C', 40), ('A', 34), ('B', 34), ('D', 34), ('E', 34),
+               ('F', 34), ('H', 34), ('I', 34), ('G', 18)]},
+    'R2': {'total': 279, 'phases': [('N', 56), ('R', 39), ('P', 34), ('T', 34), ('O', 33),
+            ('U+K', 29), ('Q', 27), ('S', 27)]},
+    'Base Slab': {'total': 252, 'phases': [('A', 36), ('B', 29), ('C', 29), ('D', 29), ('E', 29),
+                   ('F', 29), ('H', 29), ('I', 29), ('G', 13)]},
+    'R1': {'total': 252, 'phases': [('T', 32), ('N', 32), ('M', 30), ('O', 29), ('Q', 28),
+            ('S', 28), ('P', 26), ('R', 26), ('U+K', 17), ('L', 4)]},
+    'R3': {'total': 140, 'phases': [('L', 59), ('O', 28), ('S', 11), ('Q', 10), ('T', 10),
+            ('P', 9), ('R', 8), ('U+K', 5)]},
+    'Walls': {'total': 117, 'phases': [('A', 13), ('B', 13), ('C', 13), ('D', 13), ('E', 13),
+               ('F', 13), ('G', 13), ('H', 13), ('I', 13)]},
+    'UB-S9': {'total': 110, 'phases': [('O', 33), ('M', 28), ('N', 24), ('P', 23), ('U+K', 1), ('R', 1)]},
+    'Buffer': {'total': 99, 'phases': [('B', 12), ('A', 11), ('C', 11), ('E', 11), ('F', 11),
+                ('I', 11), ('H', 10), ('D', 9), ('G', 6), ('M', 1), ('N', 1), ('O', 1), ('P', 1),
+                ('Q', 1), ('R', 1), ('S', 1)]},
+    'OF1': {'total': 75, 'phases': [('L', 17), ('S', 14), ('T', 13), ('P', 11), ('R', 8),
+             ('Q', 7), ('U+K', 5)]},
+    'P/U Point': {'total': 59, 'phases': [('Q', 9), ('M', 8), ('N', 8), ('O', 8), ('S', 8),
+                   ('P', 7), ('R', 7), ('U+K', 3), ('T', 1)]},
+    'UB-S1': {'total': 42, 'phases': [('M', 20), ('N', 15), ('O', 4), ('P', 2), ('R', 1)]},
+    'OF2': {'total': 15, 'phases': [('T', 5), ('L', 5), ('U+K', 3), ('Q', 2)]},
+    'OF3': {'total': 13, 'phases': [('R', 7), ('L', 6)]},
+    'SG': {'total': 13, 'phases': [('L', 7), ('M', 3), ('U+K', 3)]},
+    'UB': {'total': 10, 'phases': [('M', 4), ('N', 3), ('T', 3)]},
+    'Curing Area': {'total': 7, 'phases': [('M', 1), ('N', 1), ('O', 1), ('P', 1), ('Q', 1),
+                     ('R', 1), ('S', 1)]},
+    'OF4': {'total': 6, 'phases': [('S', 4), ('R', 1), ('L', 1)]},
+    'OF5': {'total': 5, 'phases': [('T', 5)]},
+    'UB-S6': {'total': 2, 'phases': [('M', 1), ('N', 1)]},
+    'South Platform': {'total': 1, 'phases': [('M', 1)]},
+    'Panel Factory': {'total': 0, 'phases': []},  # déclarée par la feuille Data pour M, mais
+                                                    # aucune tâche du classeur n'y est jamais
+                                                    # rattachée — voir le point critique du registre.
+}
+
 LOGISTIQUE = {
     'nom': 'Logistique amont — livraisons Lyon/Brest → stock → halls',
     'donnees': [
@@ -482,20 +526,21 @@ LOGISTIQUE = {
 # responsable pressentie, pour qu'une invitation de réunion puisse s'écrire directement
 # à partir de cette liste.
 REGISTRE_VALIDATION = [
-    {'point': "CLARIFIÉ le 10/08/2026, directement par l'utilisateur du projet : les codes lettre "
-              "(A à I/M à L) NE SONT PAS des zones physiques, ce sont des PHASES — des repères "
-              "temporels dans le gabarit tempo pendant lesquels certains travaux doivent se "
-              "dérouler. Confirme le contrôle croisé fait juste avant (0/3243 tâches étiquetées "
-              "UNIT=« Panel Factory » malgré la feuille Data qui déclare M=Panel Factory ; même "
-              "écart pour les 18 autres lettres). Chaque zone du schéma porte désormais la "
-              "répartition réelle des UNIT trouvés dans ses tâches (donnee « Répartition réelle... ») "
-              "à la place de l'ancien libellé unique hérité de la feuille Data — dans deux groupes "
-              "cohérents : M/N/O/P/Q/R/S/T/U+K/L dominées par Casting Pit (39-57%) + R1/R2/R3 ; "
-              "A à I dominées par Base Slab/LASCA/Walls/Buffer (aucune n'est en réalité liée à "
-              "l'Outfitting Area/Upper Basin comme la feuille Data le laissait penser). Reste "
-              "ouvert : que représente exactement la feuille Data si ce n'est pas une correspondance "
-              "lettre->zone physique, et faut-il redessiner le schéma en conséquence (aires de "
-              "regroupement, libellés des cases) ?",
+    {'point': "CLARIFIÉ le 10/08/2026, directement par l'utilisateur du projet, en deux temps : "
+              "(1) les codes lettre (A à I/M à L) NE SONT PAS des zones physiques, ce sont des "
+              "PHASES — des repères temporels dans le gabarit tempo pendant lesquels certains "
+              "travaux doivent se dérouler ; (2) une zone physique peut être travaillée sur "
+              "PLUSIEURS phases (pas une correspondance 1 lettre = 1 zone). Confirmé par le calcul "
+              "(voir ZONES_PHYSIQUES_REELLES dans tempo/dossier_zones.py) : « Casting Pit » "
+              "apparaît dans les 10 phases M/N/O/P/Q/R/S/T/U+K/L (114 à 162 tâches chacune) ; "
+              "« Walls »/« Base Slab »/« LASCA »/« Buffer » apparaissent chacune dans la quasi-"
+              "totalité des 9 phases A à I, à peu près à parts égales. Chaque phase du schéma "
+              "porte désormais la répartition réelle des zones physiques qu'elle touche (donnée "
+              "« Répartition réelle... ») ; chaque zone physique porte la liste des phases où elle "
+              "apparaît (ZONES_PHYSIQUES_REELLES). Reste ouvert : que représente exactement la "
+              "feuille Data si ce n'est pas une correspondance lettre->zone physique (un repère de "
+              "gabarit/position dans le cycle de 70 jours tempo ?), et faut-il redessiner le schéma "
+              "visuel en conséquence (aires de regroupement, libellés des 19 cases) ?",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
      'impact': "élevé — la nature du problème est clarifiée, mais le schéma visuel (regroupements "
                "par aire, libellés des 19 cases) n'a pas encore été refait en conséquence"},
