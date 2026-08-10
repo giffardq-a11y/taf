@@ -1,0 +1,7 @@
+# Dépendances Python du dépôt. Aucune n'est nécessaire pour index.html, report_template.html
+# ni build_report.py (JavaScript pur, exécuté dans le navigateur ou via Node.js).
+#
+#   pip install -r requirements.txt
+
+openpyxl>=3.1        # lecture/écriture des classeurs Excel (tous les scripts *.py)
+python-pptx>=0.6     # lecture des présentations PowerPoint (tempo/lire_tempo.py)
