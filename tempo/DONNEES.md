@@ -21,6 +21,9 @@ discipline que sur le reste du dépôt (voir `dossier_audit/13_audit_critique.md
 | `TEMPO_N2_Presentation_Skidding_Pushing_09062026.pptx` | 6 diapositives | JAN — 09/06/2026 | Séquence détaillée du skidding, minute par minute |
 | `TEMPO_N2_Presentation_PoP_260529.pptx` | 5 diapositives | 29/05/2026 | Post-Pour, essentiellement des graphiques (peu de texte extractible) |
 | `TEMPO_N2_Presentation_Casting_Team_10062026.pptx` | 7 diapositives | 10/06/2026 | Effectif de l'équipe de coulée, pics de charge, système de postes non tranché |
+| `Tempo_full_schedule_linked_V4_70_jour.mpp` | MS Project, 631 tâches, 625 affectations | Quentin Giffard-Bouvier, revu jusqu'au 10/03/2026 | Planning daté (25/12/2026 → 20/05/2027) du casting/curing (zones M à L) — pas l'outfitting malgré son usage |
+| `MASTERVIEW.xlsm` | Classeur Excel, 14 feuilles, 5 Mo | — | **Consolidation logistique** : 35 345 colis (84 éléments), 912 livraisons planifiées, 861 lots camion — la donnée manquante identifiée plus haut (§9 de la conversation), enfin reçue |
+| 21 autres fichiers (détail tâches, camions/trailers, grues, stockage, risques) | Excel/PowerPoint | — | Reçus en lot, pas encore dépouillés — voir §7 |
 
 ## 2. Vue d'ensemble confirmée du système TEMPO
 
@@ -159,15 +162,79 @@ dépend du système de postes de l'équipe de coulée, justement **pas encore d�
 Forcer une conversion maintenant reviendrait à masquer cette incertitude plutôt qu'à la
 lever.
 
-## 6. Prochaines étapes proposées
+## 6. Le planning MS Project (`Tempo_full_schedule_linked_V4_70_jour.mpp`)
 
-1. Faire trancher par l'équipe (Valery/Joanna) les points de la section 4, ou les
-   documenter comme volontairement en attente si un arbitrage rapide n'est pas possible —
-   en particulier le système de postes de l'équipe de coulée, qui conditionne toute la
-   grille horaire du simulateur.
-2. Rapprocher programmatiquement N1 et N3 (sommer les tâches N3 par catégorie/segment et
-   comparer à `Ws` du N1) pour confirmer ou infirmer le lien décrit en §2 — un script
-   court, dans l'esprit de `auditer_xer.py` sur l'autre projet.
-3. Une fois ces deux points faits, commencer la conception du moteur de simulation
-   lui-même (ressources, contraintes, replanification), sur des données dont on sait
-   précisément ce qui est confirmé et ce qui ne l'est pas encore.
+Lu par `tempo/lire_mpp.py` (nécessite `mpxj` + `jpype1`, et un JDK — dépendance lourde,
+notée dans `requirements.txt`). Deux apports directs :
+
+- **Décodage partiel du référentiel de sous-traitants** (`tempo/DONNEES.md` §3 mis à
+  jour) : CEAS ≈ « Christiansen & Essenbæk », Impostal confirmé, BL ≈ « BLRT »/« BLRT
+  WORKER », Dywidag confirmé (post-tension). GTA et WL restent non décodés.
+- **Une première calibration réelle du calendrier absolu** : les tâches « Tempo M »,
+  « Tempo N »… y portent de vraies dates. Le cycle complet observé (Tempo M vers le 4
+  janvier à Tempo M+1 vers le 15 mars) dure environ 70 jours, et chaque zone M à T dure
+  6 à 7 jours — cohérent avec les deux hypothèses posées dans
+  `tempo/moteur/ARCHITECTURE.md` (jour tempo = jour calendaire, relance tous les 7 jours),
+  sans les remplacer formellement : ce fichier ne couvre qu'un sous-ensemble des lignes
+  et n'a pas encore été confronté systématiquement à `ParametresCalage`.
+- Malgré son usage annoncé (« pour l'outfitting »), ce fichier couvre en réalité le
+  casting/curing (zones M à L) — deux occurrences seulement de tâches liées à
+  l'outfitting/Upper Basin sur 631 tâches. Les zones A à I restent sans donnée.
+
+## 7. `MASTERVIEW.xlsm` — la donnée logistique manquante, enfin reçue
+
+Lu par `tempo/lire_masterview.py`. C'est le classeur qui comble le trou signalé
+initialement (le « Jules Tab » de la réunion du 10/08, en plus détaillé) :
+
+| Feuille retenue | Contenu | Volume |
+|---|---|---|
+| `ALL ELEMENTS` | Registre des colis : élément, désignation, fournisseur, poids, date de livraison, catégorie (BS/WA-WF/TS/2nde phase) | 35 345 colis, 84 éléments |
+| `DeliveryPlan` | Une ligne par livraison, avec fenêtre (au plus tôt / au plus tard) et date retenue, **par ligne de production** | 912 livraisons, sur les 5 lignes |
+| `LIST` | Détail camion par camion : nombre de camions par sous-lot, présence d'un rack, mode (LOOSE/ASSEMBLY/BOTH), poids, fenêtre de livraison | 861 lots, 919 camions, 4 204 t au total |
+| `DeliveryWindows` | Comme `DeliveryPlan`, avec en plus poste (Day/Night Shift) et jeu (SET) | 913 lignes |
+| `Planning` | Grille jour par jour (une colonne par jour civil) marquant le jour de livraison de chaque pièce, par ligne/segment/élément | 5000 lignes × 55 colonnes — structure repérée, pas encore dépouillée en détail |
+
+Point de vigilance retenu, pas encore résolu : `ALL ELEMENTS` est la consolidation de
+quatre autres feuilles du même classeur (`Data`, `Sheet1`, `Sheet1 (2)`, `Sheet1 (3)`,
+36+27+2+19 = 84 éléments, exactement le compte d'`ALL ELEMENTS`) — cohérent, mais à
+confirmer qu'aucune n'est *plus* à jour que la consolidation plutôt que l'inverse.
+
+## 8. Fichiers reçus, pas encore dépouillés
+
+Reçus en lot après `MASTERVIEW.xlsm` ; seule leur structure (feuilles, dimensions) a été
+relevée, pas leur contenu :
+
+- **Détail des tâches, plus fin que le N3 actuel** : `Tempo_Bottomslabs.xlsx`,
+  `Tempo_Bottomslabs_LCA_rev2.xlsx`, `Tempo_topslabs.xlsx`, `Tempo_Walls.xlsx`.
+- **Logistique camions/trailers** : `Truck_for_All_Set__V2.xlsx`,
+  `Trailer_Allocation_Plan.xlsx`, `TRAILER_QUANTITY_PER_FLOW.xlsx`,
+  `Detailed_Truck__Loading_Time.xlsx`, `TRAILER_CAPACITY.pptx`,
+  `EXCEPTIONS_TWO_STOPS_DELIVERIES.pptx`, `FLOW_BRESTLYON.pptx`, `LAYOUT_RF.pptx`.
+- **Ressources et capacité** : `Cranes_conclusions.xlsx`, `ESS_PLANNING.xlsx`,
+  `Quantity__Designation__Surface.xlsx`.
+- **Arbitrage / consolidation** : `General_Tempo_Staggering__MDI_V5` (version plus
+  récente que le V4 utilisé jusqu'ici), `Comparison_N1_shifts_to_target.xlsx`,
+  `TOPICS__RISK_ANALYSIS__SUB_ELEMENT_SIZIING.xlsx`, `JUSTIFICATION_STORAGE.pptx`,
+  `PROCESS.xlsx`, `LIST_FLUX_ET_QUANTITE__MISE_EN_STOCK.xlsx`,
+  `Explanations_Takt_time_files.pptx`.
+
+**Écart trouvé et non résolu**, à traiter en priorité dès que ces fichiers sont
+dépouillés : l'onglet `N3 Overview (Missing)` de `Comparison_N1_shifts_to_target.xlsx` —
+un suivi officiel des segments manquants — donne un résultat différent du §5bis
+ci-dessus (leur tableau : BS et TS complets partout, seuls les Walls manquent sur les
+segments impairs S1/S3/S5/S7/S9 ; le nôtre : BS manquant sur S5-S8, Walls sur S4-S5
+seulement, et une catégorie « TS » que nous n'avions pas isolée séparément de « BS »).
+Deux explications possibles, aucune vérifiée : leur classeur de référence a évolué
+depuis le V0.1 lu ici, ou le critère de « manquant » diffère entre les deux lectures.
+
+## 9. Prochaines étapes proposées
+
+1. Dépouiller les fichiers de la section 8, dans l'ordre : logistique camions/trailers
+   (comble le dernier vrai trou du modèle), puis réconciliation de l'écart de la
+   section 8, puis le reste.
+2. Recaler `ParametresCalage` (`tempo/moteur/modele.py`) sur les vraies dates de
+   `DeliveryPlan`/`Planning` plutôt que sur les deux hypothèses actuelles, une fois la
+   correspondance ligne/zone/tempo bien comprise.
+3. Étendre le moteur de charge (`tempo/moteur/charge.py`) pour intégrer les camions et
+   les colis de `MASTERVIEW.xlsm` comme une ressource de plus, sur le même principe que
+   la main-d'œuvre.

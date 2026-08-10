@@ -5,3 +5,9 @@
 
 openpyxl>=3.1        # lecture/écriture des classeurs Excel (tous les scripts *.py)
 python-pptx>=0.6     # lecture des présentations PowerPoint (tempo/lire_tempo.py)
+
+# Optionnelles — seulement pour tempo/lire_mpp.py (lecture d'un planning MS Project .mpp).
+# Nécessitent aussi un JDK installé sur la machine (mpxj est un pont vers une bibliothèque
+# Java). Ne pas installer si vous n'avez pas de fichier .mpp à lire.
+mpxj
+jpype1
