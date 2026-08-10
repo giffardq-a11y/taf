@@ -1,3 +1,7 @@
 # Page de restitution générée par build_report.py (template + solveur + SheetJS + plan).
 # Reconstruite à la demande, jamais éditée à la main : elle n'a pas sa place dans l'historique.
 rapport.html
+
+# Bytecode Python compilé — propre à l'environnement d'exécution local, jamais à committer.
+__pycache__/
+*.pyc
