@@ -120,11 +120,44 @@ lire_sequence_pptx_tableaux(chemin_pptx, n)    # -> tableaux détaillés d'une d
 Exécuté en ligne de commande, le script imprime un résumé de contrôle (comptes, zones
 couvertes, vérification N1) — voir `python3 tempo/lire_tempo.py --help`.
 
-**Ce que le script ne fait pas encore** : rapprocher N1 et N3 pour vérifier leur cohérence
-chiffrée (§2), ni transformer les cinq présentations en un référentiel unique de règles —
-c'est la suite logique, une fois les points de la section 4 clarifiés (ou explicitement
-mis en attente, comme cela a été fait pour la question des calendriers marins sur l'autre
-projet du dépôt).
+`tempo/comparer_n1_n3.py` rapproche les deux niveaux (§5bis ci-dessous).
+
+**Ce que les scripts ne font pas encore** : transformer les cinq présentations en un
+référentiel unique de règles, ni construire le moteur de simulation lui-même — c'est la
+suite logique, une fois les points de la section 4 clarifiés (ou explicitement mis en
+attente, comme cela a été fait pour la question des calendriers marins sur l'autre projet
+du dépôt).
+
+## 5bis. Rapprochement N1 ↔ N3 — premier résultat
+
+`tempo/comparer_n1_n3.py` reporte chaque catégorie N1 (Walls, BS, LASCA, Buffer, CP) sur
+sa zone N3 (référentiel `Data`, colonne UNIT : Walls→N, BS→O, LASCA→P, Buffer→Q, CP→S) et
+compte, segment par segment, les tâches N3 qui s'y trouvent réellement.
+
+**Constat net et reproductible : le classeur N3 est correctement rempli pour les segments
+de début et de fin de chaque catégorie, mais laisse un trou au milieu.** 12 combinaisons
+catégorie×segment n'ont **aucune** tâche détaillée :
+
+| Catégorie | Segments sans détail N3 |
+|---|---|
+| Walls | S4, S5 |
+| BS | S5, S6, S7, S8 |
+| LASCA | S6, S7, S8 |
+| Buffer | S7, S8 |
+| CP | S9 |
+
+Le classeur N3 est explicitement marqué V0.1 et la présentation Rebar du 04/06 dit
+elle-même « **Takt N3 still ongoing** » — ce trou n'est donc probablement pas une erreur à
+corriger de notre côté, mais un état d'avancement réel du chiffrage à date. Il est
+suffisamment net (concentré sur S5-S8, pas dispersé au hasard) pour valoir la peine d'être
+signalé à Valery/Joanna comme repère de ce qui reste à détailler.
+
+Le rapprochement chiffré strict (postes N1 vs heures-homme N3) n'a **pas** été poussé plus
+loin : les deux ne sont pas dans la même unité, et convertir des heures-homme en
+équivalent-postes suppose de savoir combien de postes tient un jour tempo — point qui
+dépend du système de postes de l'équipe de coulée, justement **pas encore décidé** (§4).
+Forcer une conversion maintenant reviendrait à masquer cette incertitude plutôt qu'à la
+lever.
 
 ## 6. Prochaines étapes proposées
 
