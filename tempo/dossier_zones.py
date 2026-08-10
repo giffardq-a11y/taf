@@ -20,6 +20,20 @@ deux points de contact désignés pour Quentin ; Olivier Bonnot est le sponsor/c
 Pour les documents non attribués nommément (la plupart des PPTX de la seconde vague),
 le responsable est noté « équipe TEMPO » faute de mieux — à corriger dès qu'on sait qui
 signe quoi.
+
+CORRECTION IMPORTANTE (10/08/2026, confirmée directement par l'utilisateur du projet) :
+les codes lettre M/N/O/P/Q/R/S/T/U+K/L et A à I ne sont PAS des zones physiques fixes —
+ce sont des PHASES (des repères temporels dans le gabarit tempo) pendant lesquelles
+certains travaux doivent se dérouler. La feuille `Data` du classeur N3 les présentait
+comme des zones physiques (« M = Panel Factory », etc.), et cette lecture a été utilisée
+partout dans ce dossier jusqu'à un contrôle croisé le 10/08/2026 qui l'a mise en doute
+(aucune tâche du classeur n'est jamais étiquetée UNIT=« Panel Factory ») — l'utilisateur
+a ensuite confirmé directement qu'il s'agit de phases, pas de zones. Chaque entrée
+`ZONES[...]` garde son ancien libellé (`aire`/`unite`, hérité de la feuille `Data`) pour
+ne pas casser la continuité du schéma, mais porte désormais aussi la répartition réelle
+des UNIT trouvés dans les tâches de cette phase (champ `donnees`, entrée
+« Répartition réelle... ») — c'est cette répartition qui reflète ce qui s'y passe
+vraiment, pas le libellé unique hérité de la feuille Data.
 """
 
 ZONES = {
@@ -246,13 +260,15 @@ for _z in ['A', 'B', 'C', 'D', 'E', 'F']:
     ZONES[_z] = {
         'aire': 'Outfitting Area', 'unite': {'A': 'OF1', 'B': 'OF2', 'C': 'OF3', 'D': 'OF4', 'E': 'OF5', 'F': 'SG'}[_z],
         'donnees': list(_DONNEES_OUTFITTING_MPP), 'hypotheses': [dict(_HYPOTHESE_MAPPING_MPP)],
-        'contradictions': [{'texte': "Aucune tâche détaillée dans le classeur N3 pour cette zone — "
-                             "cohérent avec son statut de brouillon V0.1. Le planning MS Project "
-                             "couvre bien ces travaux (voir Données ci-dessus), mais sans code de "
-                             "zone N3 assignable directement — pas une anomalie en soi, mais un "
-                             "travail de correspondance restant à faire.",
-                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
-                                          'Tempo_full_schedule_linked_V4_70_jour.mpp']}],
+        'contradictions': [{'texte': "Corrigé le 10/08/2026 — cette phase N'EST PAS vide dans le "
+                             "classeur N3 (elle porte 85 à 94 tâches réelles, voir la répartition "
+                             "réelle en Données) : l'ancienne affirmation « aucune tâche détaillée » "
+                             "reposait sur la lecture erronée de cette lettre comme zone Outfitting "
+                             "Area/OF1-OF5. En réalité ses tâches sont majoritairement rattachées à "
+                             "Base Slab/LASCA/Walls/Buffer, pas à l'Outfitting — la correspondance "
+                             "avec le planning MPP outfitting (Données ci-dessus) reste donc "
+                             "elle-même à confirmer, pas résolue par ce constat.",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)']}],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
 _DONNEES_UPPER_BASIN_MPP = [
@@ -281,14 +297,55 @@ for _z, _u in [('G', 'UB-S9'), ('H', 'UB-S8'), ('I', 'UB-S7')]:
     ZONES[_z] = {
         'aire': 'Upper Basin', 'unite': _u,
         'donnees': list(_DONNEES_UPPER_BASIN_MPP), 'hypotheses': [dict(_HYPOTHESE_MAPPING_MPP)],
-        'contradictions': [{'texte': "Aucune tâche détaillée dans le classeur N3 pour cette zone. "
-                             "Le planning MS Project couvre la séquence de fin (Big Push, "
-                             "post-tension, flottaison — voir Données ci-dessus), sans code de "
-                             "zone N3 assignable directement.",
-                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
-                                          'Tempo_full_schedule_linked_V4_70_jour.mpp']}],
+        'contradictions': [{'texte': "Corrigé le 10/08/2026 — cette phase N'EST PAS vide dans le "
+                             "classeur N3 (50 à 87 tâches réelles, voir la répartition réelle en "
+                             "Données), contrairement à l'ancienne affirmation « aucune tâche "
+                             "détaillée » qui reposait sur la lecture erronée de cette lettre comme "
+                             "zone Upper Basin/UB-S9-S7. Ses tâches sont en réalité majoritairement "
+                             "rattachées à LASCA/Base Slab/Walls, pas à l'Upper Basin — la "
+                             "correspondance avec le planning MPP outfitting (Big Push, "
+                             "post-tension, flottaison — Données ci-dessus) reste donc à confirmer.",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)']}],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
+
+# Répartition réelle des UNIT trouvés dans les tâches de chaque phase (calculée le
+# 10/08/2026, cf. la correction en tête de module) — {phase: [(unite, pourcentage), ...]},
+# les 3-4 valeurs les plus fréquentes, sur le total des tâches de cette phase dans le
+# classeur N3. C'est ce qui remplace, en fiable, l'ancien libellé unique hérité de la
+# feuille Data (« M = Panel Factory », etc.), qui ne correspond à aucune tâche réelle.
+_REPARTITION_REELLE_UNIT = {
+    'M': [('Casting Pit', 48), ('NC (non renseigné)', 14), ('R1', 12), ('UB-S9', 11)],
+    'N': [('Casting Pit', 44), ('R2', 20), ('R1', 11), ('UB-S9', 9)],
+    'O': [('Casting Pit', 39), ('NC (non renseigné)', 15), ('UB-S9', 11), ('R2', 11)],
+    'P': [('Casting Pit', 45), ('NC (non renseigné)', 13), ('R2', 13), ('R1', 10)],
+    'Q': [('Casting Pit', 49), ('NC (non renseigné)', 15), ('R1', 12), ('R2', 12)],
+    'R': [('Casting Pit', 48), ('R2', 16), ('NC (non renseigné)', 12), ('R1', 11)],
+    'S': [('Casting Pit', 51), ('R1', 12), ('R2', 11), ('NC (non renseigné)', 10)],
+    'T': [('Casting Pit', 57), ('R2', 13), ('R1', 12), ('OF1', 5)],
+    'U+K': [('Casting Pit', 29), ('R2', 25), ('R1', 15), ('NC (non renseigné)', 14)],
+    'L': [('Casting Pit', 57), ('R3', 21), ('NC (non renseigné)', 7), ('OF1', 6)],
+    'A': [('Base Slab', 38), ('LASCA', 36), ('Walls', 14), ('Buffer', 12)],
+    'B': [('LASCA', 39), ('Base Slab', 33), ('Walls', 15), ('Buffer', 14)],
+    'C': [('LASCA', 43), ('Base Slab', 31), ('Walls', 14), ('Buffer', 12)],
+    'D': [('LASCA', 40), ('Base Slab', 34), ('Walls', 15), ('Buffer', 11)],
+    'E': [('LASCA', 39), ('Base Slab', 33), ('Walls', 15), ('Buffer', 13)],
+    'F': [('LASCA', 39), ('Base Slab', 33), ('Walls', 15), ('Buffer', 13)],
+    'G': [('LASCA', 36), ('Base Slab', 26), ('Walls', 26), ('Buffer', 12)],
+    'H': [('LASCA', 40), ('Base Slab', 34), ('Walls', 15), ('Buffer', 12)],
+    'I': [('LASCA', 39), ('Base Slab', 33), ('Walls', 15), ('Buffer', 13)],
+}
+for _z, _repartition in _REPARTITION_REELLE_UNIT.items():
+    _texte_repartition = ", ".join(f"{u} {p}%" for u, p in _repartition)
+    ZONES[_z]['donnees'].insert(0, {
+        'texte': f"Répartition réelle des UNIT trouvés dans les tâches de la phase {_z} "
+                 f"(sur le total des tâches qui y sont rattachées) : {_texte_repartition}. "
+                 f"C'est l'attribut fiable pour savoir ce qui s'y passe physiquement — pas "
+                 f"le libellé unique « {ZONES[_z]['unite']} » hérité de la feuille Data du "
+                 f"classeur, qui ne correspond à aucune tâche réelle de cette phase.",
+        'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, toutes tâches de la phase, '
+                   '10/08/2026)', 'statut': 'confirme',
+    })
 
 LOGISTIQUE = {
     'nom': 'Logistique amont — livraisons Lyon/Brest → stock → halls',
@@ -425,24 +482,23 @@ LOGISTIQUE = {
 # responsable pressentie, pour qu'une invitation de réunion puisse s'écrire directement
 # à partir de cette liste.
 REGISTRE_VALIDATION = [
-    {'point': "Le code lettre de zone (colonne « TEMPO », A à I/M à L, utilisé partout dans ce "
-              "dossier et le schéma) ne correspond PAS de façon fiable à l'aire physique déclarée "
-              "pour cette lettre dans la feuille Data du classeur N3. Contrôle croisé (10/08/2026) : "
-              "sur les 3243 tâches du classeur, AUCUNE n'est étiquetée UNIT=« Panel Factory », alors "
-              "que la feuille Data déclare que la lettre M désigne « Panel Factory » — la plupart des "
-              "tâches des feuilles *__M sont en réalité étiquetées UNIT=« Casting Pit ». Le même écart "
-              "existe pour les 18 autres lettres (voir tableau complet dans le commit git). La colonne "
-              "UNIT, lue ligne à ligne, semble être l'attribut fiable pour l'aire physique réelle — "
-              "mais alors la feuille Data ne documente pas ce que les lettres représentent (peut-être "
-              "un repère de gabarit/position dans le cycle de 70 jours tempo, pas une zone physique). "
-              "Remet en question tout chiffre de ce dossier calculé « par zone lettre » avant "
-              "aujourd'hui (le pic BC de 95/228 en « zone S », par exemple — S reste le cas le plus "
-              "proche d'une lecture correcte, 51% de ses tâches sont bien UNIT=Casting Pit, mais 49% "
-              "ne le sont pas). Les courbes de main-d'œuvre par aire ajoutées le 10/08/2026 utilisent "
-              "la colonne UNIT directement, pas la lettre, précisément pour cette raison.",
+    {'point': "CLARIFIÉ le 10/08/2026, directement par l'utilisateur du projet : les codes lettre "
+              "(A à I/M à L) NE SONT PAS des zones physiques, ce sont des PHASES — des repères "
+              "temporels dans le gabarit tempo pendant lesquels certains travaux doivent se "
+              "dérouler. Confirme le contrôle croisé fait juste avant (0/3243 tâches étiquetées "
+              "UNIT=« Panel Factory » malgré la feuille Data qui déclare M=Panel Factory ; même "
+              "écart pour les 18 autres lettres). Chaque zone du schéma porte désormais la "
+              "répartition réelle des UNIT trouvés dans ses tâches (donnee « Répartition réelle... ») "
+              "à la place de l'ancien libellé unique hérité de la feuille Data — dans deux groupes "
+              "cohérents : M/N/O/P/Q/R/S/T/U+K/L dominées par Casting Pit (39-57%) + R1/R2/R3 ; "
+              "A à I dominées par Base Slab/LASCA/Walls/Buffer (aucune n'est en réalité liée à "
+              "l'Outfitting Area/Upper Basin comme la feuille Data le laissait penser). Reste "
+              "ouvert : que représente exactement la feuille Data si ce n'est pas une correspondance "
+              "lettre->zone physique, et faut-il redessiner le schéma en conséquence (aires de "
+              "regroupement, libellés des cases) ?",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
-     'impact': "critique — remet en question l'attribution physique de toute donnée « par zone » "
-               "calculée avant le 10/08/2026 dans ce dossier"},
+     'impact': "élevé — la nature du problème est clarifiée, mais le schéma visuel (regroupements "
+               "par aire, libellés des 19 cases) n'a pas encore été refait en conséquence"},
     {'point': "Système de postes de l'équipe de coulée (3×8h vs 2×12h)", 'zone': 'S',
      'responsable': 'équipe Casting Team', 'impact': 'critique — conditionne toute la grille horaire du moteur'},
     {'point': "Durée de poste divergente entre 4 documents (9h/10h/8h/12h/~4h45)", 'zone': 'Logistique',
