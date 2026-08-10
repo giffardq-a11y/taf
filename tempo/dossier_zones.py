@@ -425,6 +425,24 @@ LOGISTIQUE = {
 # responsable pressentie, pour qu'une invitation de réunion puisse s'écrire directement
 # à partir de cette liste.
 REGISTRE_VALIDATION = [
+    {'point': "Le code lettre de zone (colonne « TEMPO », A à I/M à L, utilisé partout dans ce "
+              "dossier et le schéma) ne correspond PAS de façon fiable à l'aire physique déclarée "
+              "pour cette lettre dans la feuille Data du classeur N3. Contrôle croisé (10/08/2026) : "
+              "sur les 3243 tâches du classeur, AUCUNE n'est étiquetée UNIT=« Panel Factory », alors "
+              "que la feuille Data déclare que la lettre M désigne « Panel Factory » — la plupart des "
+              "tâches des feuilles *__M sont en réalité étiquetées UNIT=« Casting Pit ». Le même écart "
+              "existe pour les 18 autres lettres (voir tableau complet dans le commit git). La colonne "
+              "UNIT, lue ligne à ligne, semble être l'attribut fiable pour l'aire physique réelle — "
+              "mais alors la feuille Data ne documente pas ce que les lettres représentent (peut-être "
+              "un repère de gabarit/position dans le cycle de 70 jours tempo, pas une zone physique). "
+              "Remet en question tout chiffre de ce dossier calculé « par zone lettre » avant "
+              "aujourd'hui (le pic BC de 95/228 en « zone S », par exemple — S reste le cas le plus "
+              "proche d'une lecture correcte, 51% de ses tâches sont bien UNIT=Casting Pit, mais 49% "
+              "ne le sont pas). Les courbes de main-d'œuvre par aire ajoutées le 10/08/2026 utilisent "
+              "la colonne UNIT directement, pas la lettre, précisément pour cette raison.",
+     'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
+     'impact': "critique — remet en question l'attribution physique de toute donnée « par zone » "
+               "calculée avant le 10/08/2026 dans ce dossier"},
     {'point': "Système de postes de l'équipe de coulée (3×8h vs 2×12h)", 'zone': 'S',
      'responsable': 'équipe Casting Team', 'impact': 'critique — conditionne toute la grille horaire du moteur'},
     {'point': "Durée de poste divergente entre 4 documents (9h/10h/8h/12h/~4h45)", 'zone': 'Logistique',

@@ -115,6 +115,17 @@ données réelles, pas seulement des classes qui compilent.
 
 ## Premier résultat, et un écart à éclaircir avant de s'y fier
 
+> ⚠️ **Mise en garde ajoutée le 10/08/2026, après ce calcul** : les résultats « par zone »
+> ci-dessous filtrent sur le code lettre de la feuille N3 (colonne « TEMPO »). Un contrôle
+> croisé a montré que ce code lettre ne correspond pas de façon fiable à l'aire physique
+> déclarée pour cette lettre dans la feuille `Data` (ex. aucune tâche du classeur n'est
+> jamais étiquetée UNIT=« Panel Factory », alors que la lettre M est censée le désigner).
+> La zone S reste le cas le plus proche d'une lecture correcte (51% de ses tâches sont
+> bien UNIT=Casting Pit), donc le chiffre ci-dessous n'est pas à jeter, mais à prendre
+> avec cette réserve — voir le point critique du registre de validation
+> (`tempo/dossier_zones.py`) et `tempo/moteur/courbes.py`, qui regroupe désormais par la
+> colonne UNIT (fiable) plutôt que par cette lettre.
+
 Deux lectures possibles selon le périmètre, à ne pas confondre :
 
 - **Zone S (Casting Pit) seule**, ressource `BC` (Blue Collar) : pic de **95** en
