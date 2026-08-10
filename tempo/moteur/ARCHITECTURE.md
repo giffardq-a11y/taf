@@ -94,31 +94,61 @@ tempo/moteur/
   ARCHITECTURE.md   ce document
   modele.py         les classes de données (Ressource, Tache, ParametresCalage, Calendrier)
   charge.py         construit la charge agrégée par ressource et par jour calendaire absolu
-  goulots.py         compare la charge à la capacité, produit la liste des dépassements
+  goulots.py        diagnostic goulots : pic, récurrence, dépassement de capacité, et
+                     le nombre d'équipes tournantes qu'impose chaque hypothèse de poste
 ```
 
-`python3 -m tempo.moteur.charge <n1.xlsx> <n3.xlsx>` fait tourner l'ensemble sur les
-classeurs réels et imprime les goulots trouvés, avec les tâches et les lignes en cause —
-un test de bout en bout sur données réelles, pas seulement des classes qui compilent.
+`python3 -m tempo.moteur.charge <n1.xlsx> <n3.xlsx>` fait tourner la charge seule.
+`python3 -m tempo.moteur.goulots <n1.xlsx> <n3.xlsx> [--capacite CODE=VALEUR]` fait
+tourner charge + diagnostic — pic, récurrence, dépassement si une capacité est fournie,
+et le tableau équipes-tournantes selon la durée de poste. Un test de bout en bout sur
+données réelles, pas seulement des classes qui compilent.
 
 ## Premier résultat, et un écart à éclaircir avant de s'y fier
 
-Sur la ressource `BC` (Blue Collar), zone S (Casting Pit) seule, le moteur trouve un pic
-de **228** en simultané, un jour sur deux environ (les 5 lignes s'y retrouvent ensemble,
-cf. plus bas). La présentation Casting Team donne, elle, un pic standard de **105 BC**
-(117 en semaine S5). L'écart n'est pas négligeable — environ un facteur 2 — et n'a **pas**
-été expliqué ni corrigé silencieusement. Deux pistes, aucune confirmée :
+Deux lectures possibles selon le périmètre, à ne pas confondre :
 
-1. Le total du moteur additionne **toute** la main-d'œuvre `BC` de la zone S (coffrage,
-   préparation au skidding, etc.), alors que « 105 BC » vient d'une présentation dédiée à
-   la seule **équipe de coulée** — un périmètre plus étroit.
-2. Le déphasage lu au N1 (`L1-T1, L2-T3` : 2 jours d'écart seulement dans une paire de
-   lignes) fait effectivement se chevaucher les 5 lignes en zone S presque toutes les
-   semaines — cohérent avec le fait que le `Casting Pattern` du classeur N1 fait couler
-   **les 5 lignes le même jour**, à des heures différentes. Si c'est la bonne lecture,
-   228 n'est pas un artefact de calcul mais une vraie charge cumulée à ce moment-là — la
-   présentation Casting Team ne dit d'ailleurs pas clairement si son « pic standard » est
-   mesuré ligne par ligne ou toutes lignes confondues.
+- **Zone S (Casting Pit) seule**, ressource `BC` (Blue Collar) : pic de **95** en
+  simultané (`python3 -m tempo.moteur.goulots ... ` avec les charges filtrées sur
+  `zone == 'S'`). Se rapproche du **105-117 BC** cité par la présentation Casting Team —
+  l'écart est maintenant de l'ordre de 10 à 20%, pas un facteur 2.
+- **Toutes zones confondues** (M à L, tout le parcours d'un élément), même ressource :
+  pic de **1258** au jour 116, avec 1576 des 2058 points de charge au-dessus d'une
+  capacité test de 85. Ce chiffre n'est **pas** comparable au 105-117 de la présentation
+  Casting Team (qui ne couvre que l'équipe de coulée) — il additionne, à un instant
+  donné, la main-d'œuvre BC de **tous les éléments simultanément en cours** sur les 5
+  lignes, à tous les stades de leur parcours (Panel Factory à Curing Hall). Si le cycle
+  complet dure effectivement ~70 jours calendaires et qu'un nouvel élément démarre tous
+  les 7 jours par ligne (l'hypothèse `periode_relance_jours`), alors ~10 éléments sont
+  simultanément « en vol » par ligne à l'état stationnaire — un fonctionnement en pipeline
+  parfaitement normal pour ce type d'usine, mais qui donne un total sitewide sans commune
+  mesure avec un pic mesuré zone par zone. Ce chiffre sitewide n'a encore été comparé à
+  aucune donnée officielle de dimensionnement global — à faire.
 
-Ce point est à vérifier avec Valery/Joanna avant de prendre le chiffre du moteur pour un
-dimensionnement — il est montré tel quel, pas lissé pour coller au 105 déjà connu.
+Un écart persiste par rapport à la version précédente de ce document, qui citait un pic
+de 228 en zone S : ce chiffre n'a pas été reproduit avec l'outil actuel (`goulots.py`),
+qui donne 95 sur les mêmes fichiers sources. Cause non identifiée avec certitude — sans
+doute une différence de version de fichier ou d'horizon simulé entre les deux calculs,
+pas une correction volontaire. Les deux chiffres (95 et l'ancien 228) restent à
+réconcilier avec Valery/Joanna avant de prendre l'un ou l'autre pour un dimensionnement
+définitif — inscrit au registre de validation (`tempo/dossier_zones.py`).
+
+## Impact de la durée de poste (registre de validation) sur le nombre d'équipes
+
+Les fenêtres du classeur N3 tuilent la totalité des 24h de la journée (CP/PeP : 5
+fenêtres d'environ 5h chacune ; PoP : 4 fenêtres de 6h) — la production tourne en
+continu quelle que soit la durée de poste retenue. Ce que change la durée de poste,
+c'est le nombre d'équipes distinctes nécessaires pour se relayer sur ces 24h
+(`goulots.equipes_tournantes`, arrondi supérieur simple — pas une règle sociale) :
+
+| Durée de poste | Équipes tournantes nécessaires |
+|---|---|
+| 8h | 3 |
+| 9h | 3 |
+| 10h | 3 |
+| 12h | 2 |
+
+Concrètement : retenir un poste de 12h plutôt que 8h/9h/10h réduit d'un tiers le nombre
+d'équipes distinctes à constituer pour couvrir la même amplitude — un argument chiffré
+de plus pour la réunion de conciliation sur ce point (`tempo/reunion_conciliation.md`),
+qui ne tranche rien à sa place.

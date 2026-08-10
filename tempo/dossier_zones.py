@@ -180,14 +180,18 @@ ZONES = {
              'a_valider_par': 'équipe CAS/Buffer (JSO)', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Le moteur de simulation (tempo/moteur/charge.py), sur la ressource BC en "
-                      "zone S, trouve un pic de 228 personnes simultanées — environ le double des "
-                      "105-117 cités par l'équipe Casting Team. Deux explications non vérifiées : "
-                      "le moteur additionne toute la main-d'œuvre BC de la zone (coffrage compris), "
-                      "pas la seule équipe de coulée ; ou le chevauchement réel des 5 lignes le même "
-                      "jour (visible dans Casting Pattern) est plus large que ce que « 105-117 » "
-                      "mesurait.",
-             'sources': ['tempo/moteur/charge.py (calculé)', 'TEMPO_N2_Presentation_Casting_Team_10062026.pptx']},
+            {'texte': "Le moteur de simulation (tempo/moteur/goulots.py), sur la ressource BC en "
+                      "zone S seule, trouve désormais un pic de 95 personnes simultanées — proche "
+                      "des 105-117 cités par l'équipe Casting Team (écart de 10-20%, plus le facteur "
+                      "2 précédemment observé). Ce chiffre de 95 ne reproduit toutefois pas le 228 "
+                      "trouvé par une version antérieure du moteur sur les mêmes fichiers source, "
+                      "sans cause identifiée (différence de version de fichier ou d'horizon simulé "
+                      "probable, pas une correction volontaire) — les deux valeurs (95 et l'ancien "
+                      "228) restent donc à réconcilier avec l'équipe Casting Team. Voir aussi le "
+                      "total tous zones confondues (1258, incomparable à 105-117 car il additionne "
+                      "tous les éléments simultanément en cours sur tout leur parcours) — détail "
+                      "dans tempo/moteur/ARCHITECTURE.md.",
+             'sources': ['tempo/moteur/goulots.py (calculé)', 'TEMPO_N2_Presentation_Casting_Team_10062026.pptx']},
             {'texte': "Segments N3 sans détail trouvés : seul S9 — pas comparé au suivi officiel.",
              'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé)']},
         ],
@@ -385,6 +389,16 @@ LOGISTIQUE = {
                   "en zones N/S (voir REGISTRE_VALIDATION), mais contradictoire avec toute "
                   "hypothèse de « pas de travail le week-end ».",
              'sources': ['ESS_PLANNING.xlsx (feuilles WEEK 18 et WEEK 19)']},
+        {'texte': "L'hypothèse de calage retenue jusqu'ici pour le moteur (Ti = jour calendaire, "
+                  "Line 1 démarre en premier) ne se confirme pas sur les dates réelles : la date de "
+                  "livraison la plus ancienne par ligne dans DeliveryPlan est, dans l'ordre, Line 3 "
+                  "(08/05/2026), Line 2 (19/05), Line 5 (20/05), Line 4 (01/06), Line 1 (25/06) — "
+                  "Line 1 est la DERNIÈRE, pas la première, contrairement à son déphasage N1 le plus "
+                  "petit (T1). Explication probable : ces dates ne couvrent qu'une fenêtre du "
+                  "planning (pas le tout premier élément de chaque ligne), donc ne permettent pas "
+                  "de calage direct — mais ça invalide un calage naïf par « date de livraison la "
+                  "plus ancienne », resté non tenté pour cette raison.",
+             'sources': ['MASTERVIEW.xlsm (feuille DeliveryPlan, calculé)']},
     ],
     'fichiers': ['MASTERVIEW.xlsm', 'TRAILER_QUANTITY_PER_FLOW.xlsx', 'FLOW_BRESTLYON.pptx',
                  'LAYOUT_RF.pptx', 'TRAILER_CAPACITY.pptx', 'EXCEPTIONS_TWO_STOPS_DELIVERIES.pptx',
@@ -409,9 +423,10 @@ REGISTRE_VALIDATION = [
     {'point': "Écart entre notre relevé des segments N3 manquants et le suivi officiel "
               "(N3 Overview (Missing))", 'zone': 'N, O',
      'responsable': 'Valery Claise / Joanna', 'impact': 'élevé — détermine où concentrer le chiffrage restant'},
-    {'point': "Pic d'effectif BC en zone Casting Pit : 228 (calculé) vs 105-117 (cité) — périmètre "
-              "à clarifier", 'zone': 'S', 'responsable': 'équipe Casting Team',
-     'impact': 'élevé — sert au dimensionnement de l\'équipe'},
+    {'point': "Pic d'effectif BC en zone Casting Pit : 95 avec l'outil actuel (proche des 105-117 "
+              "cités) vs 228 trouvé par une version antérieure du même calcul — cause de l'écart "
+              "entre les deux calculs non identifiée", 'zone': 'S', 'responsable': 'équipe Casting Team',
+     'impact': 'moyen — réduit fortement depuis la dernière mesure, à confirmer plutôt qu\'à dimensionner dessus'},
     {'point': "Travail du week-end : hypothèse « aucun » mais quatre sources indépendantes signalent "
               "un besoin réel (4 samedis/cycle pour les murs, dimanche skidding en L4, S2 skidding "
               "L4 tombe un samedi, livraisons ESS programmées le samedi dans les deux échantillons "
