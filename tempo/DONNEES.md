@@ -272,7 +272,8 @@ rapport de plus à lire. Douze points y figurent à ce jour, notamment :
   structurant, à arbitrer par Olivier Bonnot ;
 - le système de postes de l'équipe de coulée (3×8h vs 2×12h, non décidé) ;
 - l'écart entre notre relevé des segments N3 manquants et le suivi officiel (§8) ;
-- le pic d'effectif BC en Casting Pit (228 calculé vs 105-117 cité) ;
+- le pic d'effectif BC en Casting Pit (95 avec l'outil actuel, contre 228 trouvé par une
+  version antérieure du même calcul — voir §11) ;
 - le travail du week-end (hypothèse « aucun » contredite par quatre sources
   indépendantes, dont deux plannings ESS réels datés montrant des livraisons le
   samedi) ;
@@ -289,3 +290,50 @@ rapport de plus à lire. Douze points y figurent à ce jour, notamment :
 
 Rien de tout cela n'a été tranché depuis ce dossier : c'est le but précisément
 d'avoir un support prêt pour que les personnes responsables le fassent.
+
+## 11. Le moteur passe de squelette à premiers résultats exploitables (10/08/2026)
+
+Suite directe du §10 : quatre chantiers menés en parallèle, chacun avec un résultat
+réel sur les fichiers reçus, pas seulement du code qui compile.
+
+**Support de réunion prêt à envoyer** (`tempo/reunion_conciliation.md`) : le registre de
+validation du §10, réécrit en agenda par personne responsable, avec pour chaque point le
+contexte complet (sources, valeurs en présence, question précise) — pensé pour être
+utilisé tel quel, sans repasser par les documents sources.
+
+**`tempo/moteur/goulots.py`** (nouveau) : diagnostic de goulots par ressource — pic,
+récurrence, dépassement de capacité si elle est connue. Ressorti sur les fichiers réels :
+BC en zone Casting Pit seule donne un pic de **95** (proche des 105-117 cités par
+l'équipe Casting Team, écart réduit par rapport au 228 précédemment trouvé — cause de
+cet écart entre les deux calculs non identifiée, à réconcilier). Sitewide (toutes zones,
+tous éléments en cours), le pic monte à 1258 — un chiffre d'une autre nature (voir
+`tempo/moteur/ARCHITECTURE.md`), pas comparable au 105-117. Le module calcule aussi,
+pour chaque durée de poste candidate (8h/9h/10h/12h), le nombre d'équipes tournantes que
+ça impose : 3 pour 8/9/10h, seulement 2 pour 12h — un argument chiffré de plus pour la
+réunion sur ce point.
+
+**Tentative de calage calendaire, non aboutie mais instructive** : essayé de recaler
+`ParametresCalage` sur les dates réelles de `DeliveryPlan` (MASTERVIEW.xlsm). L'ordre des
+dates de livraison les plus anciennes par ligne (Line 3, 2, 5, 4, puis 1 — Line 1 en
+dernier) contredit l'hypothèse de calage actuelle (Line 1 démarre en premier, T1). Calage
+non fait pour cette raison plutôt que forcé sur une base fragile — nouveau point ouvert.
+
+**`tempo/moteur/logistique.py`** (nouveau) : charge de livraisons depuis
+`DeliveryPlan`, calée d'emblée sur de vraies dates (pas d'hypothèse de calage
+nécessaire, à la différence de la main-d'œuvre). Résultat : pic de 22 livraisons/jour
+sitewide, très inférieur aux 96/jour cités ailleurs (LAYOUT_RF.pptx) — nouvel écart
+ouvert, `DeliveryPlan` ne couvrant probablement qu'une partie du flux réel.
+
+**`tempo/moteur/alea.py`** (nouveau) : premier niveau de réponse à l'objectif
+« replanifier en cas de retard/panne » — pas un réordonnancement (il faudrait les liens
+de précédence entre tâches, toujours absents), mais une évaluation d'impact : perte de
+capacité pendant une fenêtre donnée, déficit que ça crée, tampon minimal pour l'absorber.
+Testé sur le risque n°1 du registre RF officiel (plateformes insuffisantes, tampon
+proposé 3-5 remorques) : perdre 5 plateformes sur la flotte de 24 recommandée, pendant
+la semaine de pic observée dans `DeliveryPlan`, crée un déficit jusqu'à 3/jour — la
+flotte recommandée n'absorbe pas totalement ce niveau de perte, sur ce jeu de données
+(à revoir si `DeliveryPlan` s'avère partiel, cf. ci-dessus).
+
+Le schéma interactif (`tempo_zones.html`) et `tempo/dossier_zones.py` ont été mis à jour
+en cours de route à chaque nouvelle trouvaille — 14 points au registre de validation à ce
+stade, contre 9 au §10.
