@@ -1788,12 +1788,26 @@ function occupationsGantt() {
           barre.segs = e.sg.map((d, i) => ({k: i + 1, d: t(d),
             f: t(e.sg[i + 1]) || Math.max(t(e.bF), t(d) + day)}));
       }
-      // Big push : le transfert de la zone béton vers la zone d'outfitting. Il occupe
-      // l'intervalle entre la fin de coulée et le départ du suivant sur la même ligne.
-      const suiv = suivantDeLigne[e.id];
+      // Big push : transfert FIXE (72h, REGLES.dureePushJours dans le solveur) de la zone
+      // béton vers la zone d'outfitting — jamais étiré, quoi qu'il arrive en aval. L'attente
+      // éventuelle avant que le push ne commence (zone UB encore occupée, upper basin plein)
+      // est une barre séparée ('attente UB'), distincte du push : les confondre masquait le
+      // vrai signal (cadence trop rapide pour la ligne) derrière un « push » à rallonge qui
+      // n'existe pas sur le chantier — la durée d'un push est fixe (confirmé 11/08/2026).
       if (e.bF) {
-        const fin = Math.max(t(e.oD) || 0, suiv ? t(suiv.bD) : 0, t(e.bF) + day);
-        out.push({res: casting, d: t(e.bF), f: fin, id: e.id, lab: 'push', push: true});
+        const finBeton = t(e.bF), debutPush = t(e.puD), finPush = t(e.puF);
+        if (debutPush && finPush) {
+          if (debutPush > finBeton) {
+            out.push({res: casting, d: finBeton, f: debutPush, id: e.id, lab: 'attente UB', wait: true});
+          }
+          out.push({res: casting, d: debutPush, f: Math.max(finPush, debutPush + day), id: e.id, lab: 'push', push: true});
+        } else {
+          // Repli : passage en Push non simulé (import as-built direct en Outfitting, par
+          // exemple) — pas de distinction possible entre attente et push, ancien affichage.
+          const suiv = suivantDeLigne[e.id];
+          const fin = Math.max(t(e.oD) || 0, suiv ? t(suiv.bD) : 0, finBeton + day);
+          out.push({res: casting, d: finBeton, f: fin, id: e.id, lab: 'push', push: true});
+        }
       }
       pousser(`Line ${e.ln} - Outfitting UB`, e.oD, e.oF, e);
       // Float-up : le jalon qui clôt le séjour en zone UB.
@@ -2139,6 +2153,11 @@ function rendreGantt() {
           // L'étiquette n'apparaît que si la barre peut la porter.
           if ((b - a) / span > 0.035) barre.textContent = o.lab;
           if (o.push) { barre.style.background = '#C0392B'; barre.style.color = '#fff';
+                        barre.style.fontSize = '7px'; }
+          // Attente avant le push (zone UB encore occupée, upper basin plein) : couleur
+          // distincte du push lui-même — c'est le signal qu'une cadence est trop rapide pour
+          // la ligne, pas un push qui traîne (la durée du push est fixe, voir REGLES.dureePushJours).
+          if (o.wait) { barre.style.background = '#E67E22'; barre.style.color = '#fff';
                         barre.style.fontSize = '7px'; }
           if (o.fu) { barre.style.background = '#6A5FA8'; barre.style.color = '#fff';
                       barre.style.borderRadius = '50%'; barre.textContent = ''; }
@@ -3033,6 +3052,7 @@ function construireD() {
     elements: elements.map(e => ({
       id: e.id, l: LIGNE_NOM[e.ligne], ln: e.ligne, r: e.rythme,
       bD: iso(e.dateDebutBeton), bF: iso(e.dateFinBeton),
+      puD: iso(e.dateDebutPush), puF: iso(e.dateFinPush),
       oD: iso(e.dateDebutOut), oF: iso(e.dateFinOut),
       fu: iso(e.dateDebutFU), ba: iso(e.dateDebutBasin), pk: iso(e.dateDebutParking),
       bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),

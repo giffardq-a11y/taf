@@ -10,7 +10,7 @@
     --bg: #0a0d10; --panel: #14181c; --panel2: #1b2126; --border: #2a3238;
     --accent: #00d2ff; --ok: #05c46b; --warn: #ffb02e; --late: #ff3f34;
     --concrete: #7c8b99; --concrete-wait: #b08d57; --outfit: #00b8d9;
-    --outfit-wait: #ffb02e; --floatup: #8e7cff; --basin: #5b8def; --basin-wait: #3a4a63;
+    --outfit-wait: #ffb02e; --push: #ff3f34; --floatup: #8e7cff; --basin: #5b8def; --basin-wait: #3a4a63;
     --parking: #3f7ea6; --ballast: #ff8a3d; --stockage-spe: #7a5ea8; --text: #e8edf0; --text-dim: #8b98a3;
   }
   * { box-sizing: border-box; }
@@ -122,6 +122,7 @@
   }
   .segment.concrete { background: var(--concrete); }
   .segment.concrete-wait { background: var(--concrete-wait); }
+  .segment.push { background: var(--push); color: #fff; }
   .segment.outfitting { background: var(--outfit); }
   .segment.outfitting-wait { background: var(--outfit-wait); }
   .segment.floatup { background: var(--floatup); color: #fff; }
@@ -281,6 +282,7 @@
     <h4>Légende</h4>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--concrete)"></div>Béton (croissance)</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--concrete-wait)"></div>Béton — en attente (zone occupée)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--push)"></div>Big push (72h fixes)</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--outfit)"></div>Outfitting</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--outfit-wait)"></div>Outfitting — en attente partenaire</div>
     <div class="legend-item"><div class="legend-swatch" style="background:var(--floatup)"></div>Float-up (couplé)</div>
@@ -484,6 +486,15 @@ const REGLES = {
   // les quelques éléments sans cette donnée y recourent. Non réglable depuis l'interface,
   // pour ne plus s'ajouter à une durée réelle déjà connue.
   ballastJoursDefaut: 7,
+  // Durée du big push (transfert coulée → outfitting UB), en jours — FIXE (confirmé par
+  // l'utilisateur, 11/08/2026) : 72h, quoi qu'il arrive en amont ou en aval. Ce n'est PAS une
+  // variable d'ajustement — si la zone d'outfitting UB est encore occupée (upper basin plein),
+  // l'élément attend en AttenteOutfitting (durée variable, zone séparée à l'affichage comme au
+  // calcul) AVANT que le push ne commence ; une fois lancé, le push dure toujours 72h. C'est le
+  // choix de cadence en amont (voir taktJours/pipelineJours) qui doit éviter l'attente, pas
+  // l'étirement du push. Non réglable depuis l'interface, pour la même raison que
+  // ballastJoursDefaut.
+  dureePushJours: 3,
 };
 REGLES.defaut = JSON.parse(JSON.stringify(REGLES));
 function penteJours() { return REGLES.pentePeriodeMois * 30.44; }
@@ -774,7 +785,7 @@ function parseWorkbook(dateRefArg) {
       elements.push({
         id: raw, ligne: l, ordreSeq, statutBrut, zoneSPE: 0, statut: 'EnAttente', termine: false,
         rythme: null, atRisk: false,
-        dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+        dateDebutBeton:null, dateFinBeton:null, dateDebutPush:null, dateFinPush:null, dateDebutOut:null, dateFinOut:null,
         dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
         basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
         dateBallast:null, dateImmersion:null,
@@ -1054,6 +1065,7 @@ function anchorDate(ligne) {
 const AS_BUILT_SYNONYMES = {
   beton:'beton', concrete:'beton',
   outfitting:'outfitting', outfit:'outfitting', equipement:'outfitting',
+  push:'push', bigpush:'push', grandpush:'push', poussage:'push', poussee:'push',
   floatup:'floatup', float:'floatup',
   bassin:'basin', basin:'basin', hookup:'basin', lowerbasin:'basin',
   attentebassin:'attentebasin', attentebasin:'attentebasin',
@@ -1154,7 +1166,7 @@ function runSimulation(paramsArg) {
   });
   elements.forEach(e => Object.assign(e, {
     zoneSPE: 0, statut: 'EnAttente', termine: false, rythme: null, atRisk: false,
-    dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+    dateDebutBeton:null, dateFinBeton:null, dateDebutPush:null, dateFinPush:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
     dateBallast:null, dateFinBallast:null, dateHookup:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false, stockeEnBassin:false,
@@ -1261,6 +1273,17 @@ function runSimulation(paramsArg) {
         placerEnZoneSPE(e, code.n, code.date);
         break;
       }
+      case 'push': {
+        // Big push en cours au jour de référence : durée fixe (72h, REGLES.dureePushJours)
+        // depuis la date renseignée — pas de numéro de zone à saisir.
+        if (ligne === 6) { nbOverrideIgnore++; return; }
+        e.rythme = anchorR;
+        e.dateDebutPush = code.date || REF;
+        e.dateFinPush = addDays(e.dateDebutPush, REGLES.dureePushJours);
+        e.statut = 'Push';
+        zoneOutOccupee[ligne] = true;
+        break;
+      }
       case 'outfitting': {
         // Sur la ligne SPE, « Outfitting » désigne la chaîne UB : sans numéro de zone,
         // l'élément est placé en UB1.
@@ -1336,16 +1359,21 @@ function runSimulation(paramsArg) {
   // dans le délai de ballast déjà compté, ce n'est pas du temps en plus.
   function pipelineJours(ligne, dConcreteStart, R) {
     const dConcreteEnd = ajouterJoursTravail(dConcreteStart, R * 7 * REGLES.segments);
-    const outDur = dureeOutfittingJoursForR(ligne, dConcreteEnd, R);
-    const finOut = ajouterJoursTravail(dConcreteEnd, outDur);
+    // Le push (72h fixes) sépare la fin de coulée du début d'outfitting — voir REGLES.dureePushJours.
+    const dOutStart = addDays(dConcreteEnd, REGLES.dureePushJours);
+    const outDur = dureeOutfittingJoursForR(ligne, dOutStart, R);
+    const finOut = ajouterJoursTravail(dOutStart, outDur);
     return diffDays(finOut, dConcreteStart) + (PARAMS.floatUpSem * 7) + REGLES.ballastJoursDefaut;
   }
 
   // Cadence de la ligne (takt) au rythme R : intervalle entre deux lancements successifs de béton.
   // La zone béton n'est libérée que quand la zone outfitting l'est aussi, donc c'est la plus longue
-  // des deux phases qui impose le rythme d'écoulement de la ligne.
+  // des deux phases qui impose le rythme d'écoulement de la ligne. La zone outfitting est occupée
+  // dès le début du push (72h fixes, REGLES.dureePushJours), pas seulement pendant l'outfitting
+  // proprement dit — l'ignorer ferait choisir une cadence trop rapide, et le push se retrouverait
+  // à attendre une zone encore prise (c'est justement ce qu'il ne faut pas laisser arriver).
   function taktJours(ligne, dRef, R) {
-    const brut = Math.max(R * 7 * REGLES.segments, dureeOutfittingJoursForR(ligne, dRef, R));
+    const brut = Math.max(R * 7 * REGLES.segments, REGLES.dureePushJours + dureeOutfittingJoursForR(ligne, dRef, R));
     // Les arrêts allongent le cycle : les ignorer ici ferait juger tenable un rythme qui ne
     // l'est pas, et le solveur découvrirait le retard une fois l'élément lancé.
     return PARAMS.vacances ? diffDays(ajouterJoursTravail(dRef, brut), dRef) : brut;
@@ -1697,6 +1725,16 @@ function runSimulation(paramsArg) {
     return dCur >= e.dateFinOut;       // dernier de la ligne : durée nominale
   }
 
+  // Lance le big push : la zone d'outfitting UB est réservée dès que l'élément commence à y
+  // entrer (pas seulement une fois le transfert terminé), et la durée est fixe (72h,
+  // REGLES.dureePushJours) — voir la note sur REGLES.dureePushJours.
+  function demarrerPush(e, ligne, dCur) {
+    zoneOutOccupee[ligne] = true;
+    e.statut = 'Push';
+    e.dateDebutPush = new Date(dCur);
+    e.dateFinPush = addDays(dCur, REGLES.dureePushJours);
+  }
+
   function demarrerOutfittingPL(e, dCur) {
     e.dateDebutOut = dCur;
     e.dateFinOut = ajouterJoursTravail(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
@@ -1723,7 +1761,7 @@ function runSimulation(paramsArg) {
     if (dureeBallastJours(e) <= 0) immerger(e, dCur);
   }
   // Statuts d'un élément encore susceptible de rejoindre son partenaire à l'entrée du bassin.
-  const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
+  const EN_AMONT_BASIN = ['EnAttente','Beton','AttenteOutfitting','Push','Outfitting','AttenteFloatUp','FloatUp','AttenteBasin'];
 
   /* ---- Règles spécifiques au Basin C (paire PL-5 / SPE) ---- */
 
@@ -1878,12 +1916,19 @@ function runSimulation(paramsArg) {
           // que la zone d'outfitting se dégage — sinon un élément bloqué en fin de béton
           // gèlerait toute la ligne derrière lui.
           zoneBetonOccupee[ligne] = false;
-          if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+          if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) demarrerPush(e, ligne, dCur);
           else e.statut = 'AttenteOutfitting';
         }
         break;
       case 'AttenteOutfitting':
-        if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) { zoneOutOccupee[ligne]=true; e.statut='Outfitting'; demarrerOutfittingPL(e,dCur); }
+        // Le big push ne peut commencer que si la zone d'outfitting UB est libre : c'est cette
+        // attente-là qui est variable (upper basin plein), pas la durée du push lui-même une
+        // fois lancé (REGLES.dureePushJours, fixe). Voir taktJours/pipelineJours pour la
+        // cadence en amont, censée éviter que cette attente se prolonge.
+        if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) demarrerPush(e, ligne, dCur);
+        break;
+      case 'Push':
+        if (dCur >= e.dateFinPush) { e.statut = 'Outfitting'; demarrerOutfittingPL(e, e.dateFinPush); }
         break;
       case 'Outfitting':
         if (finOutfittingAtteinte(e, dCur)) {
@@ -2106,7 +2151,7 @@ function runSimulation(paramsArg) {
   }
 
   // Un élément est encore susceptible de rejoindre un Float-up sur sa ligne (amont du Float-up).
-  const EN_AMONT_FU = ['EnAttente','Beton','AttenteOutfitting','Outfitting','AttenteFloatUp'];
+  const EN_AMONT_FU = ['EnAttente','Beton','AttenteOutfitting','Push','Outfitting','AttenteFloatUp'];
 
   /* ---- Une seule paire de portes ----
      Le site n'a qu'une paire de portes : un seul float-up peut se faire à la fois. Le
@@ -2957,6 +3002,7 @@ function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 const ICONES = {
   'concrete':      ['▣', 'Béton en cours'],
   'concrete-wait': ['▤', 'Béton fini, attend l\'outfitting'],
+  'push':          ['▶', 'Big push (72h fixes)'],
   'outfitting':    ['◆', 'Outfitting en cours'],
   'outfitting-wait': ['◇', 'Prêt pour le float-up'],
   'floatup':       ['≈', 'Float-up'],
@@ -2996,6 +3042,14 @@ function renderItem(e, dCur, jourCourant, zonesSPE, speBetonIdx, speOutIdx, rang
     }
     case 'AttenteOutfitting':
       return {...base, type:'concrete-wait', anchor:'right', x: GEO.x_entry, y, w: len};
+    case 'Push': {
+      // Transfert en cours, zone béton -> zone outfitting UB : durée fixe (72h), l'élément se
+      // déplace donc à progression linéaire et constante, jamais figé en cours de route.
+      const progress = e.dateFinPush > e.dateDebutPush
+        ? diffDays(dCur, e.dateDebutPush) / diffDays(e.dateFinPush, e.dateDebutPush) : 0;
+      return {...base, type:'push', anchor:'center', y, w: len,
+              x: lerp(GEO.x_entry, ligne <= 5 ? xOutfit : xZoneSPE(1, zonesSPE.length), progress)};
+    }
     case 'Outfitting':
       return {...base, type:'outfitting', anchor:'center', y, w: len,
               x: ligne <= 5 ? xOutfit : xZoneSPE(e.zoneSPE, zonesSPE.length)};
@@ -3442,6 +3496,7 @@ const ASBUILT_STATUTS_PL = [
   ['Beton:5', 'Béton, segment 5', '▰'], ['Beton:6', 'Béton, segment 6', '▰'],
   ['Beton:7', 'Béton, segment 7', '▰'], ['Beton:8', 'Béton, segment 8', '▰'],
   ['Beton:9', 'Béton, segment 9', '▰'],
+  ['Push', 'Big push en cours (72h fixes)', '▶'],
   ['Outfitting', 'Outfitting', '▤'], ['Ready', 'Prêt pour le float-up', '▷'],
   ['FloatUp', 'Float-up en cours', '≈'], ['Basin', 'Lower Basin (hook-up)', '⬓'],
   ['Parking', 'Parking', '⊟'], ['Ballast', 'Ballast Jetty', '⬒'],
@@ -3472,6 +3527,7 @@ function codeCanonique(brut, ligne) {
   switch (c.type) {
     case 'beton':       return ligne === 6 ? `Zone:${c.n || 1}` : `Beton:${Math.min(9, Math.max(1, c.n || 1))}`;
     case 'zone':        return `Zone:${c.n || 1}`;
+    case 'push':        return 'Push';
     case 'outfitting':  return ligne === 6 ? `Zone:${c.n || 5}` : 'Outfitting';
     case 'attentefloatup': return 'Ready';
     case 'floatup':     return 'FloatUp';
