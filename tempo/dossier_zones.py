@@ -85,13 +85,30 @@ de 19 diapos « Tempo X & Y » plus une diapo d'organisation d'ateliers) :
     sur chaque diapo, à gauche d'« Upper Basin ») — pas encore représentée dans ce dossier
     ni dans le schéma interactif. Position exacte dans le flux (après Upper Basin ?) à
     confirmer — voir le registre de validation.
-  - CONTRADICTION À NOTER : sur ce document, les en-têtes de colonne (aires) sont, de
-    gauche à droite : Lower Basin, Upper Basin, Outfitting Area, Curing Hall, Production
-    Hall, Rebar Hall — et Buffer/LASCA/BS/Walls sont dessinés sous l'en-tête « Rebar Hall »,
-    pas « Production Hall ». Ce dossier classe actuellement Buffer sous Production Hall
-    (voir `_AIRE_PAR_ZONE_REELLE`) — à réconcilier, voir le registre de validation.
+  - CONTRADICTION APPARENTE, RÉSOLUE le 11/08/2026 (voir ci-dessous) : sur ce document,
+    les en-têtes de colonne (aires) sont, de gauche à droite : Lower Basin, Upper Basin,
+    Outfitting Area, Curing Hall, Production Hall, Rebar Hall — et Buffer/LASCA/BS/Walls
+    sont dessinés sous l'en-tête « Rebar Hall », pas « Production Hall ». Ce n'était pas
+    une vraie contradiction : voir la clarification de hiérarchie ci-dessous.
   - La diapo « WORKSHOP ORGA » liste les ateliers de détail prévus (sujet, responsable en
     initiales, semaine, équipes impliquées) — voir `ATELIERS_DETAIL` ci-dessous.
+
+HIÉRARCHIE DES AIRES (11/08/2026, confirmée directement par l'utilisateur du projet) :
+le Rebar Hall est INCLUS DANS le Production Hall — ce n'est pas un bâtiment séparé. Le
+Production Hall contient également la zone de casting et la zone de curing. Autrement
+dit, Rebar Hall / Casting / Curing sont trois sous-aires à l'intérieur d'un même
+bâtiment (Production Hall), pas trois bâtiments côte à côte comme le schéma actuel le
+laissait entendre. Ça résout la contradiction notée juste au-dessus (STE__General_
+Temo_Overview__DRAFT.pptx dessinait déjà Buffer sous « Rebar Hall », ce dossier le
+classait sous « Production Hall » — les deux étaient justes, à des niveaux de
+granularité différents). Pour éviter la collision de nom entre le bâtiment (Production
+Hall) et la sous-aire Buffer/P-U Point/Casting Pit qui portait aussi ce nom, cette
+sous-aire est renommée « Casting Area » dans ce dossier — voir `BATIMENT_PAR_AIRE` pour
+la hiérarchie complète. Le schéma interactif et ses libellés « Production Hall » pour
+cette sous-aire restent à corriger (voir le registre de validation) ; « Panel Factory »,
+« Outfitting Area », « Upper Basin » et la nouvelle « Lower Basin » restent, pour
+l'instant, considérées comme des aires de premier niveau — non confirmé explicitement,
+à vérifier sur le plan général du site annoncé par l'utilisateur.
 """
 
 ZONES = {
@@ -230,7 +247,7 @@ ZONES = {
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'General_Tempo_Staggering_MDI_V5.xlsm'],
     },
     'Q': {
-        'aire': 'Production Hall', 'unite': 'Buffer',
+        'aire': 'Casting Area', 'unite': 'Buffer',
         'donnees': [
             {'texte': "« Biggest issue for S9 and shear keys, formworkers has no time to do it if "
                       "1 shift » — signalé comme un point dur, pas résolu dans le document.",
@@ -241,14 +258,14 @@ ZONES = {
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'TEMPO_N2_presentation_CAS__BUF___May_26.pptx'],
     },
     'R': {
-        'aire': 'Production Hall', 'unite': 'P/U Point',
+        'aire': 'Casting Area', 'unite': 'P/U Point',
         'donnees': [],
         'hypotheses': [],
         'contradictions': [],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
     },
     'S': {
-        'aire': 'Production Hall', 'unite': 'Casting Pit',
+        'aire': 'Casting Area', 'unite': 'Casting Pit',
         'donnees': [
             {'texte': "Coulée de 30h, avec 2h de recouvrement entre deux coulées sur la même "
                       "centrale (32h envisagées dans certaines options de calage).",
@@ -533,11 +550,25 @@ _LETTRE_VERS_ZONE_REELLE = {
 _AIRE_PAR_ZONE_REELLE = {
     'Panel Factory': 'Panel Factory',
     'Walls': 'Rebar Hall', 'Base Slab': 'Rebar Hall', 'LASCA': 'Rebar Hall',
-    'Buffer': 'Production Hall', 'P/U Point': 'Production Hall', 'Casting Pit': 'Production Hall',
+    'Buffer': 'Casting Area', 'P/U Point': 'Casting Area', 'Casting Pit': 'Casting Area',
     'R1': 'Curing Hall', 'R2': 'Curing Hall', 'R3': 'Curing Hall',
     'OF1': 'Outfitting Area', 'OF2': 'Outfitting Area', 'OF3': 'Outfitting Area',
     'OF4': 'Outfitting Area', 'OF5': 'Outfitting Area', 'SG': 'Outfitting Area',
     'UB-S9': 'Upper Basin', 'UB-S8': 'Upper Basin', 'UB-S7': 'Upper Basin',
+}
+
+# Hiérarchie des aires (11/08/2026, confirmée directement par l'utilisateur du projet) :
+# Rebar Hall, Casting Area et Curing Hall ne sont PAS des bâtiments au même niveau que
+# Panel Factory/Outfitting Area/Upper Basin — ce sont trois sous-aires à l'INTÉRIEUR d'un
+# même bâtiment, le Production Hall. Renommé « Production Hall » en « Casting Area » pour
+# la sous-aire Buffer/P-U Point/Casting Pit (l'ancien nom entrait en collision avec le nom
+# du bâtiment parent) — voir aussi la contradiction Buffer notée au registre de
+# validation, désormais résolue par cette clarification (Buffer est dans Rebar Hall, qui
+# est dans le bâtiment Production Hall : les deux lectures étaient justes, à des niveaux
+# de granularité différents).
+BATIMENT_PAR_AIRE = {
+    'Rebar Hall': 'Production Hall', 'Casting Area': 'Production Hall',
+    'Curing Hall': 'Production Hall',
 }
 
 ZONES_REELLES = {}
@@ -901,13 +932,15 @@ REGISTRE_VALIDATION = [
               "sous-zone ?) et son contenu (sous-zones, tâches) restent à établir.",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
      'impact': 'moyen — une aire entière du site manque au schéma actuel'},
-    {'point': "CONTRADICTION 11/08/2026 (STE__General_Temo_Overview__DRAFT.pptx) : ce document "
-              "dessine Buffer/LASCA/BS/Walls sous l'en-tête « Rebar Hall », alors que ce dossier "
-              "classe Buffer sous « Production Hall » (voir `_AIRE_PAR_ZONE_REELLE`). À "
-              "réconcilier — peut-être une zone de transition comptée différemment selon les "
-              "documents.",
+    {'point': "RÉSOLU le 11/08/2026, directement par l'utilisateur du projet : ce n'était pas une "
+              "vraie contradiction. Le Rebar Hall est inclus dans le Production Hall, qui contient "
+              "aussi la zone de casting et la zone de curing — Rebar Hall/Casting/Curing sont trois "
+              "sous-aires d'un même bâtiment, pas trois bâtiments séparés. La sous-aire Buffer/"
+              "P-U Point/Casting Pit (ex-« Production Hall » dans ce dossier, collision de nom avec "
+              "le bâtiment) est renommée « Casting Area » — voir `BATIMENT_PAR_AIRE`. Reste à "
+              "corriger dans le schéma interactif (labels encore « Production Hall » à ce jour).",
      'zone': 'Buffer', 'responsable': 'Valery Claise / Joanna',
-     'impact': 'faible — n\'affecte que le regroupement visuel par aire, pas les données de zone elles-mêmes'},
+     'impact': "faible — n'affecte que le regroupement visuel par aire, pas les données de zone elles-mêmes"},
     {'point': "Initiales des responsables d'ateliers non décodées : PDE, SFO, MTS, MJA, JUO, OSI, "
               "MDI, PBR, AGA, PPB, DHU (voir ATELIERS_DETAIL, tiré de STE__General_Temo_Overview__"
               "DRAFT.pptx, diapo « WORKSHOP ORGA »).",

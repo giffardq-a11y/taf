@@ -164,9 +164,11 @@ def courbes_par_unite_par_shift(taches, charges, params, horizon_jours=140, dure
 def courbes_par_aire_par_shift(courbes_unite_shift, aire_par_zone):
     """Regroupe des courbes par-zone-par-shift (ex. la sortie de
     `courbes_par_unite_par_shift`) en courbes par AIRE (Panel Factory, Rebar Hall,
-    Production Hall, Curing Hall, Outfitting Area, Upper Basin), en sommant les zones
-    qui appartiennent à la même aire — `aire_par_zone` : {nom_zone: nom_aire}, tel que
-    fourni par `tempo.dossier_zones.ZONES_REELLES[...]['aire']`."""
+    Casting Area, Curing Hall, Outfitting Area, Upper Basin — Rebar Hall/Casting Area/
+    Curing Hall forment ensemble le bâtiment Production Hall, voir
+    `tempo.dossier_zones.BATIMENT_PAR_AIRE`), en sommant les zones qui appartiennent à la
+    même aire — `aire_par_zone` : {nom_zone: nom_aire}, tel que fourni par
+    `tempo.dossier_zones.ZONES_REELLES[...]['aire']`."""
     par_aire = defaultdict(lambda: defaultdict(float))
     for zone, courbe in courbes_unite_shift.items():
         if zone == 'GLOBAL':

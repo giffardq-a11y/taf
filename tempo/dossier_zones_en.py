@@ -144,7 +144,7 @@ ZONES_REELLES_EN = {
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'General_Tempo_Staggering_MDI_V5.xlsm'],
     },
     'Buffer': {
-        'aire': 'Production Hall', 'lettre_origine': 'Q', 'phases': [('B', 12), ('A', 11), ('C', 11),
+        'aire': 'Casting Area', 'lettre_origine': 'Q', 'phases': [('B', 12), ('A', 11), ('C', 11),
             ('E', 11), ('F', 11), ('I', 11), ('H', 10), ('D', 9), ('G', 6), ('M', 1), ('N', 1),
             ('O', 1), ('P', 1), ('Q', 1), ('R', 1), ('S', 1)], 'total_taches': 99,
         'donnees': [
@@ -156,13 +156,13 @@ ZONES_REELLES_EN = {
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'TEMPO_N2_presentation_CAS__BUF___May_26.pptx'],
     },
     'P/U Point': {
-        'aire': 'Production Hall', 'lettre_origine': 'R', 'phases': [('Q', 9), ('M', 8), ('N', 8),
+        'aire': 'Casting Area', 'lettre_origine': 'R', 'phases': [('Q', 9), ('M', 8), ('N', 8),
             ('O', 8), ('S', 8), ('P', 7), ('R', 7), ('U+K', 3), ('T', 1)], 'total_taches': 59,
         'donnees': [], 'hypotheses': [], 'contradictions': [],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
     },
     'Casting Pit': {
-        'aire': 'Production Hall', 'lettre_origine': 'S', 'phases': [('L', 162), ('T', 153),
+        'aire': 'Casting Area', 'lettre_origine': 'S', 'phases': [('L', 162), ('T', 153),
             ('M', 125), ('N', 123), ('P', 122), ('S', 120), ('R', 118), ('O', 114), ('Q', 114),
             ('U+K', 33)], 'total_taches': 1184,
         'donnees': [
@@ -1002,10 +1002,13 @@ REGISTRE_VALIDATION_EN = [
               "and its content (sub-zones, tasks) still need establishing.",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
      'impact': 'medium — a whole site area is missing from the current diagram'},
-    {'point': "CONTRADICTION 08/11/2026 (STE__General_Temo_Overview__DRAFT.pptx): this document "
-              "draws Buffer/LASCA/BS/Walls under the \"Rebar Hall\" header, while this dossier "
-              "classes Buffer under \"Production Hall\" (see `_AIRE_PAR_ZONE_REELLE`). Needs "
-              "reconciling — possibly a transition zone counted differently across documents.",
+    {'point': "RESOLVED 08/11/2026, directly by the project's user: not a real contradiction. "
+              "The Rebar Hall is included within the Production Hall, which also contains the "
+              "casting area and the curing area — Rebar Hall/Casting/Curing are three sub-areas "
+              "of one building, not three separate buildings. The Buffer/P-U Point/Casting Pit "
+              "sub-area (formerly \"Production Hall\" in this dossier, a name collision with the "
+              "building) is renamed \"Casting Area\" — see `BATIMENT_PAR_AIRE`. Still to fix in "
+              "the interactive diagram (labels still read \"Production Hall\" as of this writing).",
      'zone': 'Buffer', 'responsable': 'Valery Claise / Joanna',
      'impact': "low — only affects the visual area grouping, not the zone data itself"},
     {'point': "Workshop owner initials undecoded: PDE, SFO, MTS, MJA, JUO, OSI, MDI, PBR, AGA, "
