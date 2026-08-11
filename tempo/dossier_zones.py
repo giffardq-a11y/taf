@@ -60,11 +60,26 @@ ZONES = {
             {'texte': "Nombre de camions par mur (A à F) et par segment (S1-S9), ex. mur B : "
                       "4,3,4,3,3,3,4,3,4 sur S1→S9.",
              'source': 'Truck_for_All_Set__V2.xlsx (feuille WALL + RACK)', 'statut': 'confirme'},
+            {'texte': "Ordre d'installation des murs : B, C, D, E, A, F — écrit deux fois de façon "
+                      "identique dans le même document (une fois comme « Sequence of walls », une "
+                      "fois comme « Installation of walls »), plus fiable que la version « B-C-A-D-E-F »"
+                      " entendue en réunion (transcription automatique très bruitée à cet endroit).",
+             'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base, lignes 19 et 70)',
+             'statut': 'confirme'},
+            {'texte': "2 à 4 camions par mur ; livraison des murs dans le poste précédant la "
+                      "production, zone de livraison libre.",
+             'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base, lignes 17-18)',
+             'statut': 'provisoire'},
         ],
         'hypotheses': [
-            {'texte': "Ordre d'installation des murs — cité B-C-A-D-E-F en réunion, très bruité "
-                      "dans la transcription automatique.",
-             'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
+            {'texte': "« Saturday and Sunday off (Expect some for the Wall) » — le document "
+                      "d'hypothèses lui-même prévoit une exception week-end pour les murs, et note "
+                      "ailleurs : « Work on full Saturday to ensure the walls fabrication... Test to "
+                      "be done » — confirme, à la source, la tension déjà relevée par ailleurs sur "
+                      "le travail du week-end (voir REGISTRE_VALIDATION), sans la trancher "
+                      "elle-même (« test à faire »).",
+             'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base, lignes 8 et 30)',
+             'a_valider_par': 'équipe TEMPO (arbitrage global)', 'statut': 'a_trancher'},
         ],
         'contradictions': [
             {'texte': "Segments N3 sans détail : notre lecture trouve S4 et S5 manquants ; le "
@@ -75,6 +90,7 @@ ZONES = {
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'TEMPO_N2_Presentation_Rebar_04062026.pptx',
                      'Truck_for_All_Set__V2.xlsx', 'Comparison_N1_shifts_to_target.xlsx',
+                     'General_Tempo_Staggering_MDI_V5.xlsm',
                      'Tempo_Walls.xlsx (non encore dépouillé en détail)'],
     },
     'O': {
@@ -88,6 +104,23 @@ ZONES = {
                       "8 personnes — présenté comme un point de départ à valider par tests de "
                       "performance, pas un chiffre arrêté.",
              'source': 'réunion TEMPO (10/08/2026)', 'statut': 'provisoire'},
+            {'texte': "Confirmation indépendante des effectifs et grues : « Manpower : 8 BS - 8 TS "
+                      "- 6 WALLS » et « Crane : 1+1/2 BS - 1 special crane for walls - 2 cranes for "
+                      "TS » — cohérent avec les 8 ouvriers / 1,5 grue déjà cités pour Base Slab, et "
+                      "apporte deux chiffres nouveaux (Top Slab : 8 ouvriers, 2 grues) qui "
+                      "n'avaient pas de source dédiée jusqu'ici.",
+             'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base, lignes 9-10)',
+             'statut': 'confirme'},
+            {'texte': "Détail par sous-lot (SET) pour Base Slab (BS0=3 ouvriers, BS1 à BS4=8 "
+                      "ouvriers chacun) et pour Top Slab (TS1 à TS4=8 ouvriers chacun) — BS0 étant "
+                      "vraisemblablement une phase de préparation plus légère avant le gros du "
+                      "ferraillage.", 'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille '
+                      'Data base, lignes 41-45 et 61-64)', 'statut': 'confirme'},
+            {'texte': "Plafond de grues simultanées, toutes zones : pas plus de 2 grues pour un "
+                      "top slab, pas plus de 1 pour un mur, pas plus de 3 pour deux base slabs "
+                      "dans la même halle — règle de méthode pour remplir les fichiers takt time, "
+                      "cohérente avec les chiffres ci-dessus.",
+             'source': 'Explanations_Takt_time_files.pptx', 'statut': 'confirme'},
         ],
         'hypotheses': [
             {'texte': "Hypothèses incluses dans le takt time Base Slab S1-S9 : 2h pour remonter "
@@ -507,9 +540,13 @@ LOGISTIQUE = {
                   "nommée pareil » n'est peut-être pas si nette non plus.",
              'a_valider_par': 'Valery Claise', 'statut': 'a_trancher'},
         {'texte': "Durée d'un poste : 4 valeurs différentes trouvées selon le document — 9h "
-                  "(présentation Rebar), 10h (Truck_for_All_Set__V2, feuille Hypothèses), 8h ou "
-                  "12h (Casting Team, non tranché), et une grille N3 à fenêtres de ~4h45-5h qui "
-                  "ne correspond à aucune des trois. Point le plus structurant à trancher en "
+                  "(présentation Rebar, Cranes_conclusions.xlsx, ET Tempo_Walls.xlsx qui a "
+                  "littéralement des colonnes « duration S3-S7 (shift 9h) » — 3 sources "
+                  "convergent maintenant sur 9h), 10h (Truck_for_All_Set__V2, feuille "
+                  "Hypothèses — 1 source), 8h ou 12h (Casting Team, non tranché — 1 source), et "
+                  "une grille N3 à fenêtres de ~4h45-5h qui ne correspond à aucune des trois. "
+                  "9h devient l'hypothèse la mieux étayée à ce stade, mais reste à faire "
+                  "confirmer explicitement — le point reste le plus structurant à trancher en "
                   "réunion de conciliation.",
              'a_valider_par': 'Olivier Bonnot (arbitrage transverse)', 'statut': 'a_trancher'},
         {'texte': "Nom et nombre de types de rack : « mesh » et « ESS » (réunion du 10/08), "
@@ -570,27 +607,29 @@ LOGISTIQUE = {
 # responsable pressentie, pour qu'une invitation de réunion puisse s'écrire directement
 # à partir de cette liste.
 REGISTRE_VALIDATION = [
-    {'point': "CLARIFIÉ le 10/08/2026, directement par l'utilisateur du projet, en deux temps : "
-              "(1) les codes lettre (A à I/M à L) NE SONT PAS des zones physiques, ce sont des "
-              "PHASES — des repères temporels dans le gabarit tempo pendant lesquels certains "
-              "travaux doivent se dérouler ; (2) une zone physique peut être travaillée sur "
-              "PLUSIEURS phases (pas une correspondance 1 lettre = 1 zone). Confirmé par le calcul "
-              "(voir ZONES_PHYSIQUES_REELLES dans tempo/dossier_zones.py) : « Casting Pit » "
-              "apparaît dans les 10 phases M/N/O/P/Q/R/S/T/U+K/L (114 à 162 tâches chacune) ; "
-              "« Walls »/« Base Slab »/« LASCA »/« Buffer » apparaissent chacune dans la quasi-"
-              "totalité des 9 phases A à I, à peu près à parts égales. Chaque phase du schéma "
-              "porte désormais la répartition réelle des zones physiques qu'elle touche (donnée "
-              "« Répartition réelle... ») ; chaque zone physique porte la liste des phases où elle "
-              "apparaît (ZONES_PHYSIQUES_REELLES). Reste ouvert : que représente exactement la "
-              "feuille Data si ce n'est pas une correspondance lettre->zone physique (un repère de "
-              "gabarit/position dans le cycle de 70 jours tempo ?), et faut-il redessiner le schéma "
-              "visuel en conséquence (aires de regroupement, libellés des 19 cases) ?",
+    {'point': "QUASI RÉSOLU le 10/08/2026. Rappel : (1) l'utilisateur a confirmé directement que "
+              "les codes lettre (A à I/M à L) sont des PHASES, pas des zones physiques ; (2) une "
+              "zone physique peut être travaillée sur PLUSIEURS phases. Le mécanisme exact a "
+              "ensuite été retrouvé dans General_Tempo_Staggering_MDI_V5.xlsm, feuille "
+              "« 70__63 - 1L - V0 » (le gabarit source à 70 jours pour une ligne) : chaque lettre "
+              "désigne une fenêtre d'environ 7 jours tempo (T1 à T7) le long du cycle de 70 jours "
+              "d'un élément — la lettre M réapparaît d'ailleurs à la colonne 299 de cette feuille, "
+              "confirmant que le cycle se répète. Pour chaque fenêtre, plusieurs lignes UNIT "
+              "(Walls, BS, LASCA, Buffer, CP...) portent simultanément un nombre de postes non nul "
+              "— c'est exactement ce qui explique le mélange trouvé dans "
+              "ZONES_PHYSIQUES_REELLES/« Répartition réelle » : plusieurs zones physiques "
+              "avancent en parallèle à l'intérieur d'une même fenêtre temporelle. Ne reste "
+              "vraiment ouvert que l'aspect visuel : faut-il redessiner le schéma (actuellement "
+              "organisé par zone physique depuis la mise à jour du 10/08) pour montrer aussi "
+              "explicitement ce découpage en fenêtres de 7 jours ?",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
-     'impact': "élevé — la nature du problème est clarifiée, mais le schéma visuel (regroupements "
-               "par aire, libellés des 19 cases) n'a pas encore été refait en conséquence"},
+     'impact': "moyen — le mécanisme est compris et documenté ; il ne reste qu'une question de "
+               "présentation, plus de fiabilité des données"},
     {'point': "Système de postes de l'équipe de coulée (3×8h vs 2×12h)", 'zone': 'S',
      'responsable': 'équipe Casting Team', 'impact': 'critique — conditionne toute la grille horaire du moteur'},
-    {'point': "Durée de poste divergente entre 4 documents (9h/10h/8h/12h/~4h45)", 'zone': 'Logistique',
+    {'point': "Durée de poste divergente entre documents — 9h maintenant confirmé par 3 sources "
+              "indépendantes (Rebar, Cranes_conclusions.xlsx, Tempo_Walls.xlsx) contre 1 chacune "
+              "pour 10h et 8h/12h ; reste à faire trancher officiellement.", 'zone': 'Logistique',
      'responsable': 'Olivier Bonnot', 'impact': 'critique — même sujet que ci-dessus, vu sous un autre angle'},
     {'point': "Écart entre notre relevé des segments N3 manquants et le suivi officiel "
               "(N3 Overview (Missing))", 'zone': 'N, O',
@@ -606,8 +645,11 @@ REGISTRE_VALIDATION = [
      'responsable': 'équipe TEMPO (arbitrage global)', 'impact': 'élevé'},
     {'point': "Nombre et nom des types de rack (mesh/ESS vs White vs Yellow)", 'zone': 'Logistique',
      'responsable': 'Valery Claise', 'impact': 'moyen'},
-    {'point': "Ordre d'installation des murs (B-C-A-D-E-F, à confirmer)", 'zone': 'N',
-     'responsable': 'Valery Claise / Joanna', 'impact': 'moyen'},
+    {'point': "Ordre d'installation des murs — quasi résolu : B,C,D,E,A,F trouvé deux fois "
+              "identique dans General_Tempo_Staggering_MDI_V5.xlsm, plus fiable que le "
+              "« B-C-A-D-E-F » entendu en réunion (transcription bruitée). À faire confirmer "
+              "simplement en réunion plutôt qu'à retrancher depuis zéro.", 'zone': 'Walls',
+     'responsable': 'Valery Claise / Joanna', 'impact': 'faible'},
     {'point': "Nombre de camions Lyon 2 (12 ou 13) et Brest 2 (14,5 ou 12,5) selon le document",
      'zone': 'Logistique', 'responsable': 'équipe logistique', 'impact': 'moyen'},
     {'point': "Les noms Lyon/Brest/Toulouse/Varsovie/Cracovie/Monaco/Drogo/Sogod désignent-ils des "

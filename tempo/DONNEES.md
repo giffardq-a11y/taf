@@ -337,3 +337,44 @@ flotte recommandée n'absorbe pas totalement ce niveau de perte, sur ce jeu de d
 Le schéma interactif (`tempo_zones.html`) et `tempo/dossier_zones.py` ont été mis à jour
 en cours de route à chaque nouvelle trouvaille — 14 points au registre de validation à ce
 stade, contre 9 au §10.
+
+## 12. Le mystère des lettres résolu sans attendre la réunion (10/08/2026)
+
+En attendant la réunion de conciliation, deux fichiers reçus mais jamais ouverts en
+détail ont été investigués sur la suggestion de l'utilisateur — ça a payé.
+
+**`Explanations_Takt_time_files.pptx`** (3 slides) : documente la méthode de
+remplissage des fichiers takt time — colonne grue (0/1/2, plafond 2 grues/top slab,
+1/mur, 3/deux base slabs même halle), colonne « Area L » (surface de stockage), colonne
+main-d'œuvre (somme des cellules non vides par créneau). Confirme la méthode déjà
+déduite par ailleurs, sans révéler le système de lettres.
+
+**`General_Tempo_Staggering_MDI_V5.xlsm`**, feuille `70__63 - 1L - V0` — **celui-là
+l'a révélé**. C'est le gabarit source à 70 jours pour une seule ligne : chaque lettre
+(M, N, O, P, Q, R, S, T, U, K, L) marque une fenêtre d'environ 7 jours tempo (T1 à T7)
+le long du cycle, et la lettre M réapparaît plus loin dans la même feuille — le cycle se
+répète. Pour chaque fenêtre, plusieurs lignes UNIT (Walls, BS, LASCA, Buffer, CP...)
+portent simultanément un nombre de postes non nul : c'est exactement le mécanisme
+derrière le mélange trouvé dans la répartition réelle par phase (§10-11). Le point
+critique du registre de validation est repassé de « critique » à « moyen » — le
+mécanisme est compris, il ne reste qu'une question de présentation du schéma.
+
+La même feuille (onglet `Data base`) a aussi livré, en passant :
+- l'ordre d'installation des murs, écrit deux fois identique : **B, C, D, E, A, F** —
+  plus fiable que le « B-C-A-D-E-F » entendu dans la réunion bruitée du 10/08 ;
+- une **troisième source indépendante pour la durée de poste à 9h** (colonnes
+  « duration S3-S7 (shift 9h) » trouvées aussi dans `Tempo_Walls.xlsx`) — 9h devient
+  l'hypothèse la mieux étayée (3 sources contre 1 chacune pour 10h et 8h/12h) ;
+- Top Slab confirmé à 8 ouvriers / 2 grues, Base Slab à 8 ouvriers / 1,5 grue (détail
+  par SET : BS0=3, BS1-4=8, TS1-4=8) ;
+- la tension déjà connue sur le travail du week-end retrouvée à la source : « Saturday
+  and Sunday off (Expect some for the Wall) » et « Work on full Saturday to ensure the
+  walls fabrication... Test to be done » — le document d'hypothèses lui-même prévoit
+  l'exception, sans la trancher.
+
+Les 4 fichiers `Tempo_Bottomslabs*.xlsx`/`Tempo_topslabs.xlsx`/`Tempo_Walls.xlsx`
+restent volumineux (jusqu'à 500 lignes × 200 colonnes par feuille, séquences takt time
+détaillées) et n'ont été dépouillés qu'au niveau de leurs feuilles de synthèse
+(`Sequence of Work`, `Wall * task and duration`) — suffisant pour confirmer la donnée
+ci-dessus ; un dépouillement complet des grilles détaillées reste possible si un point
+précis d'un segment en a besoin, mais n'a pas semblé justifié pour l'instant.

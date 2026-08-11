@@ -14,46 +14,52 @@ réponses proposées.
 
 ---
 
-## ⚠ Point critique ajouté le 10/08/2026 — Valery Claise / Joanna
+## Point quasi résolu — le code zone (lettres A-I / M-L) — Valery Claise / Joanna
 
-**Sujet : le code zone (lettres A-I / M-L, utilisé partout dans ce dossier et le schéma)
-n'est pas fiable.** Contrôle croisé : sur les 3243 tâches du classeur N3, **aucune**
-n'est étiquetée `UNIT=« Panel Factory »`, alors que la feuille `Data` du classeur
-déclare que la lettre M désigne « Panel Factory » — la plupart des tâches des feuilles
-`*__M` sont en réalité étiquetées `UNIT=« Casting Pit »`. Le même écart existe pour les
-18 autres lettres. La zone S (Casting Pit) est le cas le plus proche d'une lecture
-correcte (51% de ses tâches sont bien `UNIT=Casting Pit`), mais 49% ne le sont pas.
+**Contexte :** le code zone (lettres A-I / M-L, utilisé partout dans ce dossier et le
+schéma) ne correspond pas à l'aire physique déclarée pour cette lettre dans la feuille
+`Data` du classeur N3 — contrôle croisé du 10/08/2026, aucune des 3243 tâches n'est
+étiquetée `UNIT=« Panel Factory »` alors que M est censée le désigner.
 
-**Conséquence :** tout chiffre « par zone lettre » calculé avant aujourd'hui dans ce
-dossier (le pic BC en « zone S », par exemple) est à prendre avec cette réserve. Les
-courbes de main-d'œuvre ajoutées le 10/08/2026 regroupent désormais par la colonne
-`UNIT` (l'attribut fiable), pas par la lettre.
+**Explication trouvée le 10/08/2026** dans `General_Tempo_Staggering_MDI_V5.xlsm`
+(feuille `70__63 - 1L - V0`, le gabarit source à 70 jours pour une ligne) : chaque
+lettre désigne une fenêtre d'environ 7 jours tempo (T1 à T7) le long du cycle de
+70 jours d'un élément — la lettre M réapparaît d'ailleurs plus loin dans la même
+feuille, confirmant que le cycle se répète. Pour chaque fenêtre, plusieurs zones
+physiques (Walls, Base Slab, LASCA, Buffer, Casting Pit...) avancent en parallèle —
+ce qui explique le mélange trouvé dans la répartition réelle par phase.
 
-**Question à trancher :** que représentent réellement ces lettres si ce n'est pas
-l'aire physique de la feuille `Data` — un repère de gabarit/position dans le cycle de
-70 jours tempo, une autre convention ?
+**Ce qui a été fait en conséquence :** le schéma interactif est réorganisé par zone
+physique réelle (pas par lettre) depuis le 10/08/2026 ; chaque zone affiche les
+phases où elle apparaît et sa courbe de main-d'œuvre propre.
 
-*Zones concernées : toutes. Impact : critique — remet en question l'attribution
-physique de toute donnée « par zone » calculée avant le 10/08/2026.*
+**Ce qui reste à faire :** confirmer cette lecture avec Valery/Joanna, et juger si le
+schéma doit aussi montrer explicitement le découpage en fenêtres de 7 jours.
+
+*Zones concernées : toutes. Impact : moyen — le mécanisme est compris, il ne reste
+qu'une question de présentation.*
 
 ---
 
 ## Olivier Bonnot — arbitrage transverse
 
-**Sujet : durée d'un poste de travail.** Quatre valeurs différentes trouvées selon
-le document, sur un sujet qui conditionne toute la grille horaire du simulateur :
+**Sujet : durée d'un poste de travail.** Plusieurs valeurs différentes trouvées selon
+le document, sur un sujet qui conditionne toute la grille horaire du simulateur —
+mais **9h se dégage maintenant comme l'hypothèse la mieux étayée** (3 sources
+indépendantes contre 1 chacune pour les autres) :
 
 | Source | Durée trouvée |
 |---|---|
 | Présentation Rebar (TEMPO_N2_Presentation_Rebar_04062026.pptx) | 9h |
+| Cranes_conclusions.xlsx (ratio durée/heures grue) | 9h |
+| Tempo_Walls.xlsx (colonnes « duration S3-S7 (shift 9h) ») | 9h |
 | Truck_for_All_Set__V2.xlsx (feuille Hypothèses) | 10h |
 | Présentation Casting Team (TEMPO_N2_Presentation_Casting_Team_10062026.pptx) | 8h ou 12h, non tranché dans le document lui-même |
 | Grille horaire du classeur N3 (fenêtres CP/PeP/PoP) | ~4h45 à 5h par fenêtre |
-| Cranes_conclusions.xlsx (ratio durée/heures grue) | 9h (cohérent avec la présentation Rebar) |
 
-**Question à trancher :** quelle est la durée de poste retenue pour le
-dimensionnement — et est-ce la même partout (coulée, ferraillage, logistique) ou
-varie-t-elle par zone ?
+**Question à trancher :** confirmer 9h comme durée de poste retenue pour le
+dimensionnement — et si c'est la même partout (coulée, ferraillage, logistique) ou
+si ça varie par zone.
 
 *Zone concernée : Logistique (vue d'ensemble). Impact : critique.*
 
@@ -105,8 +111,11 @@ Détermine où concentrer le chiffrage restant.
 
 *Zones concernées : N, O, P. Impact : élevé.*
 
-**Sujet 2 : ordre d'installation des murs.** Cité en réunion du 10/08 comme
-B-C-A-D-E-F, mais la transcription automatique était très bruyante à cet endroit.
+**Sujet 2 : ordre d'installation des murs — quasi résolu.** Cité en réunion du 10/08
+comme B-C-A-D-E-F (transcription automatique bruyante à cet endroit), mais
+`General_Tempo_Staggering_MDI_V5.xlsm` donne deux fois, de façon identique,
+« B, C, D, E, A, F » — plus fiable qu'une transcription bruitée. À faire confirmer
+en réunion plutôt qu'à retrancher depuis zéro. Impact revu à la baisse (faible).
 
 *Zone concernée : N. Impact : moyen.*
 
