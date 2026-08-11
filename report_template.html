@@ -215,7 +215,204 @@
     font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
   .champ input { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
     border-radius: 3px; padding: 5px 7px; font-family: var(--mono); font-size: 13px; width: 130px; }
-  .champ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .champ input:focus-visible, .champ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .champ select { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px 7px; font-family: var(--mono); font-size: 13px; }
+  .champ.bascule { flex-direction: row; align-items: center; gap: 7px; text-transform: none;
+    letter-spacing: 0; font-size: 12px; color: var(--ink-2); font-family: var(--sans); cursor: pointer; }
+  .champ.bascule input { width: auto; }
+  .moves { display: flex; flex-wrap: wrap; gap: 7px; }
+  .move { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line);
+    background: var(--surface-2); padding: 3px 9px; white-space: nowrap; }
+  .move b { color: var(--accent); font-weight: 600; }
+  .seq-vide { margin: 0; font-size: 13px; color: var(--ink-3); }
+
+  /* ---- grille de séquence : une colonne par ligne, un jeton par élément ---- */
+  .seq-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 14px; }
+  .seq-switch { display: inline-flex; border: 1px solid var(--line); }
+  .seq-switch button { border: none; background: var(--surface-2); color: var(--ink-2); font-family: var(--mono);
+    font-size: 11.5px; letter-spacing: .04em; padding: 6px 13px; cursor: pointer; }
+  .seq-switch button + button { border-left: 1px solid var(--line); }
+  .seq-switch button[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
+  .seq-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seq-hint { font-size: 12.5px; color: var(--ink-3); }
+  .seq-hint b { color: var(--accent); font-weight: 600; font-family: var(--mono); }
+  /* ---- coupe du tunnel : profil en long, à l'échelle ---- */
+  #coupe-svg { width: 100%; min-width: 900px; height: 320px; display: block; }
+  #coupe-svg .coupe-el { fill: var(--surface-2); stroke: var(--ink-3); stroke-width: .4; }
+  #coupe-svg .coupe-el.descente { fill: var(--ph-ballast); stroke: var(--ph-ballast); }
+  #coupe-svg .coupe-el.pose { fill: var(--ok); stroke: var(--ok); }
+  #coupe-svg .coupe-el.late { stroke: var(--crit); stroke-width: 1.2; }
+  #coupe-svg g:hover .coupe-el { stroke: var(--ink); stroke-width: 1; }
+  #coupe-axe { display: flex; justify-content: space-between; font-size: 10.5px;
+    color: var(--ink-3); font-family: var(--mono); }
+  #coupe-compte { font-size: 12.5px; color: var(--ink-3); }
+  #coupe-compte b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  /* ---- planning d'occupation, à l'écran et à l'impression ---- */
+  .planning-cmd { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .planning-cmd button { border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; padding: 7px 14px; cursor: pointer; }
+  .planning-cmd button:hover { filter: brightness(1.1); }
+  .pl-page { margin: 0 0 26px; }
+  .pl-page + .pl-page { border-top: 1px solid var(--line); padding-top: 18px; }
+  .pl-titre { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--ink-2);
+    margin: 0 0 7px; text-transform: uppercase; }
+  .pl-corps { display: grid; grid-template-columns: 190px 1fr; border: 1px solid var(--line); }
+  .pl-libelles, .pl-piste { display: flex; flex-direction: column; }
+  .pl-libelles { border-right: 1px solid var(--line); }
+  .pl-tete { height: 30px; flex: 0 0 30px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2); position: relative; }
+  .pl-lib { height: 14px; flex: 0 0 14px; font-size: 9.5px; line-height: 14px; padding: 0 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2);
+    border-bottom: 1px solid var(--line-soft); }
+  .pl-lib.vide { color: var(--ink-3); font-style: italic; }
+  .pl-rang { height: 14px; flex: 0 0 14px; position: relative; border-bottom: 1px solid var(--line-soft); }
+  .pl-rang.alt { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+  .pl-mois { position: absolute; top: 0; height: 15px; font-size: 9px; line-height: 15px;
+    text-align: center; color: var(--ink-2); border-left: 1px solid var(--line);
+    font-family: var(--mono); overflow: hidden; }
+  .pl-sem { position: absolute; top: 15px; height: 15px; font-size: 8px; line-height: 15px;
+    text-align: center; color: var(--ink-3); border-left: 1px solid var(--line-soft); overflow: hidden; }
+  .pl-sep { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-soft); }
+  .pl-barre { position: absolute; top: 1px; height: 12px; font-size: 8px; line-height: 12px;
+    text-align: center; overflow: hidden; white-space: nowrap; color: #10202a;
+    border: 1px solid rgba(0,0,0,.22); cursor: pointer; }
+  .pl-barre:hover { outline: 1px solid var(--ink); z-index: 3; }
+  /* Une barre de coulée porte ses segments : on efface son propre libellé, chaque bloc
+     portant le sien, et le numéro d'élément reste dans l'infobulle. */
+  .pl-barre-seg { color: transparent; }
+  .pl-nom { position: absolute; left: 0; top: 0; height: 12px; line-height: 12px; z-index: 2;
+    font-size: 7.5px; padding: 0 2px; color: #10202a; background: rgba(255,255,255,.72);
+    border-right: 1px solid rgba(0,0,0,.3); pointer-events: none; }
+  .pl-seg { position: absolute; top: 0; bottom: 0; min-width: 8px; font-size: 7.5px;
+    line-height: 12px; text-align: center; color: #10202a; overflow: hidden;
+    border-left: 1px solid rgba(0,0,0,.45); box-sizing: border-box; }
+  .pl-seg:hover { background: rgba(255,255,255,.45); }
+  /* Compteurs de coulées, alignés sur la règle de temps. */
+  .pl-compte { height: 15px; flex: 0 0 15px; position: relative; border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2); }
+  .pl-compte-lib { height: 15px; flex: 0 0 15px; font-size: 9px; line-height: 15px; padding: 0 6px;
+    color: var(--ink-3); border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  .pl-cnt { position: absolute; top: 0; height: 15px; font-size: 8.5px; line-height: 15px;
+    text-align: center; font-family: var(--mono); color: var(--ink-2); overflow: hidden;
+    border-left: 1px solid var(--line-soft); }
+  .pl-cnt.charge { background: var(--crit-soft); color: var(--crit); font-weight: 600; }
+  /* Retouches manuelles : barres déplaçables et relevé des écarts. */
+  .pl-piste.ajustable .pl-barre { cursor: grab; }
+  .pl-piste.ajustable .pl-barre[data-pilote] { cursor: ew-resize;
+    box-shadow: inset 0 -2px 0 0 var(--accent); }
+  .pl-barre.imposee { box-shadow: 0 0 0 1px var(--accent), 0 0 0 2px rgba(0,0,0,.15); }
+  .pl-barre.retouchee { box-shadow: 0 0 0 1px var(--warn), 0 0 0 2px rgba(0,0,0,.15); }
+  .pl-barre.attrapee { cursor: grabbing; opacity: .85; z-index: 6; outline: 1px solid var(--ink); }
+  .retouches { border: 1px solid var(--warn); background: var(--surface); padding: 10px 12px;
+    margin-bottom: 12px; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 8px 14px;
+    align-items: center; }
+  .retouches b { font-family: var(--mono); color: var(--warn); }
+  .retouches button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px; cursor: pointer; }
+  .retouches button:hover { border-color: var(--ink-2); color: var(--ink); }
+  .retouche { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
+    background: var(--surface-2); padding: 2px 8px; white-space: nowrap; }
+  .retouche.impose { border-color: var(--accent); color: var(--accent); }
+  .retouche.impose.repousse { border-color: var(--warn); color: var(--warn); }
+  /* Conséquences d'une date imposée : l'écart contre le calcul de référence. */
+  .cons-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 14px; }
+  .cons-case { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; }
+  .cons-case .c-lab { font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3); }
+  .cons-case .c-val { font-family: var(--mono); font-size: 17px; font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  .cons-case .c-ecart { font-size: 12px; font-family: var(--mono); }
+  .cons-case .c-ecart.pire { color: var(--crit); }
+  .cons-case .c-ecart.mieux { color: var(--ok); }
+  .cons-case .c-ecart.egal { color: var(--ink-3); }
+  .cons-liste { font-size: 13px; color: var(--ink-2); margin: 0 0 8px; }
+  .cons-liste b { font-family: var(--mono); color: var(--ink); font-weight: 600; }
+  /* Cheminement d'un élément d'une ressource à la suivante. */
+  .pl-piste { position: relative; }
+  .pl-flux { position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 4; overflow: visible; }
+  .pl-flux path { fill: none; stroke: var(--accent); color: var(--accent);
+    stroke-width: .7; opacity: .22; }
+  .pl-flux path.vif { opacity: 1; stroke-width: 1.6; }
+  .pl-vac { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg,
+    rgba(168,50,38,.16) 0 4px, transparent 4px 8px); pointer-events: none; }
+  .pl-legende { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 10px; font-size: 10.5px;
+    color: var(--ink-3); }
+  .pl-legende span { display: inline-flex; align-items: center; gap: 5px; }
+  .pl-legende i { width: 15px; height: 10px; display: inline-block; border: 1px solid rgba(0,0,0,.25); }
+
+  @page { size: A3 landscape; margin: 8mm; }
+  @media print {
+    /* Le bouton d'impression n'imprime que le planning : tout le reste du rapport disparaît,
+       et chaque tranche de temps part sur sa propre feuille avec ses libellés. */
+    body.impr-planning .wrap > section:not(#s-planning),
+    body.impr-planning .wrap > header,
+    body.impr-planning .wrap > footer,
+    body.impr-planning .verdict,
+    body.impr-planning #planning-cmd { display: none !important; }
+    body.impr-planning .pl-page { break-after: page; page-break-after: always; margin: 0; padding: 0; border: 0; }
+    body.impr-planning .pl-page:last-child { break-after: auto; page-break-after: auto; }
+    body.impr-planning .pl-barre, body.impr-planning .pl-rang.alt, body.impr-planning .pl-tete {
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body.impr-planning { background: #fff; }
+  }
+
+  /* ---- fiche d'un élément ---- */
+  #fiche { border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 0; max-width: 560px; width: calc(100vw - 32px); box-shadow: 0 18px 48px rgba(0,0,0,.32); }
+  #fiche::backdrop { background: rgba(6,12,16,.55); }
+  .fiche-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 18px 8px; }
+  .fiche-tete h3 { margin: 0; font-family: var(--mono); font-size: 17px; letter-spacing: .04em; }
+  #fiche-fermer { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2);
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 5px 9px; }
+  #fiche-fermer:hover { color: var(--ink); }
+  .fiche-sous { margin: 0; padding: 0 18px 12px; font-size: 12.5px; color: var(--ink-3); }
+  #fiche-corps { padding: 0 18px 18px; max-height: 62vh; overflow-y: auto; }
+  .f-groupe { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+    border-top: 1px solid var(--line-soft); padding-top: 9px; margin-top: 11px; }
+  .f-ligne { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; font-size: 13px; }
+  .f-ligne span { color: var(--ink-2); }
+  .f-ligne b { font-family: var(--mono); font-weight: 500; text-align: right; }
+  .f-ligne b.vide { color: var(--ink-3); }
+  .f-ligne b.crit { color: var(--crit); }
+  .f-ligne b.ok { color: var(--ok); }
+  .seq-chip, .coupe-el { cursor: pointer; }
+  .seq-chip:focus-visible, .coupe-el:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- avancement des finitions ---- */
+  #fin-svg { width: 100%; min-width: 900px; height: 300px; display: block; }
+  #fin-svg .fin-cadre { fill: none; stroke: var(--ink-3); stroke-width: .4; }
+  #fin-svg g:hover .fin-cadre { stroke: var(--ink); stroke-width: 1; }
+
+  /* ---- relevé des contraintes ---- */
+  .c-fam { font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: 0 0 8px;
+    color: var(--ink); text-transform: none; }
+  .c-note { color: var(--ink-3); font-size: 12px; line-height: 1.45; max-width: 46ch; }
+  .pill.c-reglable { background: var(--accent-soft); color: var(--accent); }
+  .pill.c-donnee { background: var(--surface-2); color: var(--ink-2); }
+  .pill.c-fige { background: transparent; color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
+  .pill.c-anomalie { background: var(--crit-soft); color: var(--crit); }
+  .c-resume { display: flex; flex-wrap: wrap; gap: 22px; }
+  .c-case { display: flex; flex-direction: column; gap: 2px; }
+  .c-case b { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--ink); }
+  .c-case b.c-reglable { color: var(--accent); }
+  .c-case b.c-anomalie { color: var(--crit); }
+  .c-case b.c-fige, .c-case b.c-donnee { color: var(--ink-2); }
+  .c-case span { font-size: 11.5px; color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; }
+  .seq-grid { position: relative; }
+  .seq-col { position: absolute; top: 0; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--ink-2); text-align: center; letter-spacing: .06em; }
+  .seq-rail { position: absolute; top: 20px; background: var(--surface-2); }
+  .seq-chip { position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10.5px; background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--line-soft); white-space: nowrap; overflow: hidden;
+    transition: transform .62s cubic-bezier(.22,.68,.32,1), background-color .3s, border-color .3s, color .3s; }
+  .seq-chip.bouge { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .seq-chip.spe { border-style: dashed; }
+  @media (prefers-reduced-motion: reduce) { .seq-chip { transition: none; } }
   #relancer { padding: 9px 18px; background: var(--accent); color: var(--surface); border: none;
     border-radius: 3px; font-weight: 700; cursor: pointer; font-size: 13px; font-family: var(--sans); }
   #relancer:disabled { background: var(--line); color: var(--ink-3); cursor: not-allowed; }
@@ -246,7 +443,7 @@
       <div class="loader-row">
         <div class="drop" id="drop-xlsx" role="button" tabindex="0">
           Charger le classeur (.xlsx / .xlsm)
-          <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE, Config_Outfitting</small>
+          <small>Onglets Inputs, Immersion, Config_Cycles, Config_SPE</small>
         </div>
         <div class="drop" id="drop-plan" role="button" tabindex="0">
           Remplacer le plan de fond
@@ -254,11 +451,34 @@
         </div>
       </div>
       <div class="loader-row">
+        <label class="champ">Séquence du classeur <select id="p-sequence"><option value="0">Séquence 1</option></select></label>
         <label class="champ">Date de référence <input type="date" id="p-dateref"></label>
         <label class="champ">Seuil parking (sem) <input type="number" id="p-seuilparking" value="4" step="0.5"></label>
         <label class="champ">Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
-        <label class="champ">Hook-up (sem) <input type="number" id="p-hookup" value="0.5" step="0.5"></label>
-        <label class="champ">Ballast (sem) <input type="number" id="p-ballast" value="1" step="0.5"></label>
+        <label class="champ" title="Délai minimal après la sortie de CP3 avant fermeture provisoire, quand le planning l'exige">
+          Seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
+        <label class="champ bascule" title="Autoriser la fermeture provisoire d'un SPE dès le seuil critique au lieu du seuil normal">
+          <input type="checkbox" id="p-etanche-critique-ok"> Autoriser le seuil critique</label>
+        <label class="champ" title="Zone dédiée aux éléments spéciaux, à part du parking : elle dégage la place SPE du Basin C au profit de l'élément qui s'immerge en premier">
+          Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
+        <label class="champ" title="La pente d'inertie court à partir de cette date. Vide, elle court depuis le dernier changement de cadence réellement appliqué.">
+          Décision d'accélérer <input type="date" id="p-datedecision"></label>
+        <label class="champ bascule" title="Deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.">
+          <input type="checkbox" id="p-vacances" checked> Arrêts annuels de l'usine</label>
+        <label class="champ bascule" title="Un élément ne monte pas dans un Lower Basin que la paire précédente n'a pas quitté : le mouvement suppose les deux bassins au même niveau. Décochée, l'élément part vers un poste occupé et attend à flot.">
+          <input type="checkbox" id="p-bassin-libre" checked> Bassin libre avant float-up</label>
+        <label class="champ bascule" title="Chaque ligne ne lance un élément que son jour de la semaine — PL-1 lundi … PL-5 vendredi — pour ne pas saturer la centrale à béton un seul jour. L'attente est d'au plus six jours par élément.">
+          <input type="checkbox" id="p-jour-coulage" checked> Un jour de coulage par ligne</label>
+        <label class="champ bascule" title="La ligne accélère le jour où la pente l'autorise, sans attendre le prochain départ béton : l'élément en coulée finit ses segments restants au nouveau rythme">
+          <input type="checkbox" id="p-accel-cycle" checked> Accélérer en cours de cycle</label>
+        <label class="champ bascule" title="Chaque ligne tourne au rythme le plus rapide que la pente autorise et s'éteint dès sa file vidée, quitte à produire longtemps avant l'immersion. Décoché : production à flux tendu.">
+          <input type="checkbox" id="p-arret-tot" checked> Arrêt de l'usine au plus tôt</label>
+        <label class="champ bascule" title="PL-3/PL-4 démarrent 3 segments après PL-1/PL-2, PL-5 à 7 segments (préférence)">
+          <input type="checkbox" id="p-stagger" checked> Staggering entre halls</label>
+        <label class="champ bascule" title="Remet chaque ligne dans l'ordre d'immersion (zéro inversion), puis affine sur les retards">
+          <input type="checkbox" id="p-optimiser" checked> Optimiser la séquence</label>
+        <label class="champ bascule" title="L'optimiseur choisit aussi sur quelle ligne PL produire chaque élément">
+          <input type="checkbox" id="p-reaffecter" checked> dont l'affectation aux lignes</label>
         <button id="relancer" type="button" disabled>Relancer le calcul</button>
       </div>
     </div>
@@ -270,6 +490,43 @@
   <section>
     <div class="s-head"><h2 class="s-title">Vue d'ensemble</h2></div>
     <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section id="s-consequences" hidden>
+    <div class="s-head">
+      <h2 class="s-title">Conséquences des dates imposées</h2>
+      <p class="s-note">Ce que votre changement a coûté ou rapporté, mesuré contre le dernier calcul
+        sans aucune date forcée. La séquence a été rejouée, les retards et les blocages recalculés,
+        et le planning d'occupation redessiné sur ce nouveau résultat.</p>
+    </div>
+    <div class="panel" id="consequences"></div>
+  </section>
+
+  <section id="s-sequence" hidden>
+    <div class="s-head">
+      <h2 class="s-title">Séquence de production</h2>
+      <p class="s-note" id="seq-note"></p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-sequence">
+        <thead><tr>
+          <th>Indicateur</th><th class="num">Séquence du classeur</th>
+          <th class="num">Séquence optimisée</th><th class="num">Écart</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="panel" id="seq-moves"></div>
+    <div class="panel" id="seq-panel-grille">
+      <div class="seq-head">
+        <div class="seq-switch" role="group" aria-label="Séquence affichée">
+          <button type="button" id="seq-b-avant" aria-pressed="true">Classeur</button>
+          <button type="button" id="seq-b-apres" aria-pressed="false">Optimisée</button>
+        </div>
+        <span class="seq-hint" id="seq-hint"></span>
+      </div>
+      <div class="scroll"><div class="seq-grid" id="seq-grid"></div></div>
+    </div>
   </section>
 
   <section>
@@ -294,10 +551,11 @@
   <section>
     <div class="s-head">
       <h2 class="s-title">Mouvement des éléments sur le site</h2>
-      <p class="s-note">Le site reconstruit à partir des coordonnées du dossier de référence, les éléments
-        placés au jour près. Faites glisser le curseur ou lancez la lecture : la coulée béton grandit sur
-        son point d'entrée à l'est, l'élément traverse la halle d'outfitting, flotte jusqu'au Lower Basin,
-        stationne en épi au parking, puis rejoint le Ballast Jetty avant immersion.</p>
+      <p class="s-note">Les cotes du site relevées sur le plan d'installation générale, les éléments
+        placés au jour près sur le plan d'installation générale. Faites glisser le curseur ou lancez la
+        lecture : la coulée béton grandit vers l'ouest depuis sa station, l'élément est poussé dans la
+        travée d'outfitting, flotte jusqu'à son poste en bassin, gagne une place de parking, puis rejoint
+        le Ballast Jetty avant immersion.</p>
     </div>
     <div class="panel">
       <div class="plan-head">
@@ -311,12 +569,52 @@
         </select>
         <output id="plan-date">—</output>
       </div>
-      <div class="scroll"><svg id="plan" viewBox="4 42 60 42" role="img"
+      <div class="scroll"><svg id="plan" viewBox="4 42 60 29.74" role="img"
            aria-label="Plan schématique du site de production avec la position des éléments"></svg></div>
       <div class="legend" id="plan-legend" style="margin-left:0"></div>
-      <p class="plan-caveat">Schéma reconstruit d'après les coordonnées relatives du dossier de référence
-        (lignes PL-1 à PL-5 et SPE, bassins, parking en épi à −75°), superposé au plan d'installation
-        générale. Cliquez sur l'écoulement de production plus bas pour y déplacer la date.</p>
+      <p class="plan-caveat">Positions relevées sur le plan d'installation générale : lignes PL-1 à PL-5
+        et aires SPE, travées d'outfitting, postes des bassins A / B / C, six places de parking (deux au
+        môle nord, trois en biais au môle sud, une à quai dans l'Eastern Berth Area) et Ballast Jetty.
+        Les portes sont animées : la flottante ferme le bassin où se déroule un float-up, les coulissantes
+        s'ouvrent le temps d'un transfert. Cliquez sur l'écoulement de production plus bas pour y déplacer
+        la date, ou sur un élément pour ouvrir sa fiche.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Coupe du tunnel</h2>
+      <p class="s-note">Le profil en long du tunnel, chaque élément à son chaînage et à son niveau de
+        pose réels. La coupe suit le curseur du plan ci-dessus : un emplacement vide attend son caisson,
+        celui-ci <b>descend verticalement à sa place</b> dans les six jours qui précèdent son immersion, puis
+        s'y remplit. Un caisson posé après sa date cible se borde de rouge. Cliquez-en un pour sa fiche.</p>
+    </div>
+    <div class="panel">
+      <div id="coupe-compte"></div>
+      <div class="scroll"><svg id="coupe-svg" role="img"
+           aria-label="Profil en long du tunnel, éléments à leur chaînage et à leur niveau de pose"></svg></div>
+      <div id="coupe-axe"><span id="coupe-gauche"></span><span id="coupe-droite"></span></div>
+      <p class="plan-caveat">Chaînages et niveaux relevés sur le profil en long
+        TUX-DWG-ITP-GE-GE-GEN-COW-042012-B, en mètres. L'échelle verticale est exagérée d'environ
+        40 fois, comme sur le dessin d'origine, sans quoi le tunnel serait un trait. Les gabarits —
+        217 m pour un élément standard, 39 m pour un spécial, 9 m de hauteur — sont ceux du
+        programme, le profil ne les porte pas.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Arrêt de l'usine</h2>
+      <p class="s-note" id="arret-note"></p>
+    </div>
+    <div class="panel scroll">
+      <table id="t-arret">
+        <thead><tr>
+          <th>Ligne</th><th class="num">Éléments</th><th class="num">Dernier départ béton</th>
+          <th class="num">Halle libérée</th><th class="num">Avance moyenne</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 
@@ -369,12 +667,86 @@
     </div>
   </section>
 
+  <section id="s-finitions">
+    <div class="s-head">
+      <h2 class="s-title">Avancement des finitions</h2>
+      <p class="s-note">Le tunnel vu en long, chaque élément se remplissant au fur et à mesure que ses
+        finitions avancent. Six familles empilées de bas en haut, dans leur ordre d'exécution : dépose des
+        bulkheads au joint, béton de remplissage du joint, joint Omega, dépose du système TE, drainage,
+        passerelles. Les dates viennent du planning P6 au niveau de WBS le plus bas ; le solveur n'y est
+        pour rien. Vue indépendante du planning, avec son propre curseur.</p>
+    </div>
+    <div class="panel">
+      <div class="planning-cmd">
+        <button type="button" id="fin-play" aria-label="Lancer ou arrêter la lecture">&#9654;</button>
+        <input type="range" id="fin-slider" min="0" max="100" value="0" style="flex:1;min-width:220px"
+               aria-label="Date d'avancement">
+        <output id="fin-date">&mdash;</output>
+        <span class="seq-hint" id="fin-hint"></span>
+      </div>
+      <div class="scroll"><svg id="fin-svg" role="img"
+           aria-label="Avancement des finitions élément par élément"></svg></div>
+      <div class="pl-legende" id="fin-legende"></div>
+    </div>
+  </section>
+
+  <section id="s-planning">
+    <div class="s-head">
+      <h2 class="s-title">Planning d'occupation du site</h2>
+      <p class="s-note" id="planning-note">Une ligne par ressource, comme le Target schedule du chantier.
+        La page se découpe en tranches de temps : chacune s'imprime sur une feuille, avec ses libellés
+        de ressource, donc rien à recoller. Les lignes grises sont les ressources que le solveur ne
+        modélise pas ; elles gardent leur place pour que le tableau reste superposable au vôtre.
+        Cliquez une barre pour la fiche de l'élément.</p>
+    </div>
+    <div class="panel" id="planning-panneau">
+      <div class="planning-cmd" id="planning-cmd">
+        <label class="champ">Par page
+          <select id="planning-tranche">
+            <option value="3">3 mois</option>
+            <option value="6" selected>6 mois</option>
+            <option value="12">12 mois</option>
+          </select></label>
+        <label class="champ bascule"><input type="checkbox" id="planning-vides" checked>
+          Garder les ressources non modélisées</label>
+        <label class="champ bascule" title="Relie les barres d'un même élément d'une ressource à la suivante : béton, outfitting, bassin, parking, ballast, immersion. Survolez une barre pour isoler son cheminement.">
+          <input type="checkbox" id="planning-flux"> Cheminement des éléments</label>
+        <label class="champ bascule" title="Déplacer une barre à la souris : de gauche à droite pour décaler ses dates, de haut en bas pour la changer de ressource. Le solveur n'est pas rejoué — les retouches restent une couche par-dessus son résultat, et se retirent d'un clic.">
+          <input type="checkbox" id="planning-ajuster"> Ajuster à la main</label>
+        <button type="button" id="planning-imprimer">Imprimer le planning</button>
+        <span class="seq-hint" id="planning-hint"></span>
+      </div>
+      <div class="retouches" id="planning-retouches" hidden></div>
+      <div id="planning"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="s-head">
+      <h2 class="s-title">Toutes les contraintes du modèle</h2>
+      <p class="s-note">Le relevé complet de ce que le solveur applique : contraintes de structure,
+        d'occupation, de calcul et de séquence. Chaque ligne dit son seuil, d'où il vient, et s'il est
+        pilotable depuis l'interface. Ce qui n'y figure pas n'est pas modélisé.</p>
+    </div>
+    <div class="panel" id="contraintes-resume"></div>
+    <div id="contraintes"></div>
+  </section>
+
   <section>
     <div class="s-head"><h2 class="s-title">Journal du calcul</h2>
       <p class="s-note">Ce que le solveur a lu dans le classeur et les points qu'il signale.
         Les avertissements pointent en général une saisie manquante.</p></div>
     <div id="journal"></div>
   </section>
+
+  <dialog id="fiche">
+    <div class="fiche-tete">
+      <h3 id="fiche-titre"></h3>
+      <button type="button" id="fiche-fermer" aria-label="Fermer la fiche">✕</button>
+    </div>
+    <p class="fiche-sous" id="fiche-sous"></p>
+    <div id="fiche-corps"></div>
+  </dialog>
 
   <footer id="pied"></footer>
 </div>
@@ -394,8 +766,17 @@
 
   function toutRendre(nomFichier, dateRef) {
     document.getElementById('verdict').hidden = false;
+    // La référence se prend avant tout rendu, et seulement quand rien n'est forcé : c'est
+    // l'état auquel toute date imposée sera ensuite comparée.
+    capturerReference();
     rendreEnTete(nomFichier, dateRef);
     afficherJournal(lastJournal);
+    rendreSequence();
+    rendreGrilleSequence();
+    rendreConsequences();
+    rendreGantt();
+    brancherFinitions();
+    rendreContraintes();
 
   "use strict";
 
@@ -407,18 +788,24 @@
 
   /* ---------- KPI ---------- */
   const nLate = D.retards.length, nTot = D.elements.length;
+  const nBloques = D.elements.filter(e => !e.fini).length;
   const worst = D.retards[0] || {retardJours: 0, id: '—'};
+  const finsHalles = D.elements.map(e => t(e.oF) || t(e.bF)).filter(Boolean);
+  const arretUsine = finsHalles.length ? new Date(Math.max(...finsHalles)).toISOString().slice(0, 10) : null;
   const kpis = [
     ['Éléments en retard', `${nLate}`, `sur ${nTot} · ${Math.round(nLate/nTot*100)} %`, nLate ? 'is-crit' : 'is-ok'],
     ['Retard maximum', nLate ? `${worst.retardJours} j` : '—', nLate ? worst.id : 'toutes les dates tenues', nLate ? 'is-crit' : 'is-ok'],
     ['Changements de cadence', `${D.changements.length}`, 'sur 5 lignes, en 3 ans et demi', ''],
     ['Fin de production', fr(D.elements.map(e => e.im).filter(Boolean).sort().pop()), 'dernière immersion planifiée', ''],
-    ['Éléments bloqués', '0', 'aucun deadlock dans le flux', 'is-ok'],
+    ['Arrêt de l\'usine', fr(arretUsine), 'dernière halle libérée', ''],
+    ['Éléments bloqués', `${nBloques}`, nBloques ? 'jamais immergés sur l\'horizon' : 'aucun blocage dans le flux',
+      nBloques ? 'is-crit' : 'is-ok'],
   ];
   ['kpis','tl-axis','tl-rows','tl-legend','gantt','g-legend','plan-legend'].forEach(id => {
     const n = document.getElementById(id); if (n) n.textContent = '';
   });
   document.querySelector('#t-changes tbody').textContent = '';
+  document.querySelector('#t-arret tbody').textContent = '';
   document.querySelector('#t-late tbody').textContent = '';
   document.getElementById('plan').textContent = '';
 
@@ -480,6 +867,43 @@
   { const s = el('span'); const sw = el('i', 'sw'); sw.style.background = 'var(--ink)'; sw.style.width = '2px'; sw.style.height = '13px';
     s.append(sw, document.createTextNode('Date de bascule')); lg.append(s); }
 
+  /* ---------- arrêt de l'usine ---------- */
+  // Ligne par ligne : quand sa halle se libère pour de bon, et de combien elle produit en
+  // avance sur l'immersion. Un arrêt étalé libère les moyens au fur et à mesure ; un arrêt
+  // groupé les immobilise tous jusqu'au dernier jour.
+  {
+    const tb = document.querySelector('#t-arret tbody');
+    const maxT = liste => liste.length ? Math.max(...liste) : null;
+    const rangs = [];
+    [...new Set(D.elements.map(e => e.l))].forEach(L => {
+      const els = D.elements.filter(e => e.l === L);
+      const fin = maxT(els.map(e => t(e.oF) || t(e.bF)).filter(Boolean));
+      const dernierBeton = maxT(els.map(e => t(e.bD)).filter(Boolean));
+      const av = els.map(e => (t(e.oF) && (t(e.ir) || t(e.im)))
+        ? Math.round(((t(e.ir) || t(e.im)) - t(e.oF)) / day) : null).filter(v => v !== null);
+      rangs.push({L, n: els.length, fin, dernierBeton,
+        avance: av.length ? Math.round(av.reduce((s, v) => s + v, 0) / av.length) : null});
+    });
+    rangs.sort((a, b) => (a.fin || 0) - (b.fin || 0));
+    rangs.forEach(r => {
+      const tr = el('tr');
+      tr.append(el('td', 'id', r.L));
+      tr.append(el('td', 'num', String(r.n)));
+      tr.append(el('td', 'num', r.dernierBeton ? fr(new Date(r.dernierBeton).toISOString().slice(0,10)) : '—'));
+      tr.append(el('td', 'num', r.fin ? fr(new Date(r.fin).toISOString().slice(0,10)) : '—'));
+      tr.append(el('td', 'num', r.avance === null ? '—' : `${r.avance} j`));
+      tb.append(tr);
+    });
+    const fins = rangs.map(r => r.fin).filter(Boolean);
+    const etalement = fins.length ? Math.round((Math.max(...fins) - Math.min(...fins)) / day) : 0;
+    document.getElementById('arret-note').textContent = fins.length
+      ? `La dernière halle se libère le ${fr(new Date(Math.max(...fins)).toISOString().slice(0,10))}, `
+        + `la première ${etalement} jours plus tôt — l'extinction du site s'étale sur cette durée. `
+        + `L'avance moyenne est le temps qu'un élément passe entre sa sortie d'outfitting et son immersion : `
+        + `c'est le stockage à flot que coûte un arrêt anticipé.`
+      : '';
+  }
+
   /* ---------- table changements ---------- */
   const tb = document.querySelector('#t-changes tbody');
   D.changements.slice().sort((a, b) => t(a.date) - t(b.date)).forEach(c => {
@@ -491,7 +915,9 @@
       `${String(c.from).replace('.', ',')} → ${String(c.to).replace('.', ',')} sem`);
     cell.append(p); tr.append(cell);
     tr.append(el('td', 'id', c.declencheur || '—'));
-    tr.append(el('td', '', c.atRisk ? 'Délai non tenable même au maximum autorisé par la pente' : ''));
+    tr.append(el('td', '', c.atRisk
+      ? 'Délai hors d\'atteinte même en accélérant à chaque fois que la pente le permettra'
+      : ''));
     if (c.atRisk) tr.querySelector('td:last-child').style.color = 'var(--crit)';
     tb.append(tr);
   });
@@ -561,22 +987,44 @@
     s.append(sw, document.createTextNode("Date d'immersion cible")); gl.append(s); }
 
   /* ================================================================
-     Vue plan animée — géométrie du dossier de référence (coordonnées %)
+     Vue plan animée — cotes relevées sur le plan d'installation générale
+     ------------------------------------------------------------------
+     La géométrie du site n'est pas redéfinie ici : c'est celle du solveur (bloc GEO, en
+     pourcentage de l'image du plan). On la convertit simplement dans le repère du dessin,
+     où le fond occupe x 4→64 et y 42→84. Une seule source, donc pas de dérive possible
+     entre la vue en plan de l'outil et celle du rapport.
      ================================================================ */
-  const GEO = {
-    xEntry: 58.40, xHallEnd: 50.98, xOutfitEnd: 42.68, xBasin: 37.01,
-    y: { 'PL-1':71.71, 'PL-2':69.29, 'PL-3':60.66, 'PL-4':58.38, 'PL-5':51.83, 'SPE':48.23 },
-    lenStd: 7.42, lenSpe: 1.66, ep: 2.21,
-    park: { a:{x:16.31,y:80.97}, b:{x:10.25,y:47.13}, rot:-75, slots:6 },
+  const PX = p => 4 + 0.60 * p;      // % de largeur d'image → abscisse du schéma
+  const PY = p => 42 + 0.2974 * p;   // % de hauteur d'image → ordonnée du schéma
+  const KY = 0.2974;                 // même échelle qu'en abscisse : le site n'est pas déformé
+  const G = {
+    xEntry: PX(GEO.x_entry), xHallEnd: PX(GEO.x_hall_end),
+    xOutfitEnd: PX(GEO.x_outfit_end), xBasin: PX(GEO.x_basin),
+    y: { 'PL-1': PY(GEO.y_lines[1]), 'PL-2': PY(GEO.y_lines[2]), 'PL-3': PY(GEO.y_lines[3]),
+         'PL-4': PY(GEO.y_lines[4]), 'PL-5': PY(GEO.y_lines[5]), 'SPE': PY(GEO.y_lines[6]) },
+    lenStd: 0.60 * GEO.len_std, lenSpe: 0.60 * GEO.len_spe, ep: KY * GEO.thickness,
+    parkings: GEO.parkings.map(p => ({x: PX(p.x), y: PY(p.y), rot: p.rot})),
+    ballast: {x: PX(GEO.ballast.x), y: PY(GEO.ballast.y), rot: GEO.ballast.rot},
+    // Un poste par ligne dans chaque bassin : le float-up est un déplacement droit vers l'ouest.
+    bassins: {A: {g: 1}, B: {g: 2}, C: {g: 3}},
+    porteFl: {xFerme: PX(GEO.porteFlottante.xFerme), xSouille: PX(GEO.porteFlottante.xSouille),
+              ySouille: PY(GEO.porteFlottante.ySouille),
+              w: 0.60 * GEO.porteFlottante.w, h: KY * GEO.porteFlottante.h},
+    porteCo: {x: PX(GEO.porteCoulissante.x), w: 0.60 * GEO.porteCoulissante.w,
+              h: KY * GEO.thickness * GEO.porteCoulissante.hRel},
+    attente: {x: PX(GEO.attente.x), dy: KY * GEO.attente.dy, visibles: GEO.attente.visibles},
   };
-  GEO.ballast = { x: GEO.park.b.x + 0.3*(GEO.park.b.x-GEO.park.a.x),
-                  y: GEO.park.b.y + 0.3*(GEO.park.b.y-GEO.park.a.y) };
-  const lenOf = l => l === 'SPE' ? GEO.lenSpe : GEO.lenStd;
-  // Ligne SPE : 7 aires successives d'est en ouest — cpa, cp1, cp2, cp3, ub1, ub2, ub3.
-  // Chacune a son emplacement propre, sinon les SPE se superposent au stockage.
-  GEO.speZones = 7;
-  GEO.speSlot = (GEO.xEntry - GEO.xBasin) / GEO.speZones;
-  const xZoneSPE = k => GEO.xEntry - (k - 0.5) * GEO.speSlot;
+  for (const k in G.bassins) {
+    const b = GEO.bassins[G.bassins[k].g];
+    G.bassins[k].postes = b.yPostes.map(PY);
+    G.bassins[k].yCentre = PY(b.yCentre);
+  }
+  const lenOf = l => l === 'SPE' ? G.lenSpe : G.lenStd;
+  // Ligne SPE : les aires successives repérées sur le plan, d'est en ouest. Le rapport ne
+  // connaît pas l'aire exacte de chaque SPE — l'export ne porte que ses dates — mais il sait
+  // combien il y en a : la progression est répartie sur les aires réelles.
+  const NB_SPE = GEO.speStations.length;
+  const aireSPE = k => PX(GEO.speStations[Math.max(0, Math.min(NB_SPE - 1, k - 1))]);
   const NS = 'http://www.w3.org/2000/svg';
   const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
@@ -587,6 +1035,8 @@
   };
   const PHASE_LABEL = { beton:'Béton', outfitting:'Outfitting', floatup:'Float-up',
     basin:'Lower Basin', parking:'Parking', ballast:'Ballast Jetty' };
+  // Icône de statut : un élément trop court pour porter son identifiant garde son symbole.
+  const PHASE_ICONE = { beton:'▣', outfitting:'◆', floatup:'≈', basin:'●', parking:'▪', ballast:'▼' };
 
   const plan = document.getElementById('plan');
 
@@ -594,56 +1044,89 @@
   const decor = svgEl('g', {});
   plan.append(decor);
 
-  // zones de production, de l'entrée est jusqu'au bassin
-  for (const [name, yc] of Object.entries(GEO.y)) {
-    const L = lenOf(name), h = GEO.ep;
-    decor.append(svgEl('rect', { x: GEO.xEntry - L, y: yc - h/2, width: L, height: h,
-      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.12 }));
-    decor.append(svgEl('rect', { x: GEO.xOutfitEnd, y: yc - h/2, width: GEO.xHallEnd - GEO.xOutfitEnd,
-      height: h, fill: 'var(--surface-2)', stroke: 'var(--line)', 'stroke-width': 0.1 }));
-    decor.append(svgEl('line', { x1: GEO.xBasin, y1: yc, x2: GEO.xOutfitEnd, y2: yc,
-      stroke: 'var(--line)', 'stroke-width': 0.1, 'stroke-dasharray': '0.6 0.5' }));
-    const t = svgEl('text', { x: GEO.xEntry + 0.7, y: yc + 0.6, 'font-size': 1.5,
-      fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t.textContent = name; decor.append(t);
-  }
+  const etiquette = (x, y, txt, couleur, ancre) => {
+    const t = svgEl('text', { x, y, 'font-size': 0.9, fill: couleur, 'font-family': 'var(--mono)' });
+    if (ancre) t.setAttribute('text-anchor', ancre);
+    t.textContent = txt; decor.append(t);
+  };
 
-  // bassins : A = PL1+2, B = PL3+4, C = PL5+SPE
-  [['A','PL-1','PL-2'], ['B','PL-3','PL-4'], ['C','PL-5','SPE']].forEach(([nom, l1, l2]) => {
-    const top = Math.min(GEO.y[l1], GEO.y[l2]) - GEO.ep, bot = Math.max(GEO.y[l1], GEO.y[l2]) + GEO.ep;
-    decor.append(svgEl('rect', { x: GEO.xBasin - lenOf(l1)/2 - 0.6, y: top, width: lenOf(l1) + 1.2,
-      height: bot - top, fill: 'none', stroke: 'var(--ph-basin)', 'stroke-width': 0.13, 'stroke-dasharray': '0.7 0.4' }));
-    const t = svgEl('text', { x: GEO.xBasin, y: top - 0.5, 'font-size': 1.3, 'text-anchor': 'middle',
-      fill: 'var(--ph-basin)', 'font-family': 'var(--mono)' });
-    t.textContent = 'Basin ' + nom; decor.append(t);
+  // Lignes de production : poste de coulée à l'est, travée d'outfitting à l'ouest de la porte
+  // coulissante, puis la route du float-up jusqu'au bassin.
+  for (const [name, yc] of Object.entries(G.y)) {
+    const L = lenOf(name), h = G.ep;
+    if (name !== 'SPE') {
+      decor.append(svgEl('rect', { x: G.xEntry - L, y: yc - h/2, width: L, height: h,
+        fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.09, 'stroke-dasharray': '0.5 0.4' }));
+      decor.append(svgEl('rect', { x: G.xOutfitEnd, y: yc - h/2, width: G.xHallEnd - G.xOutfitEnd,
+        height: h, fill: 'var(--surface-2)', opacity: 0.5, stroke: 'var(--line)', 'stroke-width': 0.08 }));
+    }
+    decor.append(svgEl('line', { x1: G.xBasin, y1: yc, x2: G.xOutfitEnd, y2: yc,
+      stroke: 'var(--line)', 'stroke-width': 0.08, 'stroke-dasharray': '0.4 0.4' }));
+    etiquette(G.xEntry + 0.5, yc + 0.45, name, 'var(--ink-3)');
+  }
+  // Aires successives de la ligne SPE.
+  for (let k = 1; k <= NB_SPE; k++)
+    decor.append(svgEl('rect', { x: aireSPE(k) - G.lenSpe/2, y: G.y.SPE - G.ep/2,
+      width: G.lenSpe, height: G.ep, fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.07 }));
+
+  // Bassins : deux postes chacun, dans l'axe des deux lignes qu'il dessert.
+  Object.entries(G.bassins).forEach(([nom, b]) => {
+    const top = Math.min(...b.postes) - G.ep * 0.8, bas = Math.max(...b.postes) + G.ep * 0.8;
+    decor.append(svgEl('rect', { x: G.xBasin - G.lenStd/2 - 0.4, y: top, width: G.lenStd + 0.8,
+      height: bas - top, fill: 'none', stroke: 'var(--ph-basin)', 'stroke-width': 0.1,
+      'stroke-dasharray': '0.6 0.4' }));
+    etiquette(G.xBasin, top - 0.35, 'Basin ' + nom, 'var(--ph-basin)', 'middle');
   });
 
-  // parking en épi et point de ballast
-  decor.append(svgEl('line', { x1: GEO.park.a.x, y1: GEO.park.a.y, x2: GEO.park.b.x, y2: GEO.park.b.y,
-    stroke: 'var(--ph-park)', 'stroke-width': 0.12, 'stroke-dasharray': '0.8 0.5' }));
-  for (let i = 0; i < GEO.park.slots; i++) {
-    const r = i / (GEO.park.slots - 1);
-    const px = GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r;
-    const py = GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r;
-    decor.append(svgEl('rect', { x: px - GEO.lenStd/2, y: py - GEO.ep/2, width: GEO.lenStd, height: GEO.ep,
-      fill: 'none', stroke: 'var(--line)', 'stroke-width': 0.08,
-      transform: `rotate(${GEO.park.rot} ${px} ${py})` }));
+  // Places de parking, relevées une à une : deux au môle nord, trois en biais au môle sud,
+  // la sixième à quai dans l'Eastern Berth Area.
+  G.parkings.forEach((p, i) => {
+    decor.append(svgEl('rect', { x: p.x - G.lenStd/2, y: p.y - G.ep/2, width: G.lenStd, height: G.ep,
+      fill: 'none', stroke: 'var(--ph-park)', 'stroke-width': 0.08, 'stroke-dasharray': '0.5 0.4',
+      transform: `rotate(${p.rot || 0} ${p.x} ${p.y})` }));
+    if (i === 0) etiquette(p.x + G.lenStd/2 + 0.4, p.y + 0.4, 'Parking', 'var(--ph-park)');
+  });
+
+  // Ballast Jetty : l'élément s'y amarre dans l'axe du quai, nord-sud.
+  decor.append(svgEl('rect', { x: G.ballast.x - G.lenStd/2, y: G.ballast.y - G.ep/2,
+    width: G.lenStd, height: G.ep, fill: 'none', stroke: 'var(--ph-ballast)', 'stroke-width': 0.1,
+    'stroke-dasharray': '0.5 0.4', transform: `rotate(${G.ballast.rot} ${G.ballast.x} ${G.ballast.y})` }));
+  etiquette(G.ballast.x - G.ep, G.ballast.y + G.lenStd/2 + 0.9, 'Ballast Jetty', 'var(--ph-ballast)', 'middle');
+  etiquette(G.xEntry - G.lenStd/2, G.y['SPE'] - G.ep * 1.6, '◄ coulée béton', 'var(--ink-3)', 'middle');
+  etiquette((G.xHallEnd + G.xOutfitEnd)/2, G.y['PL-1'] + G.ep * 1.8, 'outfitting', 'var(--ink-3)', 'middle');
+  etiquette(G.attente.x - G.lenStd/2 - 0.5, G.bassins.B.yCentre + 0.3, 'attente à flot', 'var(--ph-fu)', 'end');
+
+  /* ---- portes, seule partie mobile du décor ----
+     La flottante ferme le bassin où un float-up est en cours et regagne sinon sa souille ;
+     les coulissantes ferment le passage entre zone béton et zone d'outfitting, ligne par ligne. */
+  const porteFl = svgEl('rect', { width: G.porteFl.w, height: G.porteFl.h, rx: 0.1,
+    stroke: 'var(--surface)', 'stroke-width': 0.06 });
+  porteFl.append(svgEl('title'));
+  decor.append(porteFl);
+  const portesCo = {};
+  for (const l of ['PL-1','PL-2','PL-3','PL-4','PL-5']) {
+    const r = svgEl('rect', { x: G.porteCo.x - G.porteCo.w/2, y: G.y[l] - G.porteCo.h/2,
+      width: G.porteCo.w, height: G.porteCo.h, rx: 0.08,
+      stroke: 'var(--surface)', 'stroke-width': 0.05 });
+    r.append(svgEl('title'));
+    decor.append(r); portesCo[l] = r;
   }
-  {
-    const t = svgEl('text', { x: GEO.park.a.x + 2, y: GEO.park.a.y + 1.8, 'font-size': 1.3,
-      fill: 'var(--ph-park)', 'font-family': 'var(--mono)' });
-    t.textContent = 'Parking'; decor.append(t);
-    decor.append(svgEl('circle', { cx: GEO.ballast.x, cy: GEO.ballast.y, r: 0.8,
-      fill: 'none', stroke: 'var(--ph-ballast)', 'stroke-width': 0.15 }));
-    const t2 = svgEl('text', { x: GEO.ballast.x + 1.4, y: GEO.ballast.y + 0.5, 'font-size': 1.3,
-      fill: 'var(--ph-ballast)', 'font-family': 'var(--mono)' });
-    t2.textContent = 'Ballast Jetty'; decor.append(t2);
-    const t3 = svgEl('text', { x: GEO.xEntry - GEO.lenStd/2, y: 45.6, 'font-size': 1.3,
-      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t3.textContent = '◄ coulée béton'; decor.append(t3);
-    const t4 = svgEl('text', { x: (GEO.xHallEnd + GEO.xOutfitEnd)/2, y: 45.6, 'font-size': 1.3,
-      'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-family': 'var(--mono)' });
-    t4.textContent = 'outfitting'; decor.append(t4);
+  function majPortes(bassinFerme, lignesOuvertes) {
+    const b = bassinFerme && G.bassins[bassinFerme];
+    porteFl.setAttribute('x', (b ? G.porteFl.xFerme : G.porteFl.xSouille) - G.porteFl.w/2);
+    porteFl.setAttribute('y', (b ? b.yCentre : G.porteFl.ySouille) - G.porteFl.h/2);
+    porteFl.setAttribute('fill', b ? 'var(--ph-ballast)' : 'none');
+    porteFl.setAttribute('stroke', b ? 'var(--surface)' : 'var(--ph-ballast)');
+    porteFl.querySelector('title').textContent = b
+      ? `Porte flottante — ferme le Basin ${bassinFerme} le temps du float-up`
+      : 'Porte flottante — dans sa souille, bassins ouverts';
+    for (const l in portesCo) {
+      const ouverte = lignesOuvertes.has(l);
+      portesCo[l].setAttribute('fill', ouverte ? 'none' : 'var(--ph-park)');
+      portesCo[l].setAttribute('stroke', ouverte ? 'var(--ph-park)' : 'var(--surface)');
+      portesCo[l].querySelector('title').textContent =
+        `Porte coulissante ${l} — ${ouverte ? 'ouverte, transfert en cours' : 'fermée'}`;
+    }
   }
 
   const couche = svgEl('g', {});
@@ -651,47 +1134,82 @@
   appliquerFondPlan();
 
   /* ---- position d'un élément à une date donnée ---- */
+  // Bassin desservi par une ligne, et poste occupé dans ce bassin.
+  const BASSIN_DE = {'PL-1':'A', 'PL-2':'A', 'PL-3':'B', 'PL-4':'B', 'PL-5':'C', 'SPE':'C'};
+  function posteBassin(e) {
+    const b = G.bassins[BASSIN_DE[e.l]];
+    const y = b && b.postes[(e.bp === 2 ? 2 : 1) - 1];
+    return {x: G.xBasin, y: isFinite(y) ? y : G.y[e.l]};
+  }
+
   function poser(e, ms) {
     const A = k => t(e[k]);
-    const y = GEO.y[e.l], L = lenOf(e.l);
+    const y = G.y[e.l], L = lenOf(e.l);
     const seg = (a, b) => (a && b && b > a) ? (ms - a) / (b - a) : 0;
+    const borne = p => Math.max(0, Math.min(1, p));
 
+    // Ligne SPE : elle traverse des aires successives. Quand le planning P6 en date les
+    // passages, on s'en sert ; sinon l'avancement est réparti sur les aires réelles.
+    const aireCourante = () => {
+      if (e.zones) {
+        let k = 0;
+        for (const [z, d] of Object.entries(e.zones)) { const j = t(d); if (j && ms >= j) k = Math.max(k, +z); }
+        if (k) return Math.min(NB_SPE, k);
+      }
+      const p = borne(seg(A('bD'), A('oF') || A('bF')));
+      return 1 + Math.floor(p * (NB_SPE - 1));
+    };
+    // Ligne SPE : le solveur ne lui donne pas de dates de coulée — un spécial ne se coule pas
+    // par segments, il traverse des aires successives datées par le planning P6. Ce sont donc
+    // ses passages de zone qui le positionnent, et son entrée en outfitting qui dit la phase.
+    // Sans cette branche, aucun SPE n'apparaissait en CPA ni en CP1-3 : le test sur les dates
+    // de béton ci-dessous ne pouvait jamais passer, faute de `bF`, et l'élément ne se montrait
+    // qu'une fois en Upper Basin.
+    if (e.l === 'SPE' && e.zones) {
+      const passages = Object.values(e.zones).map(t).filter(Boolean).sort((a, b) => a - b);
+      const sortie = A('fu') || A('oF');
+      if (passages.length && ms >= passages[0] && (!sortie || ms < sortie)) {
+        const enUB = A('oD') && ms >= A('oD');
+        return { ph: enUB ? 'outfitting' : 'beton', x: aireSPE(aireCourante()),
+                 y, w: L, anchor: 'center' };
+      }
+    }
     if (A('bD') && ms >= A('bD') && A('bF') && ms < A('bF')) {
-      const p = Math.max(0, Math.min(1, seg(A('bD'), A('bF'))));
-      // SPE : passage successif par cpa, cp1, cp2, cp3 — pas une coulée qui s'allonge.
-      if (e.l === 'SPE') return { ph:'beton', x: xZoneSPE(1 + Math.min(3, Math.floor(p * 4))), y, w: L, anchor:'center' };
-      return { ph:'beton', x: GEO.xEntry, y, w: L * p, anchor:'right' };
+      const p = borne(seg(A('bD'), A('bF')));
+      if (e.l === 'SPE') return { ph:'beton', x: aireSPE(aireCourante()), y, w: L, anchor:'center' };
+      return { ph:'beton', x: G.xEntry, y, w: L * p, anchor:'right' };
     }
     // Béton terminé, poussé hors des positions de coulée, en attente de la zone d'outfitting.
     if (A('bF') && ms >= A('bF') && A('oD') && ms < A('oD'))
-      return { ph:'outfitting', x: GEO.xHallEnd, y, w: L, anchor:'center', attente:true };
+      return { ph:'beton', x: G.xEntry, y, w: L, anchor:'right', attente:true };
     if (A('oD') && ms >= A('oD') && A('oF') && ms < A('oF')) {
-      const p = Math.max(0, Math.min(1, seg(A('oD'), A('oF'))));
-      if (e.l === 'SPE') {
-        // Progression d'ub1 à ub3, chacune sur son aire.
-        const k = 5 + Math.min(2, Math.floor(p * 3));
-        return { ph:'outfitting', x: xZoneSPE(k), y, w: L, anchor:'center' };
-      }
-      return { ph:'outfitting', x: GEO.xHallEnd + (GEO.xOutfitEnd - GEO.xHallEnd) * p, y, w: L, anchor:'center' };
+      if (e.l === 'SPE') return { ph:'outfitting', x: aireSPE(aireCourante()), y, w: L, anchor:'center' };
+      // Transféré dans la travée UB, l'élément y reste statique jusqu'au float-up.
+      return { ph:'outfitting', x: (G.xHallEnd + G.xOutfitEnd) / 2, y, w: L, anchor:'center' };
     }
+    const xPret = e.l === 'SPE' ? aireSPE(NB_SPE) : (G.xHallEnd + G.xOutfitEnd) / 2;
     if (A('oF') && ms >= A('oF') && A('fu') && ms < A('fu'))
-      return { ph:'outfitting', x: GEO.xOutfitEnd, y, w: L, anchor:'center', attente:true };
-    if (A('fu') && ms >= A('fu') && A('ba') && ms < A('ba')) {
-      const p = Math.max(0, Math.min(1, seg(A('fu'), A('ba'))));
-      return { ph:'floatup', x: GEO.xOutfitEnd + (GEO.xBasin - GEO.xOutfitEnd) * p, y, w: L, anchor:'center' };
+      return { ph:'outfitting', x: xPret, y, w: L, anchor:'center', attente:true };
+    const finFU = A('fuF') || A('ba');
+    if (A('fu') && ms >= A('fu') && finFU && ms < finFU) {
+      const p = borne(seg(A('fu'), finFU));
+      const q = posteBassin(e);
+      return { ph:'floatup', x: xPret + (q.x - xPret) * p, y: y + (q.y - y) * p, w: L, anchor:'center' };
     }
+    // Float-up terminé mais poste encore occupé : l'élément est à flot devant son bassin.
+    if (finFU && ms >= finFU && A('ba') && ms < A('ba'))
+      return { ph:'floatup', w: L, anchor:'center', attente:true, file: BASSIN_DE[e.l], x: 0, y: 0 };
     const finBasin = A('pk') || A('bl');
     if (A('ba') && ms >= A('ba') && finBasin && ms < finBasin) {
-      const dy = e.bp === 2 ? GEO.ep * 0.6 : -GEO.ep * 0.6;
-      return { ph:'basin', x: GEO.xBasin, y: y + dy, w: L, anchor:'center' };
+      const q = posteBassin(e);
+      return { ph:'basin', x: q.x, y: q.y, w: L, anchor:'center' };
     }
     if (A('pk') && ms >= A('pk') && A('bl') && ms < A('bl')) {
-      const r = (Math.max(1, e.pn) - 1) / (GEO.park.slots - 1);
-      return { ph:'parking', x: GEO.park.a.x + (GEO.park.b.x - GEO.park.a.x) * r,
-               y: GEO.park.a.y + (GEO.park.b.y - GEO.park.a.y) * r, w: L, anchor:'center', rot: GEO.park.rot };
+      const p = G.parkings[Math.max(1, e.pn) - 1] || G.parkings[G.parkings.length - 1];
+      return { ph:'parking', x: p.x, y: p.y, w: L, anchor:'center', rot: p.rot };
     }
     if (A('bl') && ms >= A('bl') && A('fb') && ms < A('fb'))
-      return { ph:'ballast', x: GEO.ballast.x, y: GEO.ballast.y, w: L * 0.55, anchor:'center' };
+      return { ph:'ballast', x: G.ballast.x, y: G.ballast.y, w: G.lenStd, anchor:'center', rot: G.ballast.rot };
     return null;
   }
 
@@ -704,10 +1222,13 @@
 
   const dateOut = document.getElementById('plan-date');
   const curseur = document.getElementById('g-cursor');
+  construireCoupe();
+  rendreFinitions();
   function dessinerPlan(j) {
     const ms = P0 + j * day;
     const iso = new Date(ms).toISOString().slice(0, 10);
     dateOut.textContent = fr(iso);
+    majCoupe(ms);
     // Le trait vertical de l'écoulement de production suit la même date que le plan.
     if (ms >= T0 && ms <= T1) {
       curseur.hidden = false;
@@ -715,22 +1236,67 @@
       curseur.dataset.date = fr(iso);
     } else curseur.hidden = true;
     couche.textContent = '';
-    let n = 0;
+    let n = 0, bassinFerme = null;
+    const lignesOuvertes = new Set();
+    // Deux éléments d'une même ligne peuvent occuper la même travée : le modèle raisonne en
+    // zones, pas en mètres linéaires. On les écarte en ordonnée plutôt que de les superposer.
+    const poses = [];
     D.elements.forEach(e => {
       const p = poser(e, ms);
       if (!p) return;
+      p.e = e;
+      // Le bassin n'est fermé que pendant le float-up lui-même : un élément qui attend un
+      // poste, à flot, ne mobilise plus la porte.
+      if (p.ph === 'floatup' && !p.attente) bassinFerme = BASSIN_DE[e.l];
+      // Transfert vers l'outfitting : la porte de la ligne est ouverte les deux premiers jours.
+      if (t(e.oD) && ms >= t(e.oD) && ms - t(e.oD) < 2 * day) lignesOuvertes.add(e.l);
+      poses.push(p);
+    });
+    // File d'attente à flot, devant chaque bassin. Au-delà de ce que le plan peut montrer,
+    // le reste est résumé par un compteur plutôt que dessiné hors cadre.
+    const files = {}, reste = {};
+    for (const p of poses) {
+      if (!p.file) continue;
+      const r = files[p.file] = (files[p.file] || 0) + 1;
+      const b = G.bassins[p.file];
+      p.x = G.attente.x;
+      p.y = b.yCentre + (Math.min(r, G.attente.visibles) - (G.attente.visibles + 1) / 2) * G.attente.dy;
+      if (r > G.attente.visibles) { p.masque = true; reste[p.file] = r - G.attente.visibles; }
+    }
+    const dessinables = poses.filter(p => !p.masque);
+    ecarter(dessinables);
+    majPortes(bassinFerme, lignesOuvertes);
+    for (const nom in reste) {
+      const b = G.bassins[nom];
+      const t2 = svgEl('text', { x: G.attente.x, 'font-size': 1.0, 'text-anchor': 'middle',
+        y: b.yCentre + (G.attente.visibles + 1 - (G.attente.visibles + 1) / 2) * G.attente.dy,
+        fill: 'var(--ph-fu)', 'font-family': 'var(--mono)' });
+      t2.textContent = '+' + reste[nom] + ' à flot';
+      const ti2 = svgEl('title');
+      ti2.textContent = `${reste[nom]} élément(s) de plus à flot devant le Basin ${nom}, en attente d'un poste`;
+      t2.append(ti2);
+      couche.append(t2);
+    }
+    dessinables.forEach(p => {
+      const e = p.e;
       n++;
       const enRetard = t(e.im) && ms > t(e.im) && (!t(e.ir) || ms <= t(e.ir));
       const x = p.anchor === 'right' ? p.x - p.w : p.x - p.w / 2;
       const g = svgEl('g', p.rot ? { transform: `rotate(${p.rot} ${p.x} ${p.y})` } : {});
-      g.append(svgEl('rect', { x, y: p.y - GEO.ep/2, width: Math.max(p.w, 0.25), height: GEO.ep,
+      g.append(svgEl('rect', { x, y: p.y - G.ep/2, width: Math.max(p.w, 0.25), height: G.ep,
         fill: PHASE_COLOR[p.ph], opacity: p.attente ? 0.55 : 1,
         stroke: enRetard ? 'var(--crit)' : 'var(--surface)', 'stroke-width': enRetard ? 0.28 : 0.08 }));
+      const glyphe = svgEl('text', { x: p.w > 3 ? x + 0.7 : x + p.w/2, y: p.y + 0.35, 'font-size': 1.0,
+        'text-anchor': 'middle', fill: '#fff', 'pointer-events': 'none', opacity: 0.9 });
+      glyphe.textContent = PHASE_ICONE[p.ph] || '·';
+      g.append(glyphe);
       if (p.w > 3) {
-        const tx = svgEl('text', { x: x + p.w/2, y: p.y + 0.5, 'font-size': 1.15, 'text-anchor': 'middle',
+        const tx = svgEl('text', { x: x + p.w/2 + 0.5, y: p.y + 0.32, 'font-size': 0.9, 'text-anchor': 'middle',
           fill: '#fff', 'font-family': 'var(--mono)', 'pointer-events': 'none' });
         tx.textContent = e.id; g.append(tx);
       }
+      g.style.cursor = 'pointer';
+      g.addEventListener('click', () => ouvrirFiche(e.id));
       const ti = svgEl('title');
       ti.textContent = `${e.id} — ${e.l} — ${PHASE_LABEL[p.ph]}${p.attente ? ' (en attente)' : ''}`
         + `\nImmersion cible ${fr(e.im)}${enRetard ? ' — en retard' : ''}`;
@@ -738,6 +1304,26 @@
       couche.append(g);
     });
     return n;
+  }
+
+  // Écarte en ordonnée les bandes qui se chevauchent, pour qu'aucune n'en masque une autre.
+  function ecarter(poses) {
+    const amas = [];
+    for (const p of poses) {
+      const droit = !p.rot || Math.abs(p.rot) < 15;
+      const demi = droit ? p.w / 2 : G.ep / 2;
+      const cx = p.anchor === 'right' ? p.x - p.w / 2 : p.x;
+      const x0 = cx - demi, x1 = cx + demi;
+      const a = amas.find(a => Math.abs(a.y - p.y) < G.ep * 0.9 && a.x0 < x1 - 0.1 && x0 < a.x1 - 0.1);
+      if (a) { a.membres.push(p); a.x0 = Math.min(a.x0, x0); a.x1 = Math.max(a.x1, x1); }
+      else amas.push({y: p.y, x0, x1, membres: [p]});
+    }
+    for (const a of amas) {
+      if (a.membres.length < 2) continue;
+      const pas = G.ep * 0.55, nb = a.membres.length;
+      const yc = a.membres.reduce((s, p) => s + p.y, 0) / nb;
+      a.membres.forEach((p, i) => { p.y = yc + (i - (nb - 1) / 2) * pas; });
+    }
   }
 
   if (!slider.dataset.lie) {
@@ -780,6 +1366,8 @@
   const pl = document.getElementById('plan-legend');
   Object.entries(PHASE_LABEL).forEach(([k, lab]) => {
     const s = el('span'); const sw = el('i', 'sw'); sw.style.background = PHASE_COLOR[k];
+    sw.style.color = '#fff'; sw.style.textAlign = 'center'; sw.style.fontSize = '9px';
+    sw.style.lineHeight = '13px'; sw.textContent = PHASE_ICONE[k] || '';
     s.append(sw, document.createTextNode(lab)); pl.append(s);
   });
   { const s = el('span'); const sw = el('i', 'sw');
@@ -787,6 +1375,1475 @@
     s.append(sw, document.createTextNode('Date cible dépassée')); pl.append(s); }
 
   }
+
+/* ---- Avancement des finitions ----
+   Le même profil en long que la coupe, mais rempli par les finitions plutôt que par la pose.
+   Six familles empilées dans leur ordre d'exécution ; chacune remplit sa bande à mesure que
+   sa tâche récapitulative avance, au prorata du temps écoulé entre ses dates de début et de
+   fin. Les travaux de joint portent deux numéros dans le P6 : ils sont attribués au second
+   élément du joint, celui qui vient d'être posé et que le joint raccorde.
+   Vue indépendante du planning : elle a son propre curseur, car les finitions courent bien
+   au-delà de la fin de production. */
+const FIN_FAMILLES = [
+  ['bhrem',  'Dépose bulkheads au joint', '#A8C4D8'],
+  ['infill', 'Béton de remplissage du joint', '#90AFC6'],
+  ['omega',  'Joint Omega', '#6E93B5'],
+  ['tesys',  'Dépose du système TE', '#B9C9A8'],
+  ['drain',  'Drainage', '#9FBA8C'],
+  ['walk',   'Passerelles', '#86A472'],
+];
+
+// Tâches de finition rangées par élément : {STE-77: {omega: {d, f}, …}, …}
+// Calculé à la demande : `P6` est déclaré plus bas dans le fichier, et y toucher au moment de
+// la définition lèverait une erreur d'initialisation qui emporterait tout le script.
+let FIN_PAR_ELEMENT = null;
+function rangerFinitions() {
+  if (FIN_PAR_ELEMENT) return FIN_PAR_ELEMENT;
+  const out = {};
+  const cle = jeton => {
+    const p = jeton.split('-');
+    const dernier = p[p.length - 1];          // travaux de joint : le second élément
+    return dernier[0] === 'S' ? 'SPE-' + dernier.slice(1) : 'STE-' + dernier;
+  };
+  const familles = new Set(FIN_FAMILLES.map(f => f[0]));
+  P6.forEach(b => {
+    if (!familles.has(b.cat)) return;
+    const id = cle(b.id);
+    (out[id] = out[id] || {})[b.cat] = {d: b.d, f: b.f};
+  });
+  FIN_PAR_ELEMENT = out;
+  return out;
+}
+
+function rendreFinitions() {
+  const svg = document.getElementById('fin-svg');
+  if (!svg || !ordreCoupe.length) return;
+  svg.setAttribute('viewBox', `0 0 ${COUPE_L} ${COUPE_H}`);
+  svg.textContent = '';
+
+  const eau = svgN('rect', {x: 0, y: 0, width: COUPE_L, height: cz(0),
+    fill: 'var(--ph-basin)', opacity: 0.08});
+  svg.append(eau);
+  for (let c = 11000; c <= 28500; c += 2000) {
+    const g = svgN('text', {x: cx(c), y: COUPE_H - 2, 'font-size': 6.5, 'text-anchor': 'middle',
+      fill: 'var(--ink-3)'});
+    g.textContent = (c / 1000).toFixed(0) + '+000';
+    svg.append(g);
+  }
+
+  ordreCoupe.forEach(e => {
+    const g = TUNNEL[e.id];
+    if (!g) return;
+    const L = (e.ln === 6 ? GABARIT.spe : GABARIT.std);
+    const w = Math.max(cx(TUN_X0 + L) - cx(TUN_X0), 1.4);
+    const h = cz(0) - cz(GABARIT.haut);
+    const x = cx(g.c) - w / 2, y = cz(g.z) - h / 2;
+    const grp = svgN('g', {'data-id': e.id});
+    // Une bande par famille, empilée du bas vers le haut : le remplissage monte comme
+    // l'avancement.
+    FIN_FAMILLES.forEach((f, i) => {
+      const hb = h / FIN_FAMILLES.length;
+      grp.append(svgN('rect', {class: 'fin-bande', 'data-cat': f[0],
+        x, y: y + h - (i + 1) * hb, width: w, height: hb, fill: f[2], opacity: 0}));
+    });
+    grp.append(svgN('rect', {class: 'fin-cadre', x, y, width: w, height: h}));
+    const ti = svgN('title'); ti.textContent = e.id; grp.append(ti);
+    grp.style.cursor = 'pointer';
+    grp.addEventListener('click', () => ouvrirFiche(e.id));
+    svg.append(grp);
+  });
+  majFinitions(+document.getElementById('fin-slider').value);
+
+  const lg = document.getElementById('fin-legende');
+  lg.textContent = '';
+  FIN_FAMILLES.forEach(f => {
+    const sp = el('span'); const i = el('i'); i.style.background = f[2];
+    sp.append(i, document.createTextNode(f[1])); lg.append(sp);
+  });
+}
+
+// Avancement d'une famille à la date ms : 0 avant, 1 après, au prorata entre les deux.
+function avancement(t2, ms) {
+  if (!t2) return 0;
+  if (ms >= t2.f) return 1;
+  if (ms <= t2.d) return 0;
+  return (ms - t2.d) / (t2.f - t2.d);
+}
+
+let FIN_T0 = 0, FIN_T1 = 0;
+function majFinitions(j) {
+  const svg = document.getElementById('fin-svg');
+  if (!svg) return;
+  const ms = FIN_T0 + j * day;
+  document.getElementById('fin-date').textContent = fr(new Date(ms).toISOString().slice(0, 10));
+  let finis = 0, encours = 0;
+  ordreCoupe.forEach(e => {
+    const grp = svg.querySelector(`g[data-id="${e.id}"]`);
+    if (!grp) return;
+    const taches = rangerFinitions()[e.id] || {};
+    let somme = 0, connues = 0;
+    FIN_FAMILLES.forEach(f => {
+      const a = avancement(taches[f[0]], ms);
+      const b = grp.querySelector(`rect[data-cat="${f[0]}"]`);
+      if (b) b.setAttribute('opacity', taches[f[0]] ? (0.15 + 0.85 * a) * (a > 0 ? 1 : 0) : 0);
+      if (taches[f[0]]) { somme += a; connues++; }
+    });
+    if (connues && somme >= connues - 1e-9) finis++;
+    else if (somme > 0) encours++;
+  });
+  document.getElementById('fin-hint').innerHTML =
+    `<b>${finis}</b> élément(s) terminés · <b>${encours}</b> en cours · sur ${ordreCoupe.length}`;
+}
+
+function brancherFinitions() {
+  const toutes = P6.filter(b => FIN_FAMILLES.some(f => f[0] === b.cat));
+  if (!toutes.length) return;
+  FIN_T0 = Math.min(...toutes.map(b => b.d));
+  FIN_T1 = Math.max(...toutes.map(b => b.f));
+  const s = document.getElementById('fin-slider');
+  s.max = Math.round((FIN_T1 - FIN_T0) / day);
+  if (!s.dataset.lie) {
+    s.dataset.lie = '1';
+    s.addEventListener('input', () => majFinitions(+s.value));
+    const btn = document.getElementById('fin-play');
+    let timer = null;
+    btn.addEventListener('click', () => {
+      if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; return; }
+      btn.textContent = '❙❙';
+      timer = setInterval(() => {
+        let v = +s.value + 7;
+        if (v > +s.max) { v = +s.max; clearInterval(timer); timer = null; btn.textContent = '▶'; }
+        s.value = v; majFinitions(v);
+      }, 90);
+    });
+  }
+}
+
+/* ---- Planning d'occupation du site ----
+   Mêmes ressources, mêmes couleurs et même lecture que l'export Excel : une ligne par
+   ressource, une barre par occupation. Le découpage en tranches de temps est ce qui rend la
+   page imprimable — chaque tranche part sur sa feuille avec ses libellés, il n'y a rien à
+   recoller. Les ressources que le solveur ne modélise pas gardent leur ligne. */
+const G_RESSOURCES = (() => {
+  const out = [];
+  for (let n = 1; n <= 5; n++) {
+    out.push([`Line ${n} - STE Casting`, 'beton', n]);
+    // Les repairs et l'outfitting intégré se font en temps masqué pendant la coulée, et
+    // s'achèvent pendant l'outfitting UB : ils n'occupent pas de zone à eux, donc leur ligne
+    // reste vide. La phase du solveur est l'« Outfitting UB », où l'élément stationne.
+    out.push([`Line ${n} - STE Repairs + Integrated out`, null, null]);
+    out.push([`Line ${n} - Outfitting UB`, 'outfitting', n]);
+  }
+  out.push(['Cage Prefabrication Area', 'zone', 1], ['Casting Pit 1', 'zone', 2],
+           ['Casting Pit 2', 'zone', 3], ['Casting Pit 3', 'zone', 4],
+           ['Outfitting buffer area', 'zone', 5], ['Upper Basin 1', 'zone', 6],
+           ['Upper Basin 2', 'zone', 7], ['MPP Repair', null, null]);
+  for (let p = 1; p <= 6; p++) out.push([`Lower basin ${p}`, 'basin', p]);
+  out.push(['Harbour Parking SPE', 'stockageSPE', null]);
+  for (let p = 1; p <= 6; p++) out.push([`Harbour Parking ${p}`, 'parking', p]);
+  // Les lignes ci-dessous viennent du planning P6, pas du solveur : travaux marins puis
+  // finitions, à la maille du WBS. Une ligne par famille, non une par élément.
+  out.push(['Hookup', 'hookup', null], ['Ballast jetty', 'ballast', null],
+           ['Trench rectification (leveling layer)', 'p6:level', null],
+           ['Gravel bed', 'p6:gravel', null], ['Immersion', 'immersion', null],
+           ['Locking fill & Backfill', 'p6:lock', null],
+           ['Immersion joint removal (bulkheads)', 'p6:bhrem', null],
+           ['Immersion joint infill concrete', 'p6:infill', null],
+           ['Omega seal installation', 'p6:omega', null],
+           ['Removal of TE system', 'p6:tesys', null],
+           ['Drainage installation', 'p6:drain', null],
+           ['Walkways', 'p6:walk', null],
+           ['Element ready for float-up (SPE)', 'p6:readyfu', null]);
+  return out;
+})();
+
+/* ---- Travaux marins et finitions, repris du planning P6 ----
+   Extraits par `extraire_p6.py` au niveau de WBS demandé. Le solveur ne les calcule pas et
+   n'en tient aucun compte : ils ne font que remplir des lignes du planning qu'il laissait
+   vides. Format « id|catégorie|début|fin ». */
+const P6_BRUT = '01|bhrem|2027-03-22|2027-04-19;01|drain|2027-06-24|2027-07-23;01|gravel|2027-02-26|2027-03-02;01|infill|2027-06-18|2028-07-14;01|lock|2027-04-08|2027-04-09;01|omega|2027-04-19|2027-05-24;01|tesys|2027-06-07|2027-06-24;01|walk|2027-08-19|2027-09-11;01-02|bhrem|2027-04-21|2027-05-01;01-02|infill|2028-01-03|2028-01-22;01-02|omega|2027-05-01|2027-06-02;02|drain|2028-01-24|2028-02-11;02|gravel|2027-04-10|2027-04-13;02|lock|2027-04-21|2027-09-08;02|tesys|2027-12-09|2028-01-08;02|walk|2028-02-21|2028-03-11;02-03|bhrem|2027-12-01|2027-12-11;02-03|infill|2028-02-08|2028-02-29;02-03|omega|2027-12-11|2028-01-16;03|drain|2028-02-29|2028-03-20;03|gravel|2027-10-23|2027-10-25;03|lock|2027-12-01|2027-12-26;03|tesys|2028-01-22|2028-02-10;03|walk|2028-03-11|2028-05-02;03-S01|bhrem|2027-12-12|2028-01-18;03-S01|infill|2028-03-08|2028-03-29;03-S01|omega|2028-01-18|2028-02-14;04|drain|2028-04-19|2028-04-29;04|gravel|2027-11-08|2027-11-10;04|lock|2028-01-03|2028-03-26;04|tesys|2028-03-26|2028-04-08;04|walk|2028-04-25|2028-06-07;04-05|bhrem|2028-01-24|2028-02-11;04-05|infill|2028-04-12|2028-05-06;04-05|omega|2028-02-11|2028-02-25;05|drain|2028-05-08|2028-05-18;05|gravel|2028-01-17|2028-01-22;05|lock|2028-02-01|2028-04-03;05|tesys|2028-04-06|2028-04-24;05|walk|2028-05-19|2029-03-22;05-06|bhrem|2028-02-19|2028-02-29;05-06|infill|2028-04-28|2028-05-19;05-06|omega|2028-02-29|2028-03-14;06|drain|2028-05-20|2028-06-01;06|gravel|2028-02-10|2028-02-17;06|lock|2028-02-19|2028-04-11;06|tesys|2028-04-16|2028-05-04;06|walk|2028-06-02|2028-07-04;06-07|bhrem|2028-03-10|2028-03-19;06-07|infill|2028-05-08|2028-05-29;06-07|omega|2028-03-19|2028-04-03;07|drain|2028-05-30|2028-06-10;07|gravel|2028-02-27|2028-03-02;07|lock|2028-03-11|2028-04-25;07|tesys|2028-04-29|2028-05-14;07|walk|2028-06-15|2028-07-24;07-08|bhrem|2028-04-06|2028-04-14;07-08|infill|2028-05-23|2028-06-15;07-08|omega|2028-04-14|2028-04-30;08|drain|2028-06-15|2028-06-27;08|gravel|2028-03-17|2028-03-21;08|lock|2028-04-06|2028-05-12;08|tesys|2028-05-12|2028-05-24;08|walk|2028-06-27|2028-08-14;08-09|bhrem|2028-04-26|2028-05-04;08-09|infill|2028-06-12|2028-07-01;08-09|omega|2028-05-04|2028-05-18;09|drain|2028-07-03|2028-10-05;09|gravel|2028-04-13|2028-04-16;09|lock|2028-04-26|2028-09-09;09|tesys|2028-09-09|2028-09-16;09|walk|2028-07-14|2029-01-31;09-10|bhrem|2028-05-03|2028-05-11;09-10|infill|2028-12-01|2029-01-02;09-10|omega|2028-05-11|2028-05-26;10|drain|2029-01-02|2029-01-15;10|gravel|2028-04-29|2028-05-01;10|lock|2028-05-04|2028-09-13;10|tesys|2028-11-12|2028-11-20;10|walk|2029-01-13|2029-03-01;10-11|bhrem|2028-11-05|2028-11-13;10-11|infill|2029-01-08|2029-01-31;10-11|omega|2028-11-13|2028-11-30;11|drain|2029-01-31|2029-02-13;11|gravel|2028-09-14|2028-09-16;11|lock|2028-11-05|2028-11-10;11|tesys|2028-12-20|2028-12-28;11|walk|2029-02-12|2029-03-27;11-S02|bhrem|2028-11-30|2028-12-21;11-S02|infill|2029-02-02|2029-02-26;11-S02|omega|2028-12-21|2029-01-07;12|drain|2029-03-05|2029-03-16;12|gravel|2028-09-21|2028-09-24;12|lock|2028-12-13|2028-12-30;12|tesys|2029-01-21|2029-01-29;12|walk|2029-03-21|2029-04-25;12-13|bhrem|2029-01-02|2029-01-10;12-13|infill|2029-03-03|2029-03-23;12-13|omega|2029-01-10|2029-01-24;13|drain|2029-03-24|2029-04-07;13|gravel|2028-12-18|2028-12-22;13|lock|2029-01-03|2029-02-01;13|tesys|2029-02-13|2029-02-21;13|walk|2029-04-09|2029-10-26;13-14|bhrem|2029-01-28|2029-02-15;13-14|infill|2029-04-04|2029-04-25;13-14|omega|2029-02-15|2029-03-01;14|drain|2029-04-25|2029-05-08;14|gravel|2029-01-17|2029-01-23;14|lock|2029-02-07|2029-02-23;14|tesys|2029-03-18|2029-03-26;14|walk|2029-05-08|2029-06-19;14-15|bhrem|2029-03-08|2029-03-19;14-15|infill|2029-04-26|2029-05-19;14-15|omega|2029-03-19|2029-04-03;15|drain|2029-05-19|2029-06-01;15|gravel|2029-02-18|2029-02-24;15|lock|2029-03-12|2029-03-21;15|tesys|2029-04-09|2029-04-17;15|walk|2029-06-01|2029-07-03;15-16|bhrem|2029-03-26|2029-04-03;15-16|infill|2029-05-12|2029-06-04;15-16|omega|2029-04-03|2029-04-18;16|drain|2029-04-23|2029-05-22;16|gravel|2029-03-15|2029-03-19;16|lock|2029-03-27|2029-04-01;16|tesys|2029-04-25|2029-05-02;16|walk|2029-06-15|2029-07-17;16-17|bhrem|2029-04-16|2029-04-24;16-17|infill|2029-06-01|2029-06-25;16-17|omega|2029-04-24|2029-05-08;17|drain|2029-06-25|2029-07-07;17|gravel|2029-04-04|2029-04-06;17|lock|2029-04-16|2029-04-21;17|tesys|2029-05-14|2029-05-22;17|walk|2029-07-06|2029-10-23;17-18|bhrem|2029-05-05|2029-05-12;17-18|infill|2029-08-24|2029-09-15;17-18|omega|2029-05-12|2029-05-27;18|drain|2029-09-15|2029-09-28;18|gravel|2029-04-24|2029-04-26;18|lock|2029-05-05|2029-05-09;18|tesys|2029-08-04|2029-08-12;18|walk|2029-10-05|2029-11-06;18-19|bhrem|2029-06-28|2029-07-06;18-19|infill|2029-08-18|2029-09-11;18-19|omega|2029-07-06|2029-07-22;19|drain|2029-09-11|2029-09-24;19|gravel|2029-05-25|2029-05-27;19|lock|2029-06-28|2029-07-10;19|tesys|2029-08-15|2029-08-23;19|walk|2029-09-22|2029-11-09;19-S03|bhrem|2029-07-08|2029-08-01;19-S03|infill|2029-09-12|2029-10-06;19-S03|omega|2029-08-01|2029-08-18;20|drain|2029-10-17|2029-10-29;20|gravel|2029-06-11|2029-06-14;20|lock|2029-07-30|2029-08-06;20|tesys|2029-09-02|2029-09-10;20|walk|2029-10-30|2029-11-30;20-21|bhrem|2029-07-28|2029-08-06;20-21|infill|2029-09-24|2029-10-15;20-21|omega|2029-08-14|2029-08-30;21|drain|2029-10-16|2029-10-26;21|gravel|2029-07-22|2029-07-24;21|lock|2029-07-30|2029-08-08;21|tesys|2029-09-13|2029-09-21;21|walk|2029-11-10|2030-03-09;21-22|bhrem|2029-08-21|2029-08-29;21-22|infill|2029-10-06|2029-10-26;21-22|omega|2029-08-29|2029-09-12;22|drain|2029-10-27|2029-11-07;22|gravel|2029-07-30|2029-08-01;22|lock|2029-08-04|2029-08-12;22|tesys|2029-09-23|2029-10-01;22|walk|2029-11-08|2029-12-15;22-23|bhrem|2029-08-30|2029-09-06;22-23|infill|2029-10-15|2029-11-03;22-23|omega|2029-09-06|2029-09-21;23|drain|2029-11-05|2029-11-15;23|gravel|2029-08-12|2029-08-15;23|lock|2029-08-20|2029-08-23;23|tesys|2029-10-04|2029-10-12;23|walk|2029-11-20|2029-12-20;23-24|bhrem|2029-09-03|2029-09-10;23-24|infill|2029-10-20|2029-11-10;23-24|omega|2029-09-10|2029-09-26;24|drain|2029-11-10|2029-11-22;24|gravel|2029-08-24|2029-08-26;24|lock|2029-08-31|2029-09-24;24|tesys|2029-10-15|2029-10-23;24|walk|2029-12-01|2030-01-09;24-25|bhrem|2029-09-16|2029-09-23;24-25|infill|2029-10-31|2029-11-21;24-25|omega|2029-09-23|2029-10-08;25|drain|2029-11-21|2029-12-04;25|gravel|2029-09-02|2029-09-05;25|lock|2029-09-07|2029-09-26;25|tesys|2029-10-25|2029-11-02;25|walk|2029-12-13|2030-01-21;25-26|bhrem|2029-09-24|2029-10-02;25-26|infill|2029-11-09|2029-11-30;25-26|omega|2029-10-02|2029-10-16;26|drain|2029-11-30|2029-12-13;26|gravel|2029-09-08|2029-09-11;26|lock|2029-09-20|2029-10-11;26|tesys|2029-11-05|2029-11-13;26|walk|2030-01-02|2030-02-27;26-27|bhrem|2029-10-09|2029-10-17;26-27|infill|2030-01-07|2030-01-29;26-27|omega|2029-10-17|2029-10-31;27|drain|2030-01-29|2030-02-11;27|gravel|2029-09-28|2029-09-30;27|lock|2029-10-09|2029-10-13;27|tesys|2029-12-11|2029-12-19;27|walk|2030-02-09|2030-03-25;27-S04|bhrem|2029-11-05|2029-12-12;27-S04|infill|2030-01-31|2030-02-23;27-S04|omega|2029-12-12|2030-01-05;28|drain|2030-03-02|2030-03-14;28|gravel|2029-10-04|2029-10-07;28|lock|2029-12-03|2029-12-21;28|tesys|2030-01-21|2030-01-28;28|walk|2030-03-19|2030-04-12;28-29|bhrem|2029-12-18|2030-01-02;28-29|infill|2030-02-04|2030-03-02;28-29|omega|2030-01-02|2030-01-17;29|drain|2030-03-02|2030-03-14;29|gravel|2029-12-11|2029-12-16;29|lock|2029-12-18|2029-12-30;29|tesys|2030-02-02|2030-02-09;29|walk|2030-03-30|2030-05-06;29-30|bhrem|2030-01-19|2030-01-27;29-30|infill|2030-02-19|2030-03-25;29-30|omega|2030-01-27|2030-02-10;30|drain|2030-03-25|2030-04-01;30|gravel|2030-01-07|2030-01-13;30|lock|2030-01-20|2030-02-27;30|tesys|2030-02-27|2030-03-07;30|walk|2030-04-08|2030-05-08;30-31|bhrem|2030-02-08|2030-02-16;30-31|infill|2030-03-19|2030-04-02;30-31|omega|2030-01-31|2030-02-15;31|drain|2030-04-02|2030-04-28;31|gravel|2030-01-23|2030-01-29;31|lock|2030-02-09|2030-03-02;31|tesys|2030-03-11|2030-03-18;31|walk|2030-04-18|2030-05-10;31-32|bhrem|2030-02-23|2030-03-03;31-32|infill|2030-03-26|2030-04-21;31-32|omega|2030-03-03|2030-03-18;32|drain|2030-04-21|2030-04-28;32|gravel|2030-02-12|2030-02-18;32|lock|2030-02-24|2030-03-08;32|tesys|2030-03-26|2030-04-02;32|walk|2030-04-28|2030-05-13;32-33|bhrem|2030-03-05|2030-03-13;32-33|infill|2030-04-07|2030-04-25;32-33|omega|2030-03-13|2030-04-01;33|drain|2030-04-25|2030-05-04;33|gravel|2029-06-23|2029-06-26;33|lock|2030-03-05|2030-03-11;33|tesys|2030-04-06|2030-04-12;33|walk|2030-04-30|2030-05-19;33-34|bhrem|2030-03-05|2030-03-13;33-34|infill|2030-04-15|2030-04-27;33-34|omega|2030-03-13|2030-03-27;34|gravel|2029-06-07|2029-06-09;34|lock|2029-06-21|2029-06-27;34|walk|2028-12-19|2029-01-16;35|gravel|2029-05-21|2029-05-23;35|lock|2029-06-05|2029-06-11;35|walk|2028-11-07|2028-11-27;36|gravel|2029-05-06|2029-05-08;36|lock|2029-06-08|2029-06-14;36|walk|2028-07-11|2028-07-31;37|gravel|2029-04-18|2029-04-21;37|lock|2029-04-25|2029-05-12;37|walk|2028-10-10|2028-10-30;38|gravel|2029-03-30|2029-04-02;38|lock|2029-04-04|2029-04-07;38|walk|2028-09-05|2028-09-25;39|gravel|2029-02-28|2029-03-04;39|lock|2029-03-18|2029-04-09;39|walk|2028-09-05|2028-09-25;40|gravel|2029-01-25|2029-02-01;40|lock|2029-02-18|2029-04-05;40|walk|2028-06-06|2028-06-24;41|gravel|2028-12-26|2028-12-30;41|lock|2029-01-15|2029-02-07;41|walk|2028-06-06|2028-06-26;42|gravel|2028-11-08|2028-11-11;42|lock|2028-12-20|2029-02-03;42|walk|2028-02-15|2028-03-04;43|gravel|2028-09-06|2028-09-08;43|lock|2028-10-27|2028-10-29;43|walk|2028-03-20|2028-04-07;44|drain|2028-12-05|2028-12-18;44|gravel|2028-08-24|2028-08-26;44|lock|2028-09-02|2028-09-04;44|tesys|2028-11-03|2028-11-11;44|walk|2028-12-16|2029-02-01;44-S06|bhrem|2028-10-16|2028-11-04;44-S06|infill|2028-12-04|2029-01-03;44-S06|omega|2028-11-04|2028-11-17;45|drain|2028-10-30|2028-11-11;45|gravel|2028-08-15|2028-08-18;45|lock|2028-08-22|2028-09-05;45|tesys|2028-10-05|2028-10-13;45|walk|2028-11-23|2029-01-11;45-44|bhrem|2028-09-02|2028-09-10;45-44|infill|2028-11-13|2028-12-05;45-44|omega|2028-09-10|2028-09-22;46|drain|2028-10-17|2028-10-30;46|gravel|2028-08-04|2028-08-06;46|lock|2028-08-10|2028-08-25;46|tesys|2028-09-24|2028-10-02;46|walk|2028-11-11|2028-12-15;46-45|bhrem|2028-08-22|2028-08-30;46-45|infill|2028-10-06|2028-10-30;46-45|omega|2028-08-30|2028-09-11;47|drain|2030-04-09|2030-04-16;47|gravel|2028-07-25|2028-07-27;47|lock|2028-08-02|2028-08-18;47|tesys|2030-03-17|2030-03-23;47|walk|2030-04-16|2030-05-18;47-46|bhrem|2029-05-27|2029-06-22;47-46|infill|2029-07-18|2029-08-08;47-46|omega|2029-06-22|2029-07-04;48|drain|2029-07-13|2029-07-25;48|gravel|2028-07-14|2028-07-17;48|lock|2028-07-23|2028-07-27;48|tesys|2029-06-14|2029-06-22;48|walk|2029-07-25|2029-08-27;48-47|bhrem|2029-06-30|2029-07-04;48-47|infill|2030-03-13|2030-04-09;48-47|omega|2029-07-04|2029-07-16;49|drain|2029-07-28|2029-08-13;49|gravel|2028-07-03|2028-07-05;49|lock|2028-07-08|2028-07-16;49|tesys|2029-07-18|2029-07-25;49|walk|2029-10-03|2029-10-25;49-48|bhrem|2029-06-11|2029-06-28;49-48|infill|2029-07-25|2029-08-06;49-48|omega|2029-06-28|2029-07-10;50|drain|2029-05-16|2029-05-28;50|gravel|2028-06-27|2028-06-29;50|lock|2028-07-01|2028-07-14;50|tesys|2029-04-16|2029-04-24;50|walk|2029-05-29|2029-06-29;50-49|bhrem|2029-04-04|2029-04-11;50-49|infill|2029-05-11|2029-06-01;50-49|omega|2029-04-11|2029-04-23;51|drain|2029-01-29|2029-02-09;51|gravel|2028-05-27|2028-05-29;51|lock|2028-06-25|2028-07-11;51|tesys|2028-12-27|2029-01-04;51|walk|2029-02-09|2029-03-13;51-50|bhrem|2029-03-17|2029-03-25;51-50|infill|2029-04-21|2029-05-15;51-50|omega|2029-03-25|2029-04-06;52|drain|2028-08-02|2028-08-15;52|gravel|2028-05-15|2028-05-18;52|lock|2028-05-24|2028-05-30;52|tesys|2028-07-01|2028-07-09;52|walk|2028-08-14|2028-09-14;52-S07|bhrem|2028-06-10|2028-07-03;52-S07|infill|2028-08-01|2028-08-24;52-S07|omega|2028-07-03|2028-07-16;53|drain|2028-07-11|2028-07-24;53|gravel|2028-05-03|2028-05-06;53|lock|2028-05-13|2028-05-28;53|tesys|2028-06-09|2028-06-16;53|walk|2028-07-22|2028-08-31;53-52|bhrem|2028-05-24|2028-06-01;53-52|infill|2028-07-11|2028-08-02;53-52|omega|2028-06-01|2028-06-14;54|drain|2028-06-21|2028-07-04;54|gravel|2028-04-03|2028-04-05;54|lock|2028-04-14|2028-05-04;54|tesys|2028-05-23|2028-05-31;54|walk|2028-07-03|2028-08-09;54-53|bhrem|2028-05-12|2028-05-20;54-53|infill|2028-06-17|2028-07-11;54-53|omega|2028-05-20|2028-06-01;55|drain|2028-06-06|2028-06-19;55|gravel|2028-03-07|2028-03-10;55|lock|2028-03-28|2028-05-03;55|tesys|2028-05-13|2028-05-20;55|walk|2028-06-19|2028-07-20;55-54|bhrem|2028-04-13|2028-04-21;55-54|infill|2028-05-27|2028-06-21;55-54|omega|2028-04-21|2028-05-03;56|drain|2028-05-20|2028-06-02;56|gravel|2028-02-19|2028-02-25;56|lock|2028-02-29|2028-04-30;56|tesys|2028-04-30|2028-05-07;56|walk|2028-06-07|2028-07-07;56-55|bhrem|2028-03-27|2028-04-04;56-55|infill|2028-05-13|2028-06-06;56-55|omega|2028-04-04|2028-04-16;57|drain|2028-05-11|2028-05-23;57|gravel|2028-02-01|2028-02-06;57|lock|2028-02-12|2028-04-06;57|tesys|2028-04-15|2028-04-23;57|walk|2028-05-24|2028-06-26;57-56|bhrem|2028-02-29|2028-03-08;57-56|infill|2028-04-27|2028-05-20;57-56|omega|2028-03-08|2028-03-20;58|drain|2028-03-20|2028-05-06;58|gravel|2027-11-30|2027-12-04;58|lock|2028-01-13|2028-04-04;58|tesys|2028-04-04|2028-04-12;58|walk|2028-03-31|2028-09-14;58-57|bhrem|2028-02-12|2028-02-21;58-57|infill|2028-04-19|2028-05-10;58-57|omega|2028-02-21|2028-03-04;59|drain|2028-02-23|2028-03-06;59|gravel|2027-10-03|2027-10-06;59|lock|2027-11-27|2028-02-08;59|tesys|2028-02-08|2028-02-15;59|walk|2028-03-06|2028-04-27;59-58|bhrem|2028-01-11|2028-01-21;59-58|infill|2028-02-28|2028-03-20;59-58|omega|2028-01-21|2028-02-02;60|drain|2028-01-14|2028-01-27;60|gravel|2027-09-23|2027-09-25;60|lock|2027-09-29|2027-11-03;60|tesys|2027-12-04|2027-12-12;60|walk|2028-01-26|2028-03-02;60-S08|bhrem|2027-10-31|2027-12-05;60-S08|infill|2028-01-11|2028-02-02;60-S08|omega|2027-12-05|2027-12-19;61|drain|2027-11-26|2027-12-09;61|gravel|2027-09-11|2027-09-13;61|lock|2027-09-16|2027-11-01;61|tesys|2027-11-02|2027-11-10;61|walk|2027-12-13|2028-02-12;61-60|bhrem|2027-09-29|2027-10-06;61-60|infill|2027-12-14|2028-01-14;61-60|omega|2027-10-06|2027-10-18;62|drain|2027-11-15|2027-11-27;62|gravel|2027-08-29|2027-08-31;62|lock|2027-09-08|2027-09-24;62|tesys|2027-10-23|2027-10-31;62|walk|2027-12-01|2028-01-10;62-61|bhrem|2027-09-16|2027-09-24;62-61|infill|2027-11-04|2027-11-26;62-61|omega|2027-09-24|2027-10-06;63|drain|2027-11-04|2027-11-16;63|gravel|2027-08-21|2027-08-23;63|lock|2027-08-26|2027-09-13;63|tesys|2027-10-12|2027-10-20;63|walk|2027-11-19|2028-01-05;63-62|bhrem|2027-09-08|2027-09-16;63-62|infill|2027-10-25|2027-11-15;63-62|omega|2027-09-16|2027-09-28;64|drain|2027-10-25|2027-11-04;64|gravel|2027-08-11|2027-08-14;64|lock|2027-08-18|2027-09-11;64|tesys|2027-10-01|2027-10-09;64|walk|2027-11-22|2027-12-23;64-63|bhrem|2027-08-28|2027-09-04;64-63|infill|2027-10-14|2027-11-03;64-63|omega|2027-09-04|2027-09-17;65|drain|2027-10-13|2027-10-25;65|gravel|2027-08-01|2027-08-02;65|lock|2027-08-05|2027-08-24;65|tesys|2027-09-21|2027-09-29;65|walk|2027-11-16|2027-12-17;65-64|bhrem|2027-08-24|2027-08-31;65-64|infill|2027-10-04|2027-10-23;65-64|omega|2027-08-31|2027-09-12;66|drain|2027-10-04|2027-10-14;66|gravel|2027-07-25|2027-07-27;66|lock|2027-07-29|2027-08-11;66|tesys|2027-09-10|2027-09-18;66|walk|2027-10-27|2028-03-04;66-65|bhrem|2027-08-16|2027-08-24;66-65|infill|2027-09-22|2027-10-13;66-65|omega|2027-08-24|2027-09-05;67|drain|2027-10-08|2027-10-20;67|gravel|2027-06-25|2027-06-27;67|level|2027-06-15|2027-06-23;67|lock|2027-07-21|2027-08-08;67|tesys|2027-08-30|2027-09-07;67|walk|2027-10-25|2027-11-25;67-66|bhrem|2027-07-29|2027-08-06;67-66|infill|2027-09-13|2027-10-02;67-66|omega|2027-08-11|2027-08-24;68|drain|2027-09-01|2027-09-14;68|gravel|2027-05-29|2027-06-01;68|level|2027-05-19|2027-05-27;68|lock|2027-06-05|2027-07-14;68|tesys|2027-07-29|2027-08-16;68|walk|2027-09-28|2027-10-29;68-S09|bhrem|2027-07-07|2027-07-30;68-S09|infill|2027-08-30|2027-09-21;68-S09|omega|2027-07-30|2027-08-13;69|drain|2027-08-23|2027-09-04;69|gravel|2027-05-04|2027-05-07;69|level|2027-04-12|2027-04-20;69|lock|2027-05-11|2027-07-12;69|tesys|2027-07-12|2027-08-06;69|walk|2027-09-08|2027-10-09;69-68|bhrem|2027-06-04|2027-06-14;69-68|infill|2027-08-09|2027-09-01;69-68|omega|2027-06-14|2027-06-27;70|drain|2027-06-19|2027-07-03;70|gravel|2027-02-19|2027-02-24;70|level|2027-01-17|2027-01-25;70|lock|2027-03-30|2027-06-08;70|tesys|2027-06-08|2027-06-15;70|walk|2027-07-22|2027-08-23;70-69|bhrem|2027-05-11|2027-05-19;70-69|infill|2027-07-30|2027-08-23;70-69|omega|2027-05-19|2027-05-31;71|drain|2027-06-01|2027-06-15;71|gravel|2027-01-16|2027-01-23;71|level|2027-01-02|2027-01-10;71|lock|2027-01-25|2027-04-14;71|tesys|2027-04-23|2027-05-17;71|walk|2027-07-06|2027-08-06;71-70|bhrem|2027-02-27|2027-04-08;71-70|infill|2027-05-27|2027-06-19;71-70|omega|2027-04-08|2027-04-20;72|drain|2027-05-20|2027-05-31;72|gravel|2026-12-09|2026-12-13;72|level|2026-11-13|2026-11-21;72|lock|2026-12-18|2027-04-12;72|tesys|2027-04-12|2027-05-07;72|walk|2027-06-19|2027-07-20;72-71|bhrem|2027-01-25|2027-02-04;72-71|infill|2027-05-10|2027-06-01;72-71|omega|2027-02-04|2027-02-16;73|drain|2027-02-09|2027-02-19;73|gravel|2026-11-09|2026-11-12;73|level|2026-10-13|2026-10-24;73|lock|2026-11-22|2027-01-09;73|tesys|2027-01-12|2027-01-31;73|walk|2027-03-12|2027-04-20;73-72|bhrem|2026-12-18|2027-01-04;73-72|infill|2027-04-26|2027-05-19;73-72|omega|2027-01-04|2027-01-16;74|drain|2027-01-25|2027-02-04;74|gravel|2026-09-25|2026-09-28;74|level|2026-08-27|2026-09-06;74|lock|2026-10-16|2026-12-16;74|tesys|2027-01-01|2027-01-15;74|walk|2027-02-24|2027-04-03;74-73|bhrem|2026-11-20|2026-11-30;74-73|infill|2027-01-19|2027-02-08;74-73|omega|2026-11-30|2026-12-12;75|drain|2026-12-23|2027-01-12;75|gravel|2026-08-11|2026-08-13;75|level|2026-07-30|2026-08-09;75|lock|2026-09-12|2026-11-11;75|tesys|2026-11-29|2026-12-14;75|walk|2027-02-03|2027-03-30;75-74|bhrem|2026-10-16|2026-10-24;75-74|infill|2027-01-04|2027-01-23;75-74|omega|2026-10-24|2026-11-05;76|drain|2026-10-30|2026-11-10;76|gravel|2026-06-21|2026-06-23;76|level|2026-05-18|2026-06-18;76|lock|2026-07-09|2026-09-16;76|tesys|2026-09-27|2026-10-25;76|walk|2027-03-08|2027-03-26;76-S10|bhrem|2026-08-30|2026-09-08;76-S10|infill|2026-10-30|2026-11-19;76-S10|omega|2026-09-08|2026-10-02;77|bhrem|2026-05-08|2026-05-13;77|drain|2026-08-08|2026-08-27;77|gravel|2026-05-31|2026-06-03;77|infill|2026-06-22|2026-08-07;77|lock|2026-06-10|2026-08-13;77|omega|2026-05-13|2026-05-28;77|tesys|2026-07-24|2026-08-09;77|walk|2026-11-23|2026-12-05;77-78|bhrem|2026-05-28|2026-06-08;77-78|infill|2026-08-14|2026-09-08;77-78|omega|2026-06-08|2026-07-05;78|drain|2026-09-08|2026-09-28;78|gravel|2026-05-10|2026-05-16;78|lock|2026-05-28|2026-08-06;78|tesys|2026-08-06|2026-08-30;78|walk|2026-12-14|2027-01-23;78-79|bhrem|2026-06-10|2026-06-20;78-79|infill|2026-09-18|2026-10-09;78-79|omega|2026-06-20|2026-07-15;79|drain|2026-10-09|2026-10-29;79|gravel|2026-04-15|2026-04-24;79|lock|2026-05-06|2026-07-24;79|tesys|2026-09-15|2026-10-04;79|walk|2027-02-03|2027-03-06;79-76|bhrem|2026-07-09|2026-07-18;79-76|infill|2026-10-09|2026-10-30;79-76|omega|2026-08-17|2026-09-09;S01|drain|2028-03-16|2028-04-21;S01|gravel|2027-10-25|2027-10-28;S01|lock|2028-01-09|2028-01-21;S01|readyfu|2027-10-19|2027-10-21;S01|walk|2028-04-28|2028-05-19;S01-04|bhrem|2028-01-02|2028-01-24;S01-04|infill|2028-03-14|2028-04-04;S01-04|omega|2028-01-24|2028-02-19;S02|drain|2029-02-24|2029-03-09;S02|gravel|2028-09-16|2028-09-19;S02|lock|2028-12-14|2028-12-16;S02|readyfu|2028-02-16|2028-02-17;S02|walk|2029-03-03|2029-03-24;S02-12|bhrem|2028-12-09|2028-12-29;S02-12|infill|2029-02-09|2029-03-05;S02-12|omega|2028-12-29|2029-01-15;S03|drain|2029-11-23|2029-11-29;S03|gravel|2029-05-31|2029-06-02;S03|lock|2029-07-24|2029-07-25;S03|readyfu|2029-03-02|2029-03-02;S03|walk|2029-09-28|2029-11-21;S03-20|bhrem|2029-08-01|2029-08-10;S03-20|infill|2029-09-24|2029-10-17;S03-20|omega|2029-08-10|2029-08-26;S04|drain|2030-04-11|2030-04-18;S04|gravel|2029-09-30|2029-10-02;S04|lock|2029-12-04|2029-12-07;S04|readyfu|2029-06-01|2029-06-02;S04|walk|2030-03-29|2030-04-08;S04-28|bhrem|2029-11-29|2029-12-20;S04-28|infill|2030-02-08|2030-03-02;S04-28|omega|2029-12-20|2030-01-13;S05|drain|2029-09-28|2029-10-10;S05|gravel|2029-05-10|2029-05-12;S05|lock|2029-06-08|2029-06-11;S05|readyfu|2028-10-16|2028-10-16;S05|walk|2029-09-19|2029-10-09;S06|drain|2029-02-28|2029-03-13;S06|gravel|2028-08-27|2028-08-29;S06|lock|2028-10-28|2028-10-31;S06|readyfu|2028-07-10|2028-07-11;S06|walk|2029-02-13|2029-03-06;S06-43|bhrem|2028-10-25|2028-11-12;S06-43|infill|2029-01-05|2029-01-29;S06-43|omega|2028-11-12|2028-11-25;S07|drain|2028-08-29|2028-09-11;S07|gravel|2028-05-18|2028-05-20;S07|lock|2028-06-25|2028-07-03;S07|readyfu|2027-07-26|2027-07-27;S07|walk|2028-08-30|2028-09-13;S07-51|bhrem|2028-06-22|2028-07-10;S07-51|infill|2028-08-08|2028-08-31;S07-51|omega|2028-07-10|2028-07-23;S08|drain|2028-02-10|2028-02-23;S08|gravel|2027-09-25|2027-09-27;S08|lock|2027-11-28|2027-11-28;S08|walk|2028-03-15|2028-03-29;S08-59|bhrem|2027-11-24|2027-12-13;S08-59|infill|2028-01-31|2028-02-23;S08-59|omega|2027-12-13|2028-01-02;S09|drain|2027-09-25|2027-10-08;S09|gravel|2027-06-01|2027-06-03;S09|level|2027-03-13|2027-03-14;S09|lock|2027-07-23|2027-07-24;S09|walk|2027-09-29|2027-10-28;S09-67|bhrem|2027-07-19|2027-08-07;S09-67|infill|2027-09-06|2027-09-28;S09-67|omega|2027-08-07|2027-08-20;S10|drain|2026-11-20|2026-12-09;S10|gravel|2026-07-04|2026-07-07;S10|level|2026-06-30|2026-07-03;S10|lock|2026-09-01|2026-09-16;S10|walk|2027-09-03|2027-09-17;S10-75|bhrem|2026-09-12|2026-09-21;S10-75|infill|2026-12-02|2026-12-22;S10-75|omega|2026-09-21|2026-10-14';
+const P6 = P6_BRUT.split(';').filter(Boolean).map(t2 => {
+  const [id, cat, d, f] = t2.split('|');
+  return {id, cat, d: t(d), f: t(f)};
+});
+// « 01 » désigne TE-01, « S10 » le spécial SPE-10, « 77-78 » le joint entre deux éléments.
+function libelleJeton(j) {
+  return j.split('-').map(p => p[0] === 'S' ? 'SPE-' + p.slice(1) : 'TE-' + p).join(' / ');
+}
+
+const G_COULEUR = {
+  beton: '#FFFF00', outfitting: '#00B050', zone: '#A39FE9', basin: '#9DC3E6',
+  stockageSPE: '#C9B6EC', parking: '#D9D9D9', hookup: '#7FC6CE', ballast: '#ED9B33',
+  immersion: '#FF0000',
+  // Teintes sourdes pour ce qui vient du P6 : on doit voir d'un coup d'œil ce que le solveur
+  // calcule et ce qu'il ne fait que recopier.
+  'p6:level': '#BFA58A', 'p6:gravel': '#8C7B6B', 'p6:lock': '#C8B79E',
+  'p6:bhrem': '#A8C4D8', 'p6:infill': '#90AFC6', 'p6:omega': '#6E93B5',
+  'p6:tesys': '#B9C9A8', 'p6:drain': '#9FBA8C', 'p6:walk': '#86A472',
+  'p6:readyfu': '#D9A5C0',
+};
+const G_LEGENDE = {beton: 'Casting', outfitting: 'Outfitting', zone: 'Ligne SPE (CPA→UB3)',
+  basin: 'Lower basin', stockageSPE: 'Stockage SPE', parking: 'Harbour parking',
+  hookup: 'Hookup', ballast: 'Ballast jetty', immersion: 'Immersion',
+  'p6:gravel': 'Travaux marins (P6)', 'p6:omega': 'Finitions (P6)'};
+const G_MOIS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+
+/* ---- Effet d'une date imposée ----
+   Forcer une coulée ou une immersion rejoue tout : la séquence est réoptimisée, les retards et
+   les blocages recalculés, le planning redessiné. Reste à dire ce que le changement a coûté —
+   sans point de comparaison, un tableau de bord qui change de valeurs n'apprend rien.
+
+   La référence est l'état du dernier calcul sans aucune date forcée. On la capture à la volée
+   plutôt que de rejouer une simulation de contrôle à chaque glissement : deux passages de
+   l'optimiseur par geste rendraient l'outil inutilisable. En contrepartie, elle vieillit si un
+   paramètre change entre-temps — d'où la signature, et l'avertissement quand elle ne colle plus. */
+let REFERENCE = null;
+
+// `sequenceCourante()` rend {ligne: [ids]}, pas une liste : on l'aplatit en id → {ligne, rang}
+// pour pouvoir comparer deux séquences élément par élément.
+function aplatirSeq(seq) {
+  const out = {};
+  if (!seq) return null;
+  for (const l in seq) (seq[l] || []).forEach((id, i) => { out[id] = {l: +l, i}; });
+  return out;
+}
+
+function signatureParams() {
+  return ['p-dateref', 'p-seuilparking', 'p-floatup', 'p-stockagespe',
+          'p-etanche-critique', 'p-sequence', 'p-datedecision']
+    .map(id => ($(id) || {}).value).join('|')
+    + '|' + ['p-etanche-critique-ok', 'p-arret-tot', 'p-accel-cycle', 'p-vacances',
+             'p-jour-coulage', 'p-stagger', 'p-optimiser', 'p-reaffecter']
+      .map(id => ($(id) || {}).checked ? 1 : 0).join('');
+}
+
+function kpiCourants() {
+  const finsHalles = D.elements.map(e => t(e.oF) || t(e.bF)).filter(Boolean);
+  return {
+    retards: D.retards.length,
+    max: D.retards.length ? D.retards[0].retardJours : 0,
+    cumul: D.retards.reduce((s, r) => s + r.retardJours, 0),
+    bloques: D.elements.filter(e => !e.fini).length,
+    arret: finsHalles.length ? Math.max(...finsHalles) : null,
+    fin: Math.max(...D.elements.map(e => t(e.ir) || t(e.im) || 0)),
+  };
+}
+
+function capturerReference() {
+  if (!D || IMPOSITIONS.size) return;
+  REFERENCE = {
+    signature: signatureParams(),
+    kpi: kpiCourants(),
+    seq: aplatirSeq(D.sequence && D.sequence.apresSeq),
+    el: Object.fromEntries(D.elements.map(e => [e.id, {bD: e.bD, ir: e.ir, im: e.im,
+                                                      fini: e.fini, ln: e.ln}])),
+  };
+}
+
+function rendreConsequences() {
+  const sec = document.getElementById('s-consequences');
+  const box = document.getElementById('consequences');
+  if (!sec || !box) return;
+  sec.hidden = !(D && IMPOSITIONS.size && REFERENCE);
+  if (sec.hidden) return;
+  box.textContent = '';
+
+  if (REFERENCE.signature !== signatureParams()) {
+    const av = el('p', 'cons-liste');
+    av.innerHTML = '⚠ Un paramètre de calcul a changé depuis la référence : les écarts ci-dessous '
+      + 'mélangent l\'effet des dates imposées et celui du paramètre. Rendez les dates au solveur '
+      + 'pour reprendre une référence propre.';
+    av.style.color = 'var(--crit)';
+    box.append(av);
+  }
+
+  const k = kpiCourants(), r = REFERENCE.kpi;
+  const jour = ms => ms ? fr(new Date(ms).toISOString().slice(0, 10)) : '—';
+  const ecartJours = (a, b) => (a && b) ? Math.round((a - b) / day) : null;
+  const cases = [
+    ['Éléments en retard', k.retards, k.retards - r.retards, ''],
+    ['Retard maximum', k.max + ' j', k.max - r.max, ' j'],
+    ['Retard cumulé', k.cumul + ' j', k.cumul - r.cumul, ' j'],
+    ['Éléments bloqués', k.bloques, k.bloques - r.bloques, ''],
+    ['Arrêt de l\'usine', jour(k.arret), ecartJours(k.arret, r.arret), ' j'],
+    ['Dernière immersion', jour(k.fin), ecartJours(k.fin, r.fin), ' j'],
+  ];
+  const grille = el('div', 'cons-kpis');
+  cases.forEach(([lab, val, d, unite]) => {
+    const c = el('div', 'cons-case');
+    const cls = d === null ? 'egal' : (d > 0 ? 'pire' : (d < 0 ? 'mieux' : 'egal'));
+    const txt = d === null ? '—' : (d === 0 ? 'inchangé' : (d > 0 ? '+' : '') + d + unite);
+    c.append(el('div', 'c-lab', lab), el('div', 'c-val', String(val)),
+             el('div', 'c-ecart ' + cls, txt));
+    grille.append(c);
+  });
+  box.append(grille);
+
+  // L'onde de choc : combien d'éléments, autres que ceux qu'on a forcés, ont bougé.
+  const bouges = [], nouveauxRetards = [], soulages = [], nouveauxBloques = [];
+  D.elements.forEach(e => {
+    const ref = REFERENCE.el[e.id];
+    if (!ref) return;
+    const d = ecartJours(t(e.bD), t(ref.bD));
+    if (d && Math.abs(d) >= 1 && !IMPOSITIONS.has(e.id)) bouges.push({id: e.id, d});
+    const avant = ref.ir && ref.im && t(ref.ir) > t(ref.im);
+    const apres = e.ir && e.im && t(e.ir) > t(e.im);
+    if (apres && !avant) nouveauxRetards.push(e.id);
+    if (avant && !apres) soulages.push(e.id);
+    if (!e.fini && ref.fini) nouveauxBloques.push(e.id);
+  });
+  const dire = (n, txt, liste) => {
+    if (!n) return;
+    const p = el('p', 'cons-liste');
+    p.innerHTML = `<b>${n}</b> ${txt}` + (liste.length ? ' — ' + liste.slice(0, 12).join(', ')
+      + (liste.length > 12 ? '…' : '') : '') + '.';
+    box.append(p);
+  };
+  dire(IMPOSITIONS.size, 'élément(s) portent une date forcée', [...IMPOSITIONS.keys()]);
+
+  // La séquence a-t-elle bougé ? Si l'optimiseur est actif il en choisit une nouvelle, et les
+  // déplacements ci-dessous mélangent alors l'effet de la date forcée et celui de ce nouveau
+  // choix. Le taire ferait attribuer à un glissement d'un jour des décalages d'un an.
+  const seq = aplatirSeq(D.sequence && D.sequence.apresSeq);
+  if (seq && REFERENCE.seq) {
+    let rang = 0, ligne = 0;
+    for (const id in seq) {
+      const av = REFERENCE.seq[id];
+      if (!av) continue;
+      if (av.l !== seq[id].l) ligne++;
+      else if (av.i !== seq[id].i) rang++;
+    }
+    if (rang || ligne) {
+      const p = el('p', 'cons-liste');
+      p.innerHTML = `La séquence de production a été rejouée : <b>${rang + ligne}</b> élément(s) `
+        + `ont changé de place` + (ligne ? `, dont <b>${ligne}</b> de ligne` : '')
+        + `. Les déplacements de départ béton ci-dessous mêlent donc l'effet de la date forcée `
+        + `et celui de cette nouvelle séquence. Décochez « Optimiser la séquence » pour isoler `
+        + `le seul effet de la date.`;
+      box.append(p);
+    }
+  }
+  bouges.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  dire(bouges.length, 'autre(s) élément(s) ont vu leur départ béton se déplacer',
+       bouges.map(b => `${b.id} ${b.d > 0 ? '+' : ''}${b.d} j`));
+  dire(nouveauxRetards.length, 'élément(s) manquent leur date d\'immersion et ne la manquaient pas',
+       nouveauxRetards);
+  dire(soulages.length, 'élément(s) tiennent désormais leur date alors qu\'ils la manquaient', soulages);
+  dire(nouveauxBloques.length, 'élément(s) ne sont plus immergés dans l\'horizon de simulation',
+       nouveauxBloques);
+  if (!bouges.length && !nouveauxRetards.length && !soulages.length && !nouveauxBloques.length) {
+    const p = el('p', 'cons-liste');
+    p.textContent = 'Aucun autre élément n\'est affecté : le changement reste local.';
+    box.append(p);
+  }
+}
+
+/* ---- Retouches manuelles ----
+   Le planning est le résultat du solveur ; il arrive qu'on veuille en décaler une barre pour
+   discuter une hypothèse — un arrêt technique, une immersion repoussée — sans relancer le
+   calcul ni perdre le reste. Les retouches sont donc une couche par-dessus le résultat :
+   elles ne remontent jamais dans le solveur, elles sont listées, et elles s'annulent d'un clic.
+   Clé : identifiant + ressource + date de départ d'origine, ce qui distingue les deux barres
+   qu'un même élément a sur une même ligne (la coulée et le big push). */
+const RETOUCHES = new Map();
+let RESSOURCES_AFFICHEES = [];
+const cleRetouche = o => `${o.id}|${o.res0}|${o.d0}`;
+
+function appliquerRetouches(occ) {
+  occ.forEach(o => {
+    o.res0 = o.res; o.d0 = o.d;
+    const r = RETOUCHES.get(cleRetouche(o));
+    if (!r) return;
+    o.retouchee = true;
+    if (r.dj) { o.d += r.dj * day; o.f += r.dj * day;
+                if (o.segs) o.segs = o.segs.map(s => ({...s, d: s.d + r.dj * day, f: s.f + r.dj * day})); }
+    if (r.res) o.res = r.res;
+  });
+  return occ;
+}
+
+// Occupations : {ressource, debut, fin, id}. Mêmes règles que l'export Excel.
+function occupationsGantt() {
+  const out = [];
+  const nom = e => e.id.startsWith('STE-') ? e.id.slice(1) : e.id;
+  const pousser = (res, a, b, e) => {
+    const d = t(a), f = t(b);
+    if (d && f && f > d) out.push({res, d, f, id: e.id, lab: nom(e)});
+  };
+  // Départs béton d'une même ligne, pour savoir où finit le poussage de chacun.
+  const suivantDeLigne = {};
+  [1,2,3,4,5].forEach(l => {
+    const file = D.elements.filter(x => x.ln === l && x.bD).sort((a, b) => t(a.bD) - t(b.bD));
+    file.forEach((x, i) => { if (file[i+1]) suivantDeLigne[x.id] = file[i+1]; });
+  });
+  D.elements.forEach(e => {
+    if (e.ln <= 5) {
+      const casting = `Line ${e.ln} - STE Casting`;
+      pousser(casting, e.bD, e.bF, e);
+      // Les neuf coulées de segment, aux dates calculées par le solveur : le repère qu'un
+      // chef de production regarde, plutôt qu'une seule grande tâche.
+      if (e.sg && e.sg.length) {
+        const barre = out[out.length - 1];
+        if (barre && barre.res === casting)
+          barre.segs = e.sg.map((d, i) => ({k: i + 1, d: t(d),
+            f: t(e.sg[i + 1]) || Math.max(t(e.bF), t(d) + day)}));
+      }
+      // Big push : transfert FIXE (72h, REGLES.dureePushJours dans le solveur) de la zone
+      // béton vers la zone d'outfitting — jamais étiré, quoi qu'il arrive en aval. L'attente
+      // éventuelle avant que le push ne commence (zone UB encore occupée, upper basin plein)
+      // est une barre séparée ('attente UB'), distincte du push : les confondre masquait le
+      // vrai signal (cadence trop rapide pour la ligne) derrière un « push » à rallonge qui
+      // n'existe pas sur le chantier — la durée d'un push est fixe (confirmé 11/08/2026).
+      if (e.bF) {
+        const finBeton = t(e.bF), debutPush = t(e.puD), finPush = t(e.puF);
+        if (debutPush && finPush) {
+          if (debutPush > finBeton) {
+            out.push({res: casting, d: finBeton, f: debutPush, id: e.id, lab: 'attente UB', wait: true});
+          }
+          out.push({res: casting, d: debutPush, f: Math.max(finPush, debutPush + day), id: e.id, lab: 'push', push: true});
+        } else {
+          // Repli : passage en Push non simulé (import as-built direct en Outfitting, par
+          // exemple) — pas de distinction possible entre attente et push, ancien affichage.
+          const suiv = suivantDeLigne[e.id];
+          const fin = Math.max(t(e.oD) || 0, suiv ? t(suiv.bD) : 0, finBeton + day);
+          out.push({res: casting, d: finBeton, f: fin, id: e.id, lab: 'push', push: true});
+        }
+      }
+      pousser(`Line ${e.ln} - Outfitting UB`, e.oD, e.oF, e);
+      // Float-up : le jalon qui clôt le séjour en zone UB.
+      if (e.fu) out.push({res: `Line ${e.ln} - Outfitting UB`, d: t(e.fu), f: t(e.fu) + day * 2,
+        id: e.id, lab: nom(e), fu: true});
+    }
+    if (e.zones) {
+      const zs = {};
+      Object.entries(e.zones).forEach(([z, d]) => { zs[+z] = d; });
+      Object.keys(zs).map(Number).sort((a, b) => a - b).forEach(z => {
+        const ligne = G_RESSOURCES.find(r => r[1] === 'zone' && r[2] === z);
+        if (!ligne) return;
+        pousser(ligne[0], zs[z], zs[z + 1] || e.fu || e.oF, e);
+      });
+    }
+    if (e.bn && e.bp) pousser(`Lower basin ${(e.bn - 1) * 2 + e.bp}`, e.ba, e.pk || e.bl, e);
+    if (e.sp) pousser('Harbour Parking SPE', e.stk, e.bl, e);
+    if (e.pn) pousser(`Harbour Parking ${e.pn}`, e.pk, e.bl, e);
+    pousser('Hookup', e.ba, e.baF, e);
+    pousser('Ballast jetty', e.bl, e.fb, e);
+    if (e.ir) out.push({res: 'Immersion', d: t(e.ir), f: t(e.ir) + day * 3, id: e.id, lab: nom(e)});
+  });
+  // Barres du P6, rangées sur la ligne de leur famille.
+  const parCat = {};
+  G_RESSOURCES.forEach(r => { if (r[1] && String(r[1]).startsWith('p6:')) parCat[r[1].slice(3)] = r[0]; });
+  P6.forEach(b => {
+    const res = parCat[b.cat];
+    if (res && b.f > b.d) out.push({res, d: b.d, f: b.f, id: b.id, lab: libelleJeton(b.id), p6: true});
+  });
+  return out;
+}
+
+// Périodes d'arrêt de l'usine, pour les hachurer sur le planning.
+function bandesVacances(t0, t1) {
+  if (!PARAMS || !PARAMS.vacances) return [];
+  const out = [];
+  for (let an = new Date(t0).getFullYear() - 1; an <= new Date(t1).getFullYear(); an++) {
+    periodesVacances(an).forEach(([a, b]) => out.push([+a, +b]));
+  }
+  return out;
+}
+
+/* Cheminement d'un élément : un trait de la fin d'une occupation au début de la suivante,
+   ressource après ressource. Quatre-vingt-neuf éléments font beaucoup de traits — ils sont
+   donc effacés par défaut, et survoler une barre isole le trajet de son élément. Les rangs
+   étant de hauteur fixe, la géométrie se calcule sans mesurer le DOM : le tracé est juste
+   même avant que la page soit peinte, et ne bouge pas à l'impression. */
+const PL_RANG_H = 14, PL_TETE_H = 30, PL_COMPTES_H = 30;
+function tracerFlux(etapes, pc, nbRessources) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'pl-flux');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const hauteur = PL_TETE_H + PL_COMPTES_H + nbRessources * PL_RANG_H;
+  svg.setAttribute('viewBox', `0 0 100 ${hauteur}`);
+  const y = rang => PL_TETE_H + PL_COMPTES_H + rang * PL_RANG_H + PL_RANG_H / 2;
+  // Pointe de flèche, à la taille du tracé : c'est elle qui donne le sens du parcours.
+  const defs = document.createElementNS(NS, 'defs');
+  defs.innerHTML = '<marker id="pl-pointe" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5"'
+    + ' markerHeight="5" markerUnits="strokeWidth" orient="auto">'
+    + '<path d="M0 0 L6 3 L0 6 z" fill="currentColor"/></marker>';
+  svg.append(defs);
+
+  const parElement = {};
+  etapes.forEach(e => { if (!e.push) (parElement[e.id] = parElement[e.id] || []).push(e); });
+  // Les extrémités hors page sont ramenées au bord : un cheminement qui sort de la tranche
+  // reste lisible comme tel, alors que le supprimer laisserait croire qu'il n'existe pas.
+  const borne = v => Math.max(-1, Math.min(101, v));
+  for (const id in parElement) {
+    const suite = parElement[id].sort((a, b) => a.d - b.d || a.rang - b.rang);
+    for (let i = 1; i < suite.length; i++) {
+      const a = suite[i - 1], b = suite[i];
+      if (b.rang === a.rang) continue;
+      const x1 = borne(pc(a.f)), y1 = y(a.rang), x2 = borne(pc(b.d)), y2 = y(b.rang);
+      if (x2 < 0 || x1 > 100) continue;              // segment entièrement hors de la tranche
+      const p = document.createElementNS(NS, 'path');
+      // Courbe en S : verticale près des barres, pour qu'un faisceau reste lisible.
+      p.setAttribute('d', `M${x1} ${y1} C${x1} ${(y1 + y2) / 2} ${x2} ${(y1 + y2) / 2} ${x2} ${y2}`);
+      p.setAttribute('vector-effect', 'non-scaling-stroke');
+      p.setAttribute('marker-end', 'url(#pl-pointe)');
+      p.dataset.id = id;
+      svg.append(p);
+    }
+  }
+  return svg;
+}
+
+/* Relevé des retouches, au-dessus du planning : ce qui a été déplacé, de combien, et de
+   quoi l'annuler — pièce par pièce ou d'un coup. Sans ce relevé, une barre déplacée par
+   mégarde se confondrait avec un résultat de calcul. */
+function rendreRetouches() {
+  const boite = document.getElementById('planning-retouches');
+  if (!boite) return;
+  boite.textContent = '';
+  boite.hidden = RETOUCHES.size === 0 && IMPOSITIONS.size === 0;
+  if (boite.hidden) return;
+  const relance = () => calculer($('drop-xlsx').textContent.trim());
+
+  // Les dates imposées, d'abord : elles ont changé le calcul, pas seulement le dessin.
+  if (IMPOSITIONS.size) {
+    // `t` est la fonction de conversion de date du module : ne pas la masquer ici.
+    const entete = el('span');
+    entete.append(document.createTextNode('Dates imposées : '));
+    entete.append(el('b', null, String(IMPOSITIONS.size)));
+    entete.append(document.createTextNode(' élément(s) — le planning ci-dessous en découle.'));
+    boite.append(entete);
+    const parId = Object.fromEntries(D.elements.map(e => [e.id, e]));
+    [...IMPOSITIONS.entries()].slice(0, 10).forEach(([id, imp]) => {
+      // Ce qui a été demandé, et ce qui a été obtenu. Une date de coulée imposée est un
+      // « au plus tôt » : la halle, le déphasage, le jour de coulage ou l'ordre d'immersion
+      // peuvent la repousser. Sans cet écart affiché, la barre revient à sa place calculée et
+      // l'on croit que rien ne s'est passé.
+      const e = parId[id] || {};
+      const morceaux = [];
+      let tenu = true;
+      if (imp.beton) {
+        const voulu = new Date(imp.beton).toISOString().slice(0, 10);
+        const obtenu = e.bD || null;
+        const ec = obtenu ? Math.round((t(obtenu) - t(voulu)) / day) : null;
+        morceaux.push('coulée ' + fr(voulu) + (ec ? ` → ${fr(obtenu)} (+${ec} j)` : ''));
+        if (ec) tenu = false;
+      }
+      if (imp.immersion) morceaux.push('immersion ' + fr(new Date(imp.immersion).toISOString().slice(0, 10)));
+      const chip = el('span', 'retouche impose' + (tenu ? '' : ' repousse'), `${id} · ${morceaux.join(' · ')}`);
+      chip.title = (tenu ? '' : 'La date demandée n\'a pas pu être tenue : une date de coulée '
+                    + 'imposée retarde, elle n\'avance jamais — la halle n\'est pas libre plus tôt.\n')
+                    + 'Cliquer pour rendre cet élément au solveur et relancer';
+      chip.style.cursor = 'pointer';
+      chip.addEventListener('click', () => { IMPOSITIONS.delete(id); relance(); });
+      boite.append(chip);
+    });
+    if (IMPOSITIONS.size > 10) boite.append(el('span', 'retouche', `+${IMPOSITIONS.size - 10} autre(s)`));
+    const bi = el('button', null, 'Rendre toutes les dates au solveur');
+    bi.type = 'button';
+    bi.addEventListener('click', () => { IMPOSITIONS.clear(); relance(); });
+    boite.append(bi);
+  }
+  if (!RETOUCHES.size) return;
+  const titre = el('span');
+  titre.append(document.createTextNode('Retouches d\'affichage : '));
+  const b = el('b', null, String(RETOUCHES.size)); titre.append(b);
+  titre.append(document.createTextNode(' barre(s) déplacée(s), hors calcul du solveur.'));
+  boite.append(titre);
+  [...RETOUCHES.entries()].slice(0, 12).forEach(([cle, r]) => {
+    const [id, res0] = cle.split('|');
+    const txt = `${id} · ${r.dj ? (r.dj > 0 ? '+' : '') + r.dj + ' j' : ''}`
+      + `${r.dj && r.res ? ' · ' : ''}${r.res ? '→ ' + r.res : ''}`;
+    const chip = el('span', 'retouche', txt);
+    chip.title = `${res0}\nCliquer pour annuler cette retouche`;
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', () => { RETOUCHES.delete(cle); rendreGantt(); });
+    boite.append(chip);
+  });
+  if (RETOUCHES.size > 12) boite.append(el('span', 'retouche', `+${RETOUCHES.size - 12} autre(s)`));
+  const bouton = el('button', null, 'Tout annuler');
+  bouton.type = 'button';
+  bouton.addEventListener('click', () => { RETOUCHES.clear(); rendreGantt(); });
+  boite.append(bouton);
+}
+
+/* Déplacement d'une barre à la souris. L'horizontale décale les dates au jour près,
+   la verticale change de ressource. Rien n'est écrit tant que le bouton n'est pas relâché :
+   pendant le geste, la barre suit le curseur par une simple translation. */
+function brancherDeplacement() {
+  const planning = document.getElementById('planning');
+  if (!planning) return;
+  let prise = null;
+  planning.addEventListener('pointerdown', ev => {
+    if (!document.getElementById('planning-ajuster').checked) return;
+    const barre = ev.target.closest('.pl-barre');
+    if (!barre || ev.button !== 0) return;
+    const piste = barre.closest('.pl-piste');
+    if (!piste) return;
+    const span = +piste.dataset.pb - +piste.dataset.pa;
+    prise = {barre, piste, x0: ev.clientX, y0: ev.clientY,
+             jourParPx: (span / day) / piste.getBoundingClientRect().width,
+             cle: barre.dataset.cle, rang: +barre.dataset.rang, dj: 0, drang: 0,
+             pilote: barre.dataset.pilote || null, d0: +barre.dataset.d0};
+    barre.classList.add('attrapee');
+    barre.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  planning.addEventListener('pointermove', ev => {
+    if (!prise) return;
+    prise.dj = Math.round((ev.clientX - prise.x0) * prise.jourParPx);
+    prise.drang = Math.round((ev.clientY - prise.y0) / PL_RANG_H);
+    prise.barre.style.transform =
+      `translate(${ev.clientX - prise.x0}px, ${prise.drang * PL_RANG_H}px)`;
+  });
+  const relacher = ev => {
+    if (!prise) return;
+    const {barre, cle, dj, drang, rang, pilote, d0} = prise;
+    barre.classList.remove('attrapee');
+    barre.style.transform = '';
+    prise = null;
+    if (!dj && !drang) return;
+    // `preventDefault` sur le relâchement n'empêche pas le clic qui suit : c'est la barre
+    // elle-même qui porte la marque, et son gestionnaire de clic la consomme.
+    barre.dataset.glisse = '1';
+    // Barre pilotante déplacée dans le temps : c'est une entrée du modèle qu'on change, donc
+    // on impose la date et on relance le calcul. Le décalage vertical est ignoré ici : une
+    // coulée ne change pas de ligne en glissant sur une ressource quelconque.
+    if (pilote && dj) {
+      const d = new Date(d0 + dj * day);
+      imposer(barre.dataset.id, pilote === 'beton' ? 'beton' : 'immersion', d);
+      calculer($('drop-xlsx').textContent.trim());
+      return;
+    }
+    const cible = RESSOURCES_AFFICHEES[rang + drang];
+    const avant = RETOUCHES.get(cle) || {dj: 0, res: null};
+    const suite = {dj: avant.dj + dj, res: drang && cible ? cible[0] : avant.res};
+    if (!suite.dj && !suite.res) RETOUCHES.delete(cle); else RETOUCHES.set(cle, suite);
+    rendreGantt();
+  };
+  planning.addEventListener('pointerup', relacher);
+  planning.addEventListener('pointercancel', relacher);
+}
+
+function rendreGantt() {
+  const boite = document.getElementById('planning');
+  if (!boite) return;
+  const OCC = appliquerRetouches(occupationsGantt());
+  boite.textContent = '';
+  rendreRetouches();
+  if (!OCC.length) { boite.textContent = 'Aucune occupation à tracer.'; return; }
+
+  const gardeVides = document.getElementById('planning-vides').checked;
+  const ressources = G_RESSOURCES.filter(r => gardeVides || r[1]);
+  const moisParPage = parseInt(document.getElementById('planning-tranche').value, 10);
+
+  // Toutes les coulées de segment du programme, à plat : de quoi compter la charge par
+  // semaine et par mois. Une semaine à plus d'une coulée par ligne se signale en rouge —
+  // c'est le cas que le jour de coulage cherche à éviter.
+  const COULEES = OCC.flatMap(o => (o.segs || []).map(s => s.d)).sort((a, b) => a - b);
+  const SEUIL_SEM = 6;
+  const flux = document.getElementById('planning-flux').checked;
+  const ajuster = document.getElementById('planning-ajuster').checked;
+  RESSOURCES_AFFICHEES = ressources;
+
+  let T0 = Math.min(...OCC.map(o => o.d)), T1 = Math.max(...OCC.map(o => o.f));
+  const d0 = new Date(T0); T0 = +new Date(d0.getFullYear(), d0.getMonth(), 1);
+  const d1 = new Date(T1); T1 = +new Date(d1.getFullYear(), d1.getMonth() + 1, 1);
+  const vac = bandesVacances(T0, T1);
+
+  const pages = [];
+  for (let deb = new Date(T0); +deb < T1;) {
+    const fin = new Date(deb.getFullYear(), deb.getMonth() + moisParPage, 1);
+    pages.push([+deb, Math.min(+fin, T1)]);
+    deb = fin;
+  }
+
+  pages.forEach(([pa, pb], iPage) => {
+    const span = pb - pa;
+    const pc = ms => ((ms - pa) / span) * 100;
+    const page = el('div', 'pl-page');
+    page.append(el('div', 'pl-titre',
+      `${fr(new Date(pa).toISOString().slice(0,10))} → ${fr(new Date(pb - day).toISOString().slice(0,10))}`
+      + `  ·  page ${iPage + 1} / ${pages.length}`));
+
+    const corps = el('div', 'pl-corps');
+    const cols = el('div', 'pl-libelles');
+    cols.append(el('div', 'pl-tete'));
+    cols.append(el('div', 'pl-compte-lib', 'Coulées / semaine'));
+    cols.append(el('div', 'pl-compte-lib', 'Coulées / mois'));
+    ressources.forEach(([lib, src]) => cols.append(el('div', 'pl-lib' + (src ? '' : ' vide'), lib)));
+    corps.append(cols);
+
+    const piste = el('div', 'pl-piste');
+    const tete = el('div', 'pl-tete');
+    // Bandeau des mois, puis des numéros de semaine.
+    for (let m = new Date(pa); +m < pb;) {
+      const suivant = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      const bloc = el('div', 'pl-mois', `${G_MOIS[m.getMonth()]} ${String(m.getFullYear()).slice(2)}`);
+      bloc.style.left = pc(+m) + '%';
+      bloc.style.width = (pc(Math.min(+suivant, pb)) - pc(+m)) + '%';
+      tete.append(bloc);
+      m = suivant;
+    }
+    const premLundi = new Date(pa); premLundi.setDate(premLundi.getDate() - ((premLundi.getDay() + 6) % 7));
+    for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+      if (+w < pa) continue;
+      const s = el('div', 'pl-sem', String(semaineIso(w)));
+      s.style.left = pc(+w) + '%';
+      s.style.width = (7 * day / span * 100) + '%';
+      tete.append(s);
+    }
+    piste.append(tete);
+
+    // Charge de coulée : le nombre de segments coulés dans chaque semaine, puis dans chaque
+    // mois, toutes lignes confondues. C'est ce que voit la centrale à béton — la grandeur que
+    // la règle du jour de coulage cherche à lisser.
+    const rangSem = el('div', 'pl-compte');
+    for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+      if (+w < pa) continue;
+      const fin = +w + 7 * day;
+      const n = COULEES.filter(j => j >= +w && j < fin).length;
+      const c = el('div', 'pl-cnt' + (n >= SEUIL_SEM ? ' charge' : ''), n ? String(n) : '');
+      c.style.left = pc(+w) + '%';
+      c.style.width = (7 * day / span * 100) + '%';
+      c.title = `Semaine ${semaineIso(w)} — ${n} coulée(s) de segment`;
+      rangSem.append(c);
+    }
+    piste.append(rangSem);
+    const rangMois = el('div', 'pl-compte');
+    for (let m = new Date(pa); +m < pb;) {
+      const suiv = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      const n = COULEES.filter(j => j >= +m && j < +suiv).length;
+      const c = el('div', 'pl-cnt', n ? String(n) : '');
+      c.style.left = pc(+m) + '%';
+      c.style.width = (pc(Math.min(+suiv, pb)) - pc(+m)) + '%';
+      c.title = `${G_MOIS[m.getMonth()]} ${m.getFullYear()} — ${n} coulée(s) de segment`;
+      rangMois.append(c);
+      m = suiv;
+    }
+    piste.append(rangMois);
+
+    const etapes = [];
+    if (ajuster) piste.classList.add('ajustable');
+    piste.dataset.pa = pa; piste.dataset.pb = pb;
+    ressources.forEach(([lib, src], i) => {
+      const rangIdx = i;
+      const rang = el('div', 'pl-rang' + (i % 2 ? ' alt' : ''));
+      // Semaines : un filet discret, pour lire une date sans règle.
+      for (let w = premLundi; +w < pb; w = new Date(+w + 7 * day)) {
+        if (+w < pa) continue;
+        const t2 = el('div', 'pl-sep'); t2.style.left = pc(+w) + '%'; rang.append(t2);
+      }
+      vac.forEach(([a, b]) => {
+        if (b <= pa || a >= pb) return;
+        const h = el('div', 'pl-vac');
+        h.style.left = pc(Math.max(a, pa)) + '%';
+        h.style.width = (pc(Math.min(b, pb)) - pc(Math.max(a, pa))) + '%';
+        rang.append(h);
+      });
+      if (src) {
+        OCC.filter(o => o.res === lib && o.f > pa && o.d < pb).forEach(o => {
+          const a = Math.max(o.d, pa), b = Math.min(o.f, pb);
+          const barre = el('div', 'pl-barre');
+          barre.style.left = pc(a) + '%';
+          barre.style.width = Math.max(pc(b) - pc(a), 0.25) + '%';
+          barre.style.background = G_COULEUR[src];
+          if (src === 'immersion' || src === 'outfitting') barre.style.color = '#fff';
+          // L'étiquette n'apparaît que si la barre peut la porter.
+          if ((b - a) / span > 0.035) barre.textContent = o.lab;
+          if (o.push) { barre.style.background = '#C0392B'; barre.style.color = '#fff';
+                        barre.style.fontSize = '7px'; }
+          // Attente avant le push (zone UB encore occupée, upper basin plein) : couleur
+          // distincte du push lui-même — c'est le signal qu'une cadence est trop rapide pour
+          // la ligne, pas un push qui traîne (la durée du push est fixe, voir REGLES.dureePushJours).
+          if (o.wait) { barre.style.background = '#E67E22'; barre.style.color = '#fff';
+                        barre.style.fontSize = '7px'; }
+          if (o.fu) { barre.style.background = '#6A5FA8'; barre.style.color = '#fff';
+                      barre.style.borderRadius = '50%'; barre.textContent = ''; }
+          // Les coulées de segment, numérotées à l'intérieur de la barre. Un segment dure
+          // une à quatre semaines : à l'échelle d'un planning de six ans, son bloc ne fait
+          // que quelques pixels. On lui impose donc une largeur minimale — l'élément garde
+          // ses vraies dates, seul le numéro est rendu lisible.
+          if (o.segs && o.segs.length) {
+            barre.classList.add('pl-barre-seg');
+            // Le numéro d'élément reste affiché, épinglé à gauche : c'est lui qu'on cherche
+            // d'abord, les numéros de segment ne servent qu'ensuite.
+            if ((b - a) / span > 0.02) barre.append(el('span', 'pl-nom', o.lab));
+          }
+          (o.segs || []).forEach(s => {
+            if (s.f <= pa || s.d >= pb) return;
+            const bloc = el('div', 'pl-seg', String(s.k));
+            const g = (pc(Math.max(s.d, a)) - pc(a)) / Math.max(pc(b) - pc(a), 1e-9) * 100;
+            const w = (pc(Math.min(s.f, b)) - pc(Math.max(s.d, a))) / Math.max(pc(b) - pc(a), 1e-9) * 100;
+            bloc.style.left = g + '%';
+            bloc.style.width = w + '%';
+            bloc.title = `${o.id} — segment ${s.k}/${REGLES.segments}`
+              + `\ncoulé le ${fr(new Date(s.d).toISOString().slice(0,10))}`;
+            barre.append(bloc);
+          });
+          barre.dataset.d0 = o.d0;
+          barre.title = `${o.id} — ${lib}\n${fr(new Date(o.d).toISOString().slice(0,10))}`
+            + ` → ${fr(new Date(o.f - day).toISOString().slice(0,10))}`
+            + (barre.dataset.pilote ? '\nGlisser à l\'horizontale impose cette date et relance le calcul.' : '');
+          barre.dataset.id = o.id;
+          barre.dataset.cle = cleRetouche(o);
+          barre.dataset.rang = rangIdx;
+          // Deux barres seulement pilotent le calcul : la coulée et l'immersion. Ce sont les
+          // deux vraies entrées du modèle ; tout le reste en découle et ne se déplace qu'à
+          // l'affichage. La distinction se voit : elles ont leur propre curseur.
+          if (src === 'beton' && !o.push) barre.dataset.pilote = 'beton';
+          else if (src === 'immersion') barre.dataset.pilote = 'immersion';
+          if (barre.dataset.pilote && IMPOSITIONS.has(o.id)) barre.classList.add('imposee');
+          if (o.retouchee) barre.classList.add('retouchee');
+          barre.addEventListener('click', ev => {
+            if (ev.currentTarget.dataset.glisse) { delete ev.currentTarget.dataset.glisse; return; }
+            ouvrirFiche(o.id);
+          });
+          rang.append(barre);
+        });
+      }
+      if (flux && src) OCC.filter(o => o.res === lib)
+        .forEach(o => etapes.push({id: o.id, rang: rangIdx, d: o.d, f: o.f, push: !!o.push}));
+      piste.append(rang);
+    });
+    if (flux) piste.append(tracerFlux(etapes, pc, ressources.length));
+    corps.append(piste);
+    page.append(corps);
+    boite.append(page);
+  });
+
+  const lg = el('div', 'pl-legende');
+  Object.entries(G_LEGENDE).forEach(([k, lib]) => {
+    const sp = el('span'); const i = el('i'); i.style.background = G_COULEUR[k];
+    sp.append(i, document.createTextNode(lib)); lg.append(sp);
+  });
+  if (vac.length) {
+    const sp = el('span'); const i = el('i');
+    i.style.background = 'repeating-linear-gradient(45deg, rgba(168,50,38,.4) 0 3px, transparent 3px 6px)';
+    sp.append(i, document.createTextNode('Arrêt de l\'usine')); lg.append(sp);
+  }
+  boite.append(lg);
+
+  const horsSolveur = G_RESSOURCES.filter(r => !r[1]).length;
+  document.getElementById('planning-hint').innerHTML =
+    `<b>${pages.length}</b> page(s) · <b>${ressources.length}</b> ressources · <b>${OCC.length}</b> barres`
+    + (gardeVides ? ` · dont ${horsSolveur} lignes hors solveur` : '');
+}
+
+function semaineIso(d) {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  x.setUTCDate(x.getUTCDate() + 4 - (x.getUTCDay() || 7));
+  return Math.ceil(((x - Date.UTC(x.getUTCFullYear(), 0, 1)) / day + 1) / 7);
+}
+
+/* ---- Fiche d'un élément ----
+   Toute la vie d'un élément en une boîte : ses dates de zone en zone, ses places de bassin et
+   de parking, son ballast, son immersion. Ouverte depuis la grille de séquence ou depuis la
+   coupe du tunnel — partout où un élément est représenté, il est cliquable. */
+const PHASE_LISIBLE = {
+  EnAttente: 'en attente de lancement', Beton: 'en zone béton', AttenteOutfitting: 'attend l\'outfitting',
+  Outfitting: 'en outfitting', AttenteFloatUp: 'prêt pour le float-up', FloatUp: 'en float-up',
+  AttenteBasin: 'attend une place de bassin', Basin: 'en bassin', AttenteParking: 'attend une place de parking',
+  Parking: 'au parking', StockageSPE: 'en zone de stockage SPE', Ballast: 'au Ballast Jetty', Immerge: 'immergé',
+};
+
+function ouvrirFiche(id) {
+  const e = D.elements.find(x => x.id === id);
+  const boite = document.getElementById('fiche');
+  if (!e || !boite) return;
+  document.getElementById('fiche-titre').textContent = e.id;
+  const retard = D.retards.find(r => r.id === e.id);
+  document.getElementById('fiche-sous').textContent =
+    `${e.l} · rang de production ${e.ln === 6 ? '' : ''}${(D.sequence.apresSeq[e.ln] || []).indexOf(e.id) + 1}`
+    + ` · ${isFinite(e.ri) ? `${e.ri + 1}e à s'immerger` : 'hors séquence d\'immersion'}`
+    + ` · ${e.fini ? 'immergé' : PHASE_LISIBLE[e.st] || 'en cours'}`;
+
+  const corps = document.getElementById('fiche-corps');
+  corps.textContent = '';
+  const groupe = (titre) => corps.append(el('div', 'f-groupe', titre));
+  const ligne = (lib, val, cls) => {
+    const d = el('div', 'f-ligne');
+    d.append(el('span', '', lib));
+    d.append(el('b', val ? (cls || '') : 'vide', val || '—'));
+    corps.append(d);
+  };
+  const jours = (a, b) => (a && b) ? `${Math.round((t(b) - t(a)) / day)} j` : null;
+
+  groupe('Production');
+  ligne('Rythme appliqué', e.r ? `${String(e.r).replace('.', ',')} sem/segment` : null);
+  ligne('Béton — début', fr(e.bD));
+  ligne('Béton — fin', fr(e.bF));
+  ligne('Béton — durée', jours(e.bD, e.bF));
+  if (e.ln === 6) ligne('Zone SPE atteinte', e.zs ? `zone ${e.zs}` : null);
+  ligne('Outfitting — début', fr(e.oD));
+  ligne('Outfitting — fin', fr(e.oF));
+  ligne('Outfitting — durée', jours(e.oD, e.oF));
+
+  groupe('Mise à flot et stockage');
+  ligne('Float-up — début', fr(e.fu));
+  ligne('Float-up — fin', fr(e.fuF));
+  ligne('Bassin — entrée', fr(e.ba));
+  ligne('Bassin — place', e.bn ? `bassin ${e.bn}, place ${e.bp}` : null);
+  ligne('Hook-up terminé', fr(e.baF));
+  if (e.stk) {
+    ligne('Stockage SPE — entrée', fr(e.stk));
+    ligne('Stockage SPE — place', e.sp ? `place ${e.sp}` : null);
+  }
+  ligne('Parking — entrée', fr(e.pk));
+  ligne('Parking — place', e.pn ? `place ${e.pn}` : (e.ps ? 'parking sauté' : null));
+
+  groupe('Ballast et immersion');
+  ligne('Hook-up avant jetée', fr(e.hk));
+  ligne('Ballast — début', fr(e.bl));
+  ligne('Ballast — fin', fr(e.fb));
+  ligne('Ballast — durée', e.ln === 6 ? 'aucune (SPE)' : jours(e.bl, e.fb));
+  ligne('Immersion cible', fr(e.im));
+  ligne('Immersion simulée', fr(e.ir), retard ? 'crit' : (e.ir ? 'ok' : ''));
+  ligne('Écart à la cible', retard ? `${retard.retardJours} j de retard` : (e.ir && e.im ? 'à la date' : null),
+    retard ? 'crit' : 'ok');
+  if (e.ln === 6) ligne('Étanchéité retenue', fr(e.et));
+
+  groupe('Avance de production');
+  ligne('Sortie d\'outfitting → immersion', jours(e.oF, e.ir || e.im));
+  if (typeof boite.showModal === 'function') boite.showModal(); else boite.setAttribute('open', '');
+}
+
+// Rend cliquable tout élément représenté à l'écran : un clic, ou Entrée au clavier.
+function rendreCliquable(noeud, id) {
+  noeud.tabIndex = 0;
+  noeud.setAttribute('role', 'button');
+  noeud.addEventListener('click', () => ouvrirFiche(id));
+  noeud.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrirFiche(id); }
+  });
+}
+
+/* ---- Relevé exhaustif des contraintes du modèle ----
+   Écrit à la main d'après le solveur, pas déduit du code : c'est une relecture, et son intérêt
+   est justement de pouvoir être confrontée au code. Les seuils, eux, sont lus dans REGLES et
+   PARAMS pour que le tableau ne puisse pas mentir sur les valeurs réellement appliquées.
+   Statuts : « reglable » = modifiable dans l'interface ; « donnee » = vient du classeur ou du
+   planning P6 ; « fige » = structurel ou codé en dur ; « anomalie » = à trancher. */
+const P = () => (typeof PARAMS === 'object' && PARAMS) || {};
+const n = v => String(v).replace('.', ',');
+
+function tableauContraintes() {
+  const p = P();
+  const seuilEt = REGLES.etancheSem, seuilCrit = p.etancheCritiqueSem || REGLES.etancheCritiqueSem;
+  return [
+['Données d\'entrée — lues, jamais inventées', [
+  ['Ordre d\'immersion', 'rang de l\'onglet Immersion', 'Planning P6', 'donnee',
+   'Entrée intangible : le programme ne le modifie jamais, il s\'y plie.'],
+  ['Date d\'immersion cible', 'une par élément', 'Planning P6', 'donnee',
+   'Sans date, la simulation en dérive une à la fin du ballast — elle ne survit pas au calcul.'],
+  ['Durée de ballast', '4 à 25 j selon l\'élément', 'Activités « Floatout, 1st Phase Ballast Concrete » du P6', 'donnee',
+   `À défaut, ${REGLES.ballastJoursDefaut} j pour un élément absent du planning.`],
+  ['Passages de zone SPE', 'CPA → UB3, datés', 'Planning P6', 'donnee',
+   'La ligne SPE suit le planning ; les durées fixes de Config_SPE ne servent qu\'à un SPE absent du P6.'],
+  ['Clamping SPE', 'une date par SPE', 'Planning P6', 'donnee', 'Fermeture définitive.'],
+  ['Date « ready for float up » SPE', 'facultative', 'Planning P6', 'donnee',
+   'Fournie, elle commande la sortie de chaîne quelle que soit la zone occupée.'],
+  ['Affectation ligne + ordre de production', 'colonnes de Inputs', 'Classeur', 'reglable',
+   'Reprise telle quelle, sauf si l\'optimiseur de séquence est activé.'],
+  ['État as-built', 'colonnes C/E/G/I/K/M', 'Classeur ou saisie à l\'écran', 'donnee',
+   'Un élément engagé ne peut plus être déplacé par l\'optimiseur.'],
+  ['Cadence de départ et date d\'ancre', '3 sem/segment', 'Config_Cycles', 'donnee',
+   'Sert de point de départ à la pente d\'inertie quand aucune date de décision n\'est saisie.'],
+  ['Jalon d\'étanchéité SPE', `${seuilEt} sem après la sortie de CP3`, 'Config_SPE', 'reglable', ''],
+]],
+['Cadence de production', [
+  ['Rythmes autorisés', REGLES.rythmes.map(n).join(' / ') + ' sem/segment', 'Règle', 'reglable',
+   'Valeurs discrètes : aucune cadence intermédiaire n\'est produite.'],
+  ['Segments béton par élément', String(REGLES.segments), 'Règle', 'reglable', ''],
+  ['Pente d\'inertie', `${n(REGLES.penteSem)} sem par tranche de ${REGLES.pentePeriodeMois} mois`, 'Règle', 'reglable',
+   'Mesurée depuis le dernier changement réellement appliqué à la paire.'],
+  ['Cliquet de cadence', 'une cadence atteinte n\'est jamais relâchée', 'Règle', 'reglable',
+   'Une case autorise un relâchement unique par paire, en fin de programme. Décochée par défaut.'],
+  ['Couplage de paire', 'PL-1+PL-2 et PL-3+PL-4 partagent leur cadence', 'Structure', 'fige',
+   'Leurs éléments doivent sortir de l\'outfitting ensemble : les deux lignes basculent d\'un seul tenant.'],
+  ['PL-5', 'cadence indépendante', 'Structure', 'fige', ''],
+  ['Une seule paire de portes', 'un float-up à la fois, tous bassins confondus',
+   'Règle', 'fige',
+   "Le groupe dont l'élément est le plus urgent passe d'abord, les autres attendent la porte. Le staggering décale les départs béton, pas les sorties d'outfitting : sans cette règle, deux ou trois bassins se remplissent parfois le même jour."],
+  ['Choix du rythme', p.arretAuPlusTot ? 'le plus rapide que la pente autorise' : 'le plus lent qui tienne les dates',
+   'Case « Arrêt de l\'usine au plus tôt »', 'reglable',
+   'Au plus tôt : les halles se vident tôt, quitte à stocker à flot. Flux tendu : production au plus juste.'],
+  ['Moment d\'application', p.accelererEnCoursCycle ? 'dès que la pente l\'ouvre, en cours de coulée' : 'au prochain départ béton',
+   'Case « Accélérer en cours de cycle »', 'reglable',
+   'En cours de cycle, le segment entamé se termine à l\'ancien rythme : un segment ne se coule pas à deux vitesses.'],
+  ['Départ de la pente', p.dateDecision ? fr(new Date(p.dateDecision).toISOString().slice(0,10)) : 'dernier changement appliqué',
+   'Champ « Décision d\'accélérer »', 'reglable', 'Vide, la ligne est réputée déjà en régime.'],
+  ['Arrêts annuels de l\'usine',
+   p.vacances ? `${REGLES.noelSemaines} sem dès la semaine du 25 décembre, ${REGLES.paquesSemaines} sem à Pâques` : 'désactivés',
+   'Règle + case', 'reglable',
+   "Ils ne décalent pas le travail, ils l'étirent : une coulée qui traverse un arrêt met d'autant plus de jours. Rien ne démarre pendant. L'aval — float-up, bassin, ballast, immersion — n'est pas concerné, ses dates viennent du P6."],
+  ['Jour de coulage par ligne',
+   p.jourCoulage ? [1,2,3,4,5].map(l => `${LIGNE_NOM[l]} ${JOURS_SEM[REGLES.joursCoulage[l]] || '—'}`).join(', ') : 'désactivé',
+   'Règle + case', 'reglable',
+   "Une ligne ne lance un élément que son jour de la semaine, pour ne pas saturer la centrale à béton. À cadence entière les neuf coulées d'un élément tombent ce jour-là ; à cadence demi-entière elles alternent entre deux jours — c'est le rythme qui l'impose, pas la règle."],
+  ['Test de faisabilité', 'toute la file restante de la ligne, pas seulement l\'élément courant', 'Calcul', 'fige',
+   'Regarder toute la file évite l\'oscillation accélérer / ralentir.'],
+  ['Alerte de délai', 'file rejouée en accélérant à chaque ouverture de la pente', 'Calcul', 'fige',
+   'Ne signale que ce qui reste hors d\'atteinte quoi qu\'il arrive. Ne couvre pas les retards dus à l\'aval.'],
+]],
+['Staggering entre halls', [
+  ['Déphasage du hall B', `${REGLES.staggerHallB} segments après le hall A`, 'Règle', 'reglable',
+   'Les deux halls partagent les mêmes moyens et ne doivent pas attaquer un élément au même moment.'],
+  ['Déphasage de PL-5', `${REGLES.staggerPL5} segments`, 'Règle', 'reglable', 'Préférence seulement, jamais bloquante.'],
+  ['Contrainte dure à partir de', `${n(REGLES.staggerCadenceDure)} sem/segment`, 'Règle', 'reglable',
+   'En deçà, on ne patiente que si l\'attente est gratuite pour toute la file.'],
+  ['Aucun déphasage dans un hall', 'les deux lignes d\'un hall démarrent ensemble', 'Structure', 'fige', ''],
+  ['Suspension', 'halls à des cadences différentes', 'Calcul', 'fige',
+   'La phase dériverait d\'un cycle à l\'autre ; le déphasage reprend dès que les cadences se rejoignent.'],
+  ['Tolérance de phase', p.jourCoulage ? 'aucune — la cible tombe sur le jour de coulage' : '0,5 jour',
+   'Codé en dur', 'fige',
+   p.jourCoulage
+     ? "La cible de phase est reportée sur le jour de coulage de la ligne, et la comparaison tolère les quelques jours de retard que ce report crée. Sans cela les deux règles battent l'une contre l'autre et la ligne perd un cycle entier pour deux jours d'écart."
+     : 'Le pas de simulation est le jour, les cibles tombent sur des demi-journées.'],
+  ['Activation', 'oui / non', 'Case « Staggering entre halls »', 'reglable', ''],
+]],
+['Occupation des zones de production', [
+  ['Zone béton', '1 élément à la fois par ligne', 'Structure', 'fige', ''],
+  ['Zone outfitting', '1 élément à la fois par ligne', 'Structure', 'fige', ''],
+  ['Poussage continu', 'la zone béton se libère au dernier segment coulé', 'Structure', 'fige',
+   'Sans quoi un élément bloqué en fin de béton gèlerait toute la ligne derrière lui.'],
+  ['Fin d\'outfitting', `au segment ${REGLES.segmentsOutfitting} de l\'élément suivant`, 'Règle', 'reglable',
+   'Le dernier élément d\'une ligne, lui, applique la durée nominale.'],
+  ['Durée d\'outfitting nominale', `${REGLES.segmentsOutfitting} × rythme × 7 j`, 'Calcul', 'fige',
+   "Dérivée du rythme seul. C'est l'« Outfitting UB » : l'élément y est transféré une fois la coulée finie et y reste statique jusqu'au float-up. Les repairs et l'outfitting intégré se font en temps masqué pendant la coulée et s'achèvent pendant cette phase — ils n'occupent aucune zone propre."],
+  ['Chaîne SPE', '7 zones, une seule occupée à la fois, avance en file', 'Config_SPE', 'donnee', ''],
+]],
+['Float-up', [
+  ['Départ par paire', 'les deux lignes d\'un groupe partent ensemble', 'Structure', 'fige', ''],
+  ['Ligne épuisée', 'départ solo autorisé', 'Calcul', 'fige',
+   'Les files des deux lignes n\'ont pas la même longueur : sans cette issue, les derniers éléments resteraient bloqués.'],
+  ['PL-5 et SPE', 'découplés', 'Structure', 'fige', 'Le SPE stationne en Basin C bien après le passage des éléments normaux.'],
+  ['Durée', `${n(p.floatUpSem ?? 1)} sem`, 'Paramètre', 'reglable', ''],
+]],
+['Bassins', [
+  ['Capacité', `${REGLES.basins} bassins × ${REGLES.basinPlaces} places`, 'Règle', 'reglable', ''],
+  ['Place attitrée', 'PL-1/PL-3/PL-5 en place 1, PL-2/PL-4/SPE en place 2', 'Structure', 'fige',
+   'Si le bassin compte moins de places que de lignes, elles se partagent la dernière.'],
+  ['Entrée bassins A et B', 'par paire, bassin entièrement libre', 'Structure', 'fige', ''],
+  ['Entrée Basin C', 'places indépendantes', 'Structure', 'fige', ''],
+  ['Hook-up', '24 h précédant le Ballast Jetty', 'Calcul', 'fige',
+   'Repère d\'affichage, tenu dans la durée de ballast déjà comptée : il ne retarde plus la sortie du bassin.'],
+  ['Sortie bloquée', 'PL-2 fait face à la sortie du bassin A, PL-4 du bassin B', 'Structure', 'fige',
+   'L\'autre élément du bassin ne peut pas sortir avant lui. Le Basin C est libre.'],
+  ['Stockage croisé', 'soupape quand le parking est saturé', 'Calcul', 'fige',
+   'Interdit dans le bassin d\'un groupe qui a encore des éléments en amont : la soupape ne doit pas gêner ailleurs.'],
+]],
+['Parking', [
+  ['Places', `${REGLES.parkingPlaces} sans limite de durée`, 'Règle', 'reglable', ''],
+  ['Place de réserve', `la ${REGLES.parkingPlaces + 1}e, si le départ tombe sous ${REGLES.parkingReserveJours} j`, 'Règle', 'reglable',
+   'Au-delà, mieux vaut laisser l\'élément attendre en amont.'],
+  ['Saut du parking', `immersion à moins de ${n(p.seuilParkingSem ?? 4)} sem`, 'Paramètre', 'reglable',
+   'Évite un mouvement coûteux quand l\'immersion est proche.'],
+  ['Priorité de la production', 'le seuil ne retient jamais un élément dont la place est réclamée', 'Calcul', 'fige', ''],
+  ['Départage des lignes concurrentes', "rang d'immersion, puis ordre de production", 'Calcul', 'fige',
+   "Deux lignes qui se disputent la même place le même jour : la plus urgente l'emporte. Le plan ne dépend donc pas de la disposition du classeur."],
+]],
+['Basin C et ligne SPE', [
+  ['Stockage SPE dédié', `${p.placesStockageSPE ?? 1} place`, 'Paramètre', 'reglable',
+   'À part du parking. Dégage la place SPE du Basin C quand elle retient un élément qui s\'immerge plus tôt.'],
+  ['Stationnement du SPE', 'jusqu\'au démarrage de son Ballast Jetty', 'Structure', 'fige', ''],
+  ['Évacuation vers le stockage', 'seulement si un SPE d\'immersion antérieure attend', 'Calcul', 'fige', ''],
+  ['Inondation du Basin C', 'tout SPE en zone UB doit être étanche', 'Structure', 'fige',
+   'Sans jalon renseigné, la contrainte n\'existe pas : rien à attendre.'],
+  ['Outfitting de PL-5', 'autorisé si l\'outfitting finit avant la prochaine évacuation SPE', 'Structure', 'fige', ''],
+  ['Zone tampon', 'dans le bassin', 'Structure', 'fige', ''],
+]],
+['Étanchéité d\'un SPE — cascade à trois niveaux', [
+  ['1. Clamping du P6', 'la date du planning', 'Planning P6', 'donnee', 'Fermeture définitive. S\'il tombe assez tôt, rien d\'autre n\'est nécessaire.'],
+  ['2. Fermeture provisoire', `${seuilEt} sem après la sortie de CP3`, 'Règle', 'reglable',
+   'L\'avancement compte, pas la zone : les travaux peuvent commencer en UB1 et s\'achever en UB2.'],
+  ['3. Seuil critique', `${seuilCrit} sem, sur autorisation`, 'Règle + case', 'reglable',
+   'Faisable mais met le planning en tension. Chaque recours est signalé.'],
+]],
+['Ballast et immersion', [
+  ['Ordre imposé', 'porte à l\'entrée du Ballast Jetty', 'Planning P6', 'fige',
+   'Seul l\'élément en tête de file peut être ballasté : un élément non prêt bloque tous ceux qui le suivent.'],
+  ['Un seul ballast à la fois', 'conséquence de la porte', 'Structure', 'fige', ''],
+  ['Durée de ballast', `celle du P6, à défaut ${REGLES.ballastJoursDefaut} j`, 'P6 + repli', 'donnee',
+   'Le repli ne sert qu\'aux quelques éléments sans activité de float-out dans le P6.'],
+  ['SPE', 'aucune phase de ballast', 'Structure', 'fige', 'Ils passent du bassin à l\'immersion.'],
+  ['Immersion', 'la fin du ballast est l\'immersion', 'Structure', 'fige', ''],
+  ['Entrée au Ballast Jetty', 'date d\'immersion cible moins la durée de ballast', 'Calcul', 'fige', ''],
+]],
+['Optimiseur de séquence', [
+  ['Ordre des critères', 'bloqués → inversions PL → nombre de retards → retard cumulé → retard max'
+    + (p.arretAuPlusTot ? ' → fin de production' : '') + ' → changements de cadence', 'Calcul', 'fige',
+   'Comparaison lexicographique : un critère ne départage que si tous les précédents sont à égalité.'],
+  ['Inversions SPE', 'hors critère principal', 'Calcul', 'fige',
+   'La zone de stockage dédiée les absorbe ; les compter à égalité ferait préférer une variante bien plus en retard.'],
+  ['Réaffectation aux lignes', 'oui / non', 'Case', 'reglable', 'L\'optimiseur choisit aussi sur quelle ligne PL produire chaque élément.'],
+  ['Éléments engagés', 'as-built saisi ou date cible dépassée', 'Calcul', 'fige', 'Leur production est commencée : ils ne bougent plus.'],
+  ['Budget de recherche', `${OPTIM.budgetMs / 1000} s`, 'Codé en dur', 'fige', 'Non exposé dans l\'interface.'],
+  ['Voisinage exploré', `déplacement de ±${OPTIM.fenetre} rangs, ${OPTIM.ciblesParElement} lignes d\'accueil`, 'Codé en dur', 'fige', ''],
+]],
+['Cadre de la simulation', [
+  ['Pas de temps', '1 jour', 'Codé en dur', 'fige', ''],
+  ['Horizon', '6 ans à partir de la date de référence', 'Codé en dur', 'fige',
+   'Un élément non immergé au bout de l\'horizon est compté comme bloqué.'],
+  ['Date de référence', 'saisie', 'Champ', 'reglable', 'Point de départ de la simulation.'],
+]],
+];
+}
+
+const ETIQ_STATUT = {
+  reglable: ['Réglable', 'Modifiable dans l\'interface'],
+  donnee:   ['Donnée', 'Vient du classeur ou du planning P6'],
+  fige:     ['Figé', 'Structurel ou codé en dur — non exposé'],
+  anomalie: ['À trancher', 'Incohérence relevée à l\'audit'],
+};
+
+function rendreContraintes() {
+  const box = document.getElementById('contraintes');
+  const resume = document.getElementById('contraintes-resume');
+  if (!box) return;
+  box.textContent = '';
+  const familles = tableauContraintes();
+  const comptes = {reglable: 0, donnee: 0, fige: 0, anomalie: 0};
+  let total = 0;
+
+  familles.forEach(([titre, lignes]) => {
+    const bloc = el('div', 'panel scroll');
+    bloc.style.marginTop = '14px';
+    const h = el('h3', 'c-fam', `${titre} — ${lignes.length}`);
+    bloc.append(h);
+    const tab = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
+    ['Contrainte', 'Seuil ou valeur', 'Origine', 'Statut', 'Précision'].forEach(t => trh.append(el('th', '', t)));
+    thead.append(trh); tab.append(thead);
+    const tb = el('tbody');
+    lignes.forEach(([nom, seuil, origine, statut, note]) => {
+      total++; comptes[statut]++;
+      const tr = el('tr');
+      tr.append(el('td', 'id', nom));
+      tr.append(el('td', '', seuil));
+      tr.append(el('td', '', origine));
+      const tdS = el('td');
+      const pill = el('span', 'pill c-' + statut, ETIQ_STATUT[statut][0]);
+      pill.title = ETIQ_STATUT[statut][1];
+      tdS.append(pill); tr.append(tdS);
+      tr.append(el('td', 'c-note', note || ''));
+      tb.append(tr);
+    });
+    tab.append(tb); bloc.append(tab); box.append(bloc);
+  });
+
+  resume.textContent = '';
+  const lig = el('div', 'c-resume');
+  [['Contraintes relevées', total, ''],
+   ['Réglables', comptes.reglable, 'c-reglable'],
+   ['Données d\'entrée', comptes.donnee, 'c-donnee'],
+   ['Figées', comptes.fige, 'c-fige'],
+   ['À trancher', comptes.anomalie, 'c-anomalie']].forEach(([lab, val, cls]) => {
+    const c = el('div', 'c-case');
+    c.append(el('b', cls, String(val)), el('span', '', lab));
+    lig.append(c);
+  });
+  resume.append(lig);
+  const av = el('p', 's-note');
+  av.style.margin = '10px 0 0';
+  av.textContent = 'Relevé tenu à la main d\'après le solveur : c\'est une relecture du code, pas une extraction, '
+    + 'et c\'est ce qui lui permet de servir de contrôle. Les seuils affichés, eux, sont ceux réellement appliqués au calcul.';
+  resume.append(av);
+}
+
+/* ---- Géométrie réelle du tunnel ----
+   Relevée sur le profil en long TUX-DWG-ITP-GE-GE-GEN-COW-042012-B : chaînage et niveau de
+   pose de chaque élément, en mètres. Les deux bandes du dessin ont été calées séparément sur
+   leurs axes — chaînage R² > 0,998, niveaux R² = 1,000 — et donnent la même échelle verticale,
+   ce qui les valide l'une par l'autre. Les SPE, dont le profil ne porte pas d'étiquette
+   exploitable, sont placés au milieu de l'intervalle laissé entre deux standard : un tous les
+   huit, après TE-03, TE-11, … TE-75. Les écarts de chaînage anormalement larges tombent aux
+   mêmes endroits, et l'ordre du graphique « Tunnel Progress » le confirme.
+   Format compact « id:chaînage:niveau ». */
+const TUNNEL_BRUT = 'STE-01:11089:-6.7;STE-02:11299:-9.5;STE-03:11522:-11.9;SPE-01:11645:-13.2;STE-04:11767:-14.4;STE-05:11991:-16.2;STE-06:12201:-17.6;STE-07:12424:-19.1;STE-08:12634:-20.7;STE-09:12858:-22.4;STE-10:13075:-24.0;STE-11:13292:-25.4;SPE-02:13418:-26.1;STE-12:13543:-26.8;STE-13:13739:-27.7;STE-14:13963:-28.5;STE-15:14173:-29.3;STE-16:14403:-30.2;STE-17:14613:-31.0;STE-18:14816:-31.8;STE-19:15054:-32.6;SPE-03:15173:-33.0;STE-20:15292:-33.4;STE-21:15508:-33.3;STE-22:15739:-33.6;STE-23:15949:-33.9;STE-24:16158:-34.1;STE-25:16375:-34.3;STE-26:16592:-34.5;STE-27:16802:-34.9;SPE-04:16931:-34.8;STE-28:17061:-34.7;STE-29:17291:-34.5;STE-30:17508:-34.3;STE-31:17718:-33.9;STE-32:17928:-34.0;STE-33:18151:-34.2;STE-34:18375:-34.5;STE-35:18592:-34.8;SPE-05:18714:-34.7;STE-36:18837:-34.7;STE-37:19054:-34.4;STE-38:19263:-34.2;STE-39:19466:-33.5;STE-40:19669:-33.4;STE-41:19900:-33.0;STE-42:20186:-32.8;STE-43:20398:-32.5;SPE-06:20528:-32.2;STE-44:20659:-31.8;STE-45:20877:-31.1;STE-46:21096:-30.4;STE-47:21308:-29.6;STE-48:21526:-28.7;STE-49:21738:-28.0;STE-50:21971:-27.1;STE-51:22190:-26.2;SPE-07:22313:-26.0;STE-52:22436:-25.7;STE-53:22655:-25.0;STE-54:22867:-24.4;STE-55:23086:-23.8;STE-56:23304:-23.1;STE-57:23516:-22.4;STE-58:23728:-21.8;STE-59:23967:-21.1;SPE-08:24098:-20.7;STE-60:24228:-20.4;STE-61:24433:-19.9;STE-62:24666:-19.6;STE-63:24870:-19.1;STE-64:25089:-18.7;STE-65:25315:-18.2;STE-66:25520:-17.8;STE-67:25752:-17.3;SPE-09:25883:-17.0;STE-68:26013:-16.6;STE-69:26232:-15.9;STE-70:26437:-14.9;STE-71:26655:-14.3;STE-72:26881:-13.7;STE-73:27107:-12.9;STE-74:27311:-12.3;STE-75:27530:-11.5;SPE-10:27661:-11.2;STE-76:27791:-10.8;STE-77:28010:-10.0;STE-78:28214:-8.7;STE-79:28433:-6.2';
+const TUNNEL = (() => {
+  const out = {};
+  TUNNEL_BRUT.split(';').forEach(t2 => { const [id, c, z] = t2.split(':'); out[id] = {c: +c, z: +z}; });
+  return out;
+})();
+// Gabarits : le profil ne les porte pas, ce sont les valeurs du programme. Signalés sous la coupe.
+const GABARIT = {std: 217, spe: 39, haut: 9};
+const TUN_X0 = 10900, TUN_X1 = 28700, TUN_Z0 = 9, TUN_Z1 = -42;
+const COUPE_L = 1160, COUPE_H = 300;
+const DESCENTE_JOURS = 6;   // fenêtre de descente animée, juste avant la date d'immersion
+const Z_SURFACE = 5;        // niveau où l'élément flotte avant d'être descendu
+
+// `svgEl` du module plan n'est pas visible d'ici : la coupe a le sien.
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svgN = (tag, attrs) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in (attrs || {})) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+const cx = c => (c - TUN_X0) / (TUN_X1 - TUN_X0) * COUPE_L;
+const cz = z => (TUN_Z0 - z) / (TUN_Z0 - TUN_Z1) * COUPE_H;
+
+let ordreCoupe = [];
+function construireCoupe() {
+  // L'ordre de pose est celui du chaînage : c'est le tunnel lui-même qui le donne.
+  ordreCoupe = D.elements.filter(e => TUNNEL[e.id])
+    .sort((a, b) => TUNNEL[a.id].c - TUNNEL[b.id].c);
+  const svg = document.getElementById('coupe-svg');
+  if (!svg) return;
+  svg.setAttribute('viewBox', `0 0 ${COUPE_L} ${COUPE_H}`);
+  svg.textContent = '';
+
+  // Décor : surface de l'eau, et le fond suggéré par la ligne des niveaux de pose.
+  const eau = svgN('rect', {x: 0, y: 0, width: COUPE_L, height: cz(0),
+    fill: 'var(--ph-basin)', opacity: 0.10});
+  svg.append(eau);
+  const trait = svgN('line', {x1: 0, y1: cz(0), x2: COUPE_L, y2: cz(0),
+    stroke: 'var(--ph-basin)', 'stroke-width': 0.8, opacity: 0.6});
+  svg.append(trait);
+  for (let z = 0; z >= TUN_Z1; z -= 10) {
+    svg.append(svgN('line', {x1: 0, y1: cz(z), x2: COUPE_L, y2: cz(z),
+      stroke: 'var(--line)', 'stroke-width': 0.4, opacity: 0.5}));
+    const g = svgN('text', {x: 2, y: cz(z) - 1.5, 'font-size': 7, fill: 'var(--ink-3)'});
+    g.textContent = z + ' m'; svg.append(g);
+  }
+  for (let c = 11000; c <= 28500; c += 1000) {
+    svg.append(svgN('line', {x1: cx(c), y1: 0, x2: cx(c), y2: COUPE_H,
+      stroke: 'var(--line)', 'stroke-width': 0.3, opacity: 0.4}));
+    const g = svgN('text', {x: cx(c), y: COUPE_H - 2, 'font-size': 6.5, 'text-anchor': 'middle',
+      fill: 'var(--ink-3)'});
+    g.textContent = (c / 1000).toFixed(0) + '+000'; svg.append(g);
+  }
+
+  // Un emplacement vide par élément, puis le caisson lui-même par-dessus : c'est le caisson
+  // qui descend, l'emplacement reste en place et se remplit.
+  ordreCoupe.forEach(e => {
+    const g = TUNNEL[e.id], L = (e.ln === 6 ? GABARIT.spe : GABARIT.std);
+    const w = Math.max(cx(TUN_X0 + L) - cx(TUN_X0), 1.4);
+    const h = cz(0) - cz(GABARIT.haut);
+    const grp = svgN('g', {'data-id': e.id});
+    grp.append(svgN('rect', {class: 'coupe-slot', x: cx(g.c) - w / 2, y: cz(g.z) - h / 2,
+      width: w, height: h, fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 0.4}));
+    const bloc = svgN('rect', {class: 'coupe-el', x: cx(g.c) - w / 2, y: cz(g.z) - h / 2,
+      width: w, height: h});
+    grp.append(bloc);
+    const ti = svgN('title'); ti.textContent = e.id; grp.append(ti);
+    grp.style.cursor = 'pointer';
+    grp.addEventListener('click', () => ouvrirFiche(e.id));
+    svg.append(grp);
+  });
+  document.getElementById('coupe-gauche').textContent = ordreCoupe.length ? ordreCoupe[0].id : '';
+  document.getElementById('coupe-droite').textContent = ordreCoupe.length ? ordreCoupe[ordreCoupe.length - 1].id : '';
+}
+
+// Niveau auquel dessiner un caisson à la date affichée. C'est une fonction de la date, non une
+// transition déclenchée : le curseur peut donc être déplacé dans les deux sens sans casser
+// l'animation, et une image donnée est toujours la même.
+function niveauAffiche(e, ms) {
+  const g = TUNNEL[e.id];
+  const tIm = t(e.ir) || t(e.im);
+  if (!tIm) return null;                       // ni posé ni programmé : rien à dessiner
+  if (ms >= tIm) return g.z;                   // en place
+  const debut = tIm - DESCENTE_JOURS * day;
+  if (ms <= debut) return null;                // pas encore descendu
+  return Z_SURFACE + (g.z - Z_SURFACE) * (ms - debut) / (tIm - debut);
+}
+
+function majCoupe(ms) {
+  const svg = document.getElementById('coupe-svg');
+  if (!svg || !ordreCoupe.length) return;
+  let poses = 0, enDescente = 0;
+  ordreCoupe.forEach(e => {
+    const grp = svg.querySelector(`g[data-id="${e.id}"]`);
+    if (!grp) return;
+    const bloc = grp.querySelector('rect.coupe-el');
+    const g = TUNNEL[e.id];
+    const h = cz(0) - cz(GABARIT.haut);
+    // Un élément immergé avant la date de référence n'a pas de date simulée : il est en place
+    // depuis toujours et doit apparaître comme tel dès la première image.
+    const z = (e.fini && !t(e.ir)) ? g.z : niveauAffiche(e, ms);
+    if (z === null) { bloc.setAttribute('opacity', 0); return; }
+    bloc.setAttribute('opacity', 1);
+    bloc.setAttribute('y', cz(z) - h / 2);
+    const pose = Math.abs(z - g.z) < 0.01;
+    if (pose) poses++; else enDescente++;
+    bloc.setAttribute('class', 'coupe-el' + (pose ? ' pose' : ' descente')
+      + (pose && t(e.im) && t(e.ir) > t(e.im) ? ' late' : ''));
+    grp.querySelector('title').textContent = `${e.id} — ${e.l} — `
+      + (pose ? (e.ir ? `posé le ${fr(e.ir)}` : 'posé avant la date de référence')
+              : 'descente en cours');
+  });
+  document.getElementById('coupe-compte').innerHTML =
+    `<b>${poses}</b> / ${ordreCoupe.length} éléments posés`
+    + (enDescente ? ` · <b>${enDescente}</b> en descente` : '');
+}
+
+/* ---- séquence de production : ce que le résolveur a changé, et ce que ça vaut ---- */
+function rendreSequence() {
+  const sq = D.sequence;
+  const sec = document.getElementById('s-sequence');
+  const note = document.getElementById('seq-note');
+  const tb = document.querySelector('#t-sequence tbody');
+  const moves = document.getElementById('seq-moves');
+  tb.textContent = ''; moves.textContent = '';
+
+  const charge = Object.entries(sq.parLigne).map(([l, n]) => `${l} ${n}`).join(' · ');
+  if (!sq.optimise) {
+    sec.hidden = false;
+    note.textContent = `Séquence ${sq.variante} du classeur sur ${sq.nbVariantes}, prise telle quelle. `
+      + `Cochez « Optimiser la séquence » pour la confronter à celle que le solveur propose. `
+      + `Répartition actuelle : ${charge}.`;
+    document.querySelector('#t-sequence').closest('.panel').hidden = true;
+    moves.hidden = true;
+    return;
+  }
+  sec.hidden = false;
+  document.querySelector('#t-sequence').closest('.panel').hidden = false;
+  moves.hidden = false;
+
+  note.textContent = `Séquence ${sq.variante} du classeur sur ${sq.nbVariantes}, confrontée à celle du solveur : `
+    + `chaque ligne remise dans l'ordre d'immersion`
+    + (sq.reaffecte ? `, et le choix de la ligne de production rouvert. ` : `, à lignes figées. `)
+    + `${sq.evaluations} séquences évaluées en ${(sq.dureeMs / 1000).toFixed(1)} s. `
+    + `Répartition retenue : ${charge}.`;
+
+  // Moins vaut mieux sur chacun de ces indicateurs : l'écart se lit dans le même sens partout.
+  const lignes = [
+    ['Inversions séquence / immersion', 'inversions', ''],
+    ['Éléments bloqués', 'nonImmerges', ''],
+    ['Éléments en retard', 'nbRetards', ''],
+    ['Retard maximum', 'retardMax', ' j'],
+    ['Retard cumulé', 'retardTotal', ' j'],
+    ['Changements de cadence', 'nbChangements', ''],
+  ];
+  lignes.forEach(([nom, cle, unite]) => {
+    const av = sq.avant[cle], ap = sq.apres[cle], d = ap - av;
+    const tr = document.createElement('tr');
+    tr.append(el('td', '', nom), el('td', 'num', av + unite), el('td', 'num', ap + unite));
+    const tdEcart = el('td', 'num');
+    if (d !== 0) {
+      const pill = el('span', 'pill ' + (d < 0 ? 'down' : 'up'),
+        (d < 0 ? '−' : '+') + Math.abs(d) + unite);
+      tdEcart.append(pill);
+    } else {
+      tdEcart.textContent = '=';
+    }
+    tr.append(tdEcart);
+    tb.append(tr);
+  });
+
+  if (!sq.deplacements.length) {
+    moves.append(el('p', 'seq-vide', sq.reaffecte
+      ? 'Aucun élément ne change de ligne : la répartition du classeur tient.'
+      : 'Affectation aux lignes non rouverte — seul l\'ordre de production a été revu.'));
+    return;
+  }
+  const n = sq.deplacements.length;
+  moves.append(el('p', 'seq-vide',
+    n > 1 ? `${n} éléments changent de ligne de production :`
+          : `Un seul élément change de ligne de production :`));
+  const box = el('div', 'moves');
+  sq.deplacements.forEach(d => {
+    const chip = el('span', 'move');
+    chip.append(document.createTextNode(d.id + ' '), el('b', '', d.de + ' → ' + d.vers));
+    box.append(chip);
+  });
+  moves.append(box);
+}
+
+/* ---- grille de séquence : une colonne par ligne, les jetons glissent d'une séquence à l'autre ---- */
+const GRILLE = {colW: 96, colGap: 10, ligneH: 21, ligneGap: 3, hautEntete: 24};
+function rendreGrilleSequence() {
+  const sq = D.sequence;
+  const grille = document.getElementById('seq-grid');
+  const hint = document.getElementById('seq-hint');
+  const panneau = document.getElementById('seq-panel-grille');
+  grille.textContent = '';
+  const lignes = ['PL-1','PL-2','PL-3','PL-4','PL-5','SPE'];
+
+  // Position d'un élément dans une séquence : sa colonne et son rang de production.
+  // Les séquences sont indexées par numéro de ligne (1 à 6), pas par nom.
+  const placer = (seq) => {
+    const pos = new Map();
+    lignes.forEach((nom, col) => (seq[col + 1] || []).forEach((id, rang) => pos.set(id, {col, rang})));
+    return pos;
+  };
+  const avant = placer(sq.avantSeq), apres = placer(sq.apresSeq);
+  const hauteurMax = Math.max(...lignes.map((_, col) => (sq.apresSeq[col + 1] || []).length), 1);
+  const largeur = lignes.length * (GRILLE.colW + GRILLE.colGap) - GRILLE.colGap;
+  const hauteur = GRILLE.hautEntete + hauteurMax * (GRILLE.ligneH + GRILLE.ligneGap);
+  grille.style.width = largeur + 'px';
+  grille.style.height = hauteur + 'px';
+  grille.style.minWidth = largeur + 'px';
+
+  lignes.forEach((nom, col) => {
+    const x = col * (GRILLE.colW + GRILLE.colGap);
+    const t = el('div', 'seq-col', nom);
+    t.style.left = x + 'px'; t.style.width = GRILLE.colW + 'px';
+    grille.append(t);
+    const rail = el('div', 'seq-rail');
+    rail.style.left = x + 'px'; rail.style.width = GRILLE.colW + 'px';
+    rail.style.height = (hauteur - GRILLE.hautEntete) + 'px';
+    grille.append(rail);
+  });
+
+  const jetons = new Map();
+  apres.forEach((_, id) => {
+    const chip = el('div', 'seq-chip' + (id.startsWith('SPE') ? ' spe' : ''), id);
+    chip.style.width = GRILLE.colW + 'px';
+    chip.style.height = GRILLE.ligneH + 'px';
+    chip.title = id + ' — cliquer pour la fiche complète';
+    rendreCliquable(chip, id);
+    grille.append(chip);
+    jetons.set(id, chip);
+  });
+
+  const poser = (pos, marquer) => {
+    jetons.forEach((chip, id) => {
+      const p = pos.get(id) || avant.get(id);
+      if (!p) { chip.style.opacity = 0; return; }
+      const x = p.col * (GRILLE.colW + GRILLE.colGap);
+      const y = GRILLE.hautEntete + p.rang * (GRILLE.ligneH + GRILLE.ligneGap);
+      chip.style.transform = `translate(${x}px, ${y}px)`;
+      const a = avant.get(id), b = apres.get(id);
+      chip.classList.toggle('bouge', marquer && !!a && !!b && (a.col !== b.col || a.rang !== b.rang));
+    });
+  };
+
+  const bAvant = document.getElementById('seq-b-avant');
+  const bApres = document.getElementById('seq-b-apres');
+  const montrer = (versApres) => {
+    poser(versApres ? apres : avant, versApres);
+    bAvant.setAttribute('aria-pressed', String(!versApres));
+    bApres.setAttribute('aria-pressed', String(versApres));
+  };
+  bAvant.onclick = () => montrer(false);
+  bApres.onclick = () => montrer(true);
+
+  const bouges = [...jetons.keys()].filter(id => {
+    const a = avant.get(id), b = apres.get(id);
+    return a && b && (a.col !== b.col || a.rang !== b.rang);
+  }).length;
+
+  if (!sq.optimise) {
+    panneau.hidden = false;
+    hint.textContent = 'Séquence de production telle qu\'elle est lue dans le classeur, une colonne par ligne.';
+    bAvant.disabled = bApres.disabled = true;
+    montrer(false);
+    return;
+  }
+  panneau.hidden = false;
+  bAvant.disabled = bApres.disabled = false;
+  hint.innerHTML = `Basculez d'une séquence à l'autre : <b>${bouges}</b> élément(s) changent de place, `
+    + `dont <b>${sq.deplacements.length}</b> de ligne.`;
+  montrer(false);
+  // Un aller-retour au chargement montre le mouvement sans qu'on ait à cliquer.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && bouges) {
+    setTimeout(() => montrer(true), 700);
+  }
+}
 
 /* ---- en-tête, verdict et pied de page, écrits d'après le résultat ---- */
 function rendreEnTete(nomFichier, dateRef) {
@@ -859,8 +2916,8 @@ function rendreEnTete(nomFichier, dateRef) {
    ================================================================ */
 const $ = id => document.getElementById(id);
 let planURL = null;
-// Fond de plan livré avec la page : image détourée du plan d'installation, cadrée sur la
-// même fenêtre que le schéma (x 4→64 %, y 42→84 % du plan général).
+// Fond de plan livré avec la page : le plan d'installation générale, placé dans le repère
+// du dessin (x 4→64, y 42→71,74) à son échelle, sans déformation.
 const PLAN_LIVRE = /*__PLAN__*/ null;
 
 // Date de référence par défaut : aujourd'hui.
@@ -907,6 +2964,29 @@ $('file-xlsx').addEventListener('change', e => {
 
 $('relancer').addEventListener('click', () => calculer($('drop-xlsx').textContent.trim()));
 
+// Le classeur peut empiler plusieurs séquences dans Inputs : chaque retour du compteur à 1
+// ouvre une variante. Le menu les expose une fois le fichier lu.
+function remplirMenuSequences() {
+  const sel = $('p-sequence');
+  const n = Math.max(1, sequencesInputs.length);
+  if (sel.dataset.rempli === String(n)) return;
+  const choix = sel.value === 'auto' ? 'auto' : String(Math.min(sequenceChoisie, n - 1));
+  sel.textContent = '';
+  for (let i = 0; i < n; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `Séquence ${i + 1}`;
+    sel.append(o);
+  }
+  // Le solveur essaie chaque séquence du classeur, optimise chacune et garde la meilleure.
+  const auto = document.createElement('option');
+  auto.value = 'auto'; auto.textContent = 'Automatique — le solveur choisit';
+  sel.append(auto);
+  sel.value = choix;
+  sel.dataset.rempli = String(n);
+}
+
+let optim = null;   // résultat du résolveur de séquence, quand il a tourné
+
 function calculer(nomFichier) {
   const btn = $('relancer');
   const avant = btn.textContent;
@@ -914,16 +2994,45 @@ function calculer(nomFichier) {
   setTimeout(() => {
     try {
       const dateRef = new Date($('p-dateref').value);
+      const auto = $('p-sequence').value === 'auto';
+      sequenceChoisie = auto ? 0 : (parseInt($('p-sequence').value) || 0);
       parseWorkbook($('p-dateref').value);
       if (!elements.length) { afficherJournal(lastJournal); return; }
+      remplirMenuSequences();
       const nb = parseFloat;
-      runSimulation({
+      const params = {
         dateRef,
         seuilParkingSem: nb($('p-seuilparking').value) || 4,
         floatUpSem: nb($('p-floatup').value) || 1,
-        hookupSem: nb($('p-hookup').value) || 0.5,
-        ballastSem: nb($('p-ballast').value) || 1,
-      });
+        placesStockageSPE: nb($('p-stockagespe').value) || 0,
+        etancheCritiqueSem: nb($('p-etanche-critique').value) || 8,
+        autoriserEtancheCritique: $('p-etanche-critique-ok').checked,
+        arretAuPlusTot: $('p-arret-tot').checked,
+        accelererEnCoursCycle: $('p-accel-cycle').checked,
+        vacances: $('p-vacances').checked,
+        jourCoulage: $('p-jour-coulage').checked,
+        bassinLibre: $('p-bassin-libre').checked,
+        dateDecision: $('p-datedecision').value ? new Date($('p-datedecision').value) : null,
+      };
+      STAGGER.actif = $('p-stagger').checked;
+      OPTIM.reaffecterLignes = $('p-reaffecter').checked;
+      // L'optimiseur enchaîne des simulations d'essai avant de retenir une séquence ; la
+      // simulation affichée est ensuite rejouée sur celle-ci.
+      // En automatique, le solveur choisit la séquence : l'optimiseur est de rigueur.
+      if (auto) optim = optimiserToutesVariantes($('p-dateref').value, params);
+      else optim = $('p-optimiser').checked ? optimiserSequence(params) : null;
+      // Sans gain saisi, on chiffre ce que la porte d'étanchéité du Basin C coûte : la page
+      // est un livrable, elle doit dire ce qui reste à gagner et à quel prix.
+      if (!params.autoriserEtancheCritique) {
+        const et = analyserEtancheite(params);
+        if (et.gain) {
+          log(`Étanchéité SPE : fermer provisoirement dès ${et.seuilCritique} semaines après CP3, au lieu de `
+            + `${et.seuilNormal}, ferait gagner ${et.kpiRef.retardTotal - et.kpiRetenu.retardTotal} jours de retard cumulé `
+            + `(retards ${et.kpiRef.nbRetards} → ${et.kpiRetenu.nbRetards}, max ${et.kpiRef.retardMax} → ${et.kpiRetenu.retardMax} j), `
+            + `sur ${et.critiques.length} fermeture(s) en planning critique. Cocher « Autoriser le seuil critique » pour l'appliquer.`, 'warn');
+        }
+      }
+      runSimulation(params);
       construireD();
       toutRendre(nomFichier, dateRef);
     } catch (err) {
@@ -943,10 +3052,17 @@ function construireD() {
     elements: elements.map(e => ({
       id: e.id, l: LIGNE_NOM[e.ligne], ln: e.ligne, r: e.rythme,
       bD: iso(e.dateDebutBeton), bF: iso(e.dateFinBeton),
+      puD: iso(e.dateDebutPush), puF: iso(e.dateFinPush),
       oD: iso(e.dateDebutOut), oF: iso(e.dateFinOut),
       fu: iso(e.dateDebutFU), ba: iso(e.dateDebutBasin), pk: iso(e.dateDebutParking),
       bl: iso(e.dateBallast), fb: iso(e.dateFinBallast),
-      im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche),
+      im: iso(e.dateImmersion), ir: iso(e.dateImmersionReelle), et: iso(e.dateEtanche), fini: e.termine,
+      ri: e.rangImmersion,
+      fuF: iso(e.dateFinFU), baF: iso(e.dateFinBasin), hk: iso(e.dateHookup),
+      sg: datesSegments(e).map(iso),
+      zones: e.passagesSim
+        ? Object.fromEntries(Object.entries(e.passagesSim).map(([z, d]) => [z, iso(d)])) : null,
+      stk: iso(e.dateDebutStockageSPE), sp: e.stockageSPENum, st: e.statut, zs: e.zoneSPE,
       pn: e.parkingNum, bn: e.basinNum, bp: e.basinPlace, ps: e.parkingSaute,
     })),
     changements: lastChangements.map(c => ({
@@ -958,6 +3074,23 @@ function construireD() {
       id: r.id, ligne: r.ligne, cible: iso(r.cible), reel: iso(r.reel), retardJours: r.retardJours,
     })),
     ancre: Object.fromEntries([1,2,3,4,5].map(l => [LIGNE_NOM[l], anchorRhythm(l)])),
+    sequence: {
+      variante: sequenceChoisie + 1,
+      nbVariantes: Math.max(1, sequencesInputs.length),
+      optimise: !!optim,
+      reaffecte: optim ? OPTIM.reaffecterLignes : false,
+      avant: optim ? optim.kpiInitial : null,
+      apres: optim ? optim.kpiRetenu : null,
+      deplacements: optim ? optim.deplacements.map(d => ({id: d.id, de: LIGNE_NOM[d.de], vers: LIGNE_NOM[d.vers]})) : [],
+      evaluations: optim ? optim.evaluations : 0,
+      dureeMs: optim ? optim.dureeMs : 0,
+      parLigne: Object.fromEntries([1,2,3,4,5,6].map(l =>
+        [LIGNE_NOM[l], elements.filter(e => e.ligne === l).length])),
+      avantSeq: optim ? optim.sequenceInitiale : sequenceCourante(),
+      apresSeq: optim ? optim.sequenceRetenue : sequenceCourante(),
+      parVariante: (optim && optim.parVariante) || null,
+      auto: !!(optim && optim.parVariante),
+    },
   };
 }
 
@@ -975,9 +3108,11 @@ function afficherJournal(entrees) {
 function appliquerFondPlan() {
   const svg = $('plan');
   if (!svg) return;
-  // Une image chargée par l'utilisateur est supposée couvrir le plan général entier ;
-  // le fond livré, lui, est déjà cadré sur la fenêtre du schéma.
-  const src = planURL ? {href: planURL, x: 0, y: 0, w: 100, h: 100} : PLAN_LIVRE;
+  // Les cotes du décor sont relevées sur le plan d'installation générale : une image chargée
+  // par l'utilisateur n'est superposable que si c'est le même plan, donc même cadre que le
+  // fond livré. Sans fond livré, on ne sait pas où caler — on n'affiche rien.
+  const cadre = PLAN_LIVRE || {x: 4, y: 42, w: 60, h: 29.74};
+  const src = planURL ? {...cadre, href: planURL} : PLAN_LIVRE;
   if (!src) return;
   let img = svg.querySelector('image.fond');
   if (!img) {
@@ -991,6 +3126,45 @@ function appliquerFondPlan() {
   img.setAttribute('width', src.w); img.setAttribute('height', src.h);
   img.setAttribute('href', src.href);
 }
+
+{
+  // Commandes du planning : le découpage et le filtre le redessinent, l'impression n'emporte
+  // que lui — le reste du rapport est masqué le temps du tirage, puis rétabli.
+  const redessiner = () => { if (D) rendreGantt(); };
+  document.getElementById('planning-tranche').addEventListener('change', redessiner);
+  document.getElementById('planning-vides').addEventListener('change', redessiner);
+  document.getElementById('planning-flux').addEventListener('change', redessiner);
+  document.getElementById('planning-ajuster').addEventListener('change', redessiner);
+  brancherDeplacement();
+  // Survoler une barre isole le cheminement de son élément dans le faisceau.
+  const planning = document.getElementById('planning');
+  planning.addEventListener('mouseover', ev => {
+    const barre = ev.target.closest('.pl-barre');
+    const id = barre && barre.dataset.id;
+    planning.querySelectorAll('.pl-flux path').forEach(p => p.classList.toggle('vif', !!id && p.dataset.id === id));
+  });
+  planning.addEventListener('mouseleave', () => {
+    planning.querySelectorAll('.pl-flux path.vif').forEach(p => p.classList.remove('vif'));
+  });
+  document.getElementById('planning-imprimer').addEventListener('click', () => {
+    document.body.classList.add('impr-planning');
+    const rendre = () => document.body.classList.remove('impr-planning');
+    window.addEventListener('afterprint', rendre, {once: true});
+    setTimeout(() => { window.print(); setTimeout(rendre, 1500); }, 60);
+  });
+}
+
+{
+  const boite = document.getElementById('fiche');
+  const fermer = () => { if (typeof boite.close === 'function') boite.close(); else boite.removeAttribute('open'); };
+  document.getElementById('fiche-fermer').addEventListener('click', fermer);
+  // Un clic hors du cadre ferme aussi : la boîte occupe tout le fond quand elle est modale.
+  boite.addEventListener('click', ev => { if (ev.target === boite) fermer(); });
+}
+
+// Le relevé des contraintes ne dépend d'aucune donnée : il s'affiche dès l'ouverture de la
+// page, puis se remet à jour après chaque calcul pour refléter les seuils réellement appliqués.
+rendreContraintes();
 
 })();
 </script>
