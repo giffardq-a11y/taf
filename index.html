@@ -228,8 +228,8 @@
     <label class="field">Durée Float-up (sem) <input type="number" id="p-floatup" value="1" step="0.5"></label>
     <label class="field">Places de stockage SPE <input type="number" id="p-stockagespe" value="1" min="0" step="1"></label>
     <label class="field">Étanchéité provisoire — seuil critique (sem) <input type="number" id="p-etanche-critique" value="8" min="1" step="1"></label>
-    <label class="check"><input type="checkbox" id="p-porte-unique" checked>
-      <span><b>Une seule paire de portes</b> — un seul float-up à la fois. Le groupe dont l'élément est le plus urgent passe d'abord, les autres attendent la porte. Le staggering décale les départs béton, pas les sorties d'outfitting : sans cette règle, deux ou trois bassins se remplissent parfois le même jour.</span></label>
+    <label class="check"><input type="checkbox" id="p-porte-unique" checked disabled>
+      <span><b>Une seule paire de portes</b> — un seul float-up à la fois, tous bassins confondus. Règle fixe du site, non désactivable : le groupe dont l'élément est le plus urgent passe d'abord, les autres attendent la porte.</span></label>
     <label class="check"><input type="checkbox" id="p-vacances" checked>
       <span><b>Arrêts annuels de l'usine</b> — deux semaines à partir de la semaine du 25 décembre, une semaine sainte. Les durées se règlent à l'étape 6. Un élément dont la coulée traverse un arrêt met d'autant plus de jours à sortir, et rien ne démarre pendant.</span></label>
     <label class="check"><input type="checkbox" id="p-bassin-libre" checked>
@@ -474,7 +474,11 @@ const REGLES = {
   basins: 3, basinPlaces: 2,
   arretAuPlusTot: true,     // vider les halles au plus tôt plutôt que produire à flux tendu
   accelererEnCoursCycle: false, // accélérer sans attendre le prochain départ béton
-  floatUpUnique: true,      // une seule paire de portes : un float-up à la fois
+  // Une seule paire de portes sur le site : un seul float-up (mouvement Upper → Lower Basin)
+  // à la fois, tous bassins confondus (A, B, C). Règle FIXE (confirmée par l'utilisateur,
+  // 11/08/2026, avec les règles de portes du Basin C) — ce n'est plus une option de
+  // comparaison, comme dureePushJours. Non réglable depuis l'interface.
+  floatUpUnique: true,
   vacances: true,           // arrêts annuels de l'usine
   noelSemaines: 2,          // de la semaine du 25 décembre, couvre Noël et le jour de l'an
   paquesSemaines: 1,        // semaine sainte
@@ -1140,7 +1144,6 @@ function lireParamsUI() {
     vacances: caseCochee('p-vacances', REGLES.vacances),
     jourCoulage: caseCochee('p-jour-coulage', REGLES.jourCoulage),
     bassinLibre: caseCochee('p-bassin-libre', REGLES.bassinLibrePourFloatUp),
-    floatUpUnique: caseCochee('p-porte-unique', REGLES.floatUpUnique),
     dateDecision: dateChamp('p-datedecision'),
     etancheCritiqueSem: champ('p-etanche-critique', REGLES.etancheCritiqueSem),
     autoriserEtancheCritique: !!(document.getElementById('p-etanche-critique-ok') || {}).checked,
@@ -1209,6 +1212,7 @@ function runSimulation(paramsArg) {
   const bassinsPleins = [];   // float-ups repoussés faute de poste libre à l'arrivée
   const attenteParking = []; // jours-élément passés à attendre une place de parking
   const ralentissementsPaire = new Map(); // ralentissements déjà consommés, par paire
+  const stallsOutfitting = []; // attentes réelles avant push (upper basin plein), par ligne — voir signalerStallOutfitting
   const risques = [];     // éléments dont la deadline n'est pas tenable même au rythme max autorisé
   const floatUpSolo = []; // float-ups partis sans partenaire (ligne jumelle épuisée)
   const parkingReserveUsages = []; // recours à la 6e place de parking (réserve de déblocage)
@@ -1455,20 +1459,19 @@ function runSimulation(paramsArg) {
     const tenableRampe = (R) => lignesPaire.every(l =>
       fileTenableRampe(l, dConcreteStart, R, l === ligne ? elemCourant : null));
 
-    // PL-5 module librement sa cadence, ses contraintes propres l'imposent. Les autres
-    // lignes ne relâchent qu'une fois — en fin de programme, pour ne pas arrêter la
-    // production trop brutalement : chaque réinstallation coûte, et tout retard qui en
-    // découlerait se paierait en pénalités.
-    // Relâcher la cadence en fin de programme est une économie — mais le test de faisabilité
-    // ignore l'aval (bassins, parking, ordre d'immersion) : il conclut parfois qu'un rythme
-    // plus lent tient alors qu'il ne tient pas. L'utilisateur peut donc l'interdire.
-    // Une cadence atteinte n'est jamais relâchée. L'exception « une fois en fin de programme »
-    // se paie : le test de faisabilité ignore l'aval (bassins, parking, ordre d'immersion) et
-    // conclut parfois qu'un rythme plus lent tient alors qu'il ne tient pas. Sur le classeur de
-    // référence, l'autoriser coûte 8 retards et 1032 jours de cumul de plus, pour 4 changements
-    // de cadence en plus. Elle reste accessible depuis l'interface.
+    // Une cadence atteinte n'est jamais relâchée sur la seule foi de fileTenable() : ce test
+    // ignore l'aval (bassins, parking, ordre d'immersion, Basin C — voir SUITE.md) et juge
+    // parfois tenable un rythme plus lent qui ne l'est pas. L'y autoriser en aveugle — y
+    // compris pour PL-5 — a produit un essai à 953 j de retard cumulé (contre 42 j sans, sur
+    // le classeur de référence, 11/08/2026) : la formule choisissait un rythme économique qui
+    // se révélait intenable une fois la file rejouée en entier, et s'y tenait ensuite (la
+    // ligne ne relâche jamais deux fois). Seule exception : fin de programme, une fois par
+    // paire, sur autorisation explicite de l'utilisateur (case à cocher, même limite connue).
+    // PL-5 ralentit quand même quand Basin C l'impose — mais en réaction à une attente RÉELLE
+    // observée par la simulation, pas par anticipation de la formule : voir
+    // signalerStallOutfitting, qui pose directement lastRhythmState sans passer par ici.
     const ralentirPermis = PARAMS.autoriserRalentissement
-      && ((ligne === 5) || (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1);
+      && (ralentissementsPaire.get(lignesPaire[0]) || 0) < 1;
     const slopeOk = RYTHMES.filter(R => (ralentirPermis || R <= state.rhythm + 1e-9)
       && Math.abs(R - state.rhythm) <= slopeMaxPaire + 1e-9);
     let chosen = null;
@@ -1735,6 +1738,25 @@ function runSimulation(paramsArg) {
     e.dateFinPush = addDays(dCur, REGLES.dureePushJours);
   }
 
+  // Une attente réelle avant push (upper basin plein) est la preuve que le rythme courant ne
+  // tient pas l'aval de la ligne — fileTenable() n'a pas pu le voir (elle ignore Basin C, voir
+  // SUITE.md), la simulation vient de le constater. Règle du client (confirmée le 11/08/2026) :
+  // la cadence doit être revue à la baisse, jamais la durée du push. On applique directement UN
+  // cran plus lent (pas d'appel à chooseRhythm : sa formule, optimiste sur Basin C, a produit
+  // un relâchement bien plus lourd que nécessaire à l'essai — 953 j de retard cumulé contre
+  // 42 j — en s'y tenant ensuite indéfiniment). Un cran suffit à sortir du blocage immédiat ;
+  // si Basin C l'exige encore, l'attente suivante en redemandera un autre. Rien n'empêche la
+  // ligne de raccélérer ensuite (choix normal, toujours ouvert à un rythme plus rapide).
+  function signalerStallOutfitting(ligne, dCur) {
+    const st = lastRhythmState[ligne];
+    stallsOutfitting.push({ligne: LIGNE_NOM[ligne], date: new Date(dCur), rythme: st.rhythm});
+    const plusLent = RYTHMES.filter(R => R > st.rhythm + 1e-9).sort((a, b) => a - b)[0];
+    if (plusLent === undefined) return;   // déjà au rythme le plus lent autorisé
+    changements.push({ligne: LIGNE_NOM[ligne], date: new Date(dCur), from: st.rhythm, to: plusLent,
+      atRisk: false, declencheur: '(attente réelle upper basin plein)'});
+    lastRhythmState[ligne] = {rhythm: plusLent, changeDate: new Date(dCur)};
+  }
+
   function demarrerOutfittingPL(e, dCur) {
     e.dateDebutOut = dCur;
     e.dateFinOut = ajouterJoursTravail(dCur, dureeOutfittingJoursForR(e.ligne, dCur, e.rythme || anchorRhythm(e.ligne)));
@@ -1806,6 +1828,9 @@ function runSimulation(paramsArg) {
     }
   }
 
+  // Un SPE présent en Upper Basin et pas encore étanche interdit d'inonder le bassin — donc
+  // aussi bien la sortie du Lower Basin (evacuerVersStockageSPE, cas 'Basin' de PL-5) que le
+  // float-up d'un STE depuis l'Upper Basin (partantsDuGroupe) : c'est la même inondation.
   function speNonEtancheEnUB(dCur) {
     if (!premiereUB) return false;
     return elements.some(x => x.ligne === 6 && !x.termine && x.statut === 'Outfitting'
@@ -1850,6 +1875,11 @@ function runSimulation(paramsArg) {
     // entrée synchronisée par paire y serait impossible.
     if (g === 3) {
       if (basinOccupee[g][place]) return;
+      // Un STE (ligne 5) ne peut pas entrer si le Lower Basin contient déjà un élément
+      // standard — même arrivé par la soupape de stockage de secours (stockerEnBassin) dans
+      // l'autre place, normalement réservée au SPE (confirmé par l'utilisateur, 11/08/2026).
+      if (e.ligne !== 6 && elements.some(x => x !== e && !x.termine && x.ligne !== 6
+          && x.statut === 'Basin' && x.basinNum === g)) return;
       basinOccupee[g][place] = true;
       e.statut = 'Basin'; e.dateDebutBasin = dCur; e.dateFinBasin = addDays(dCur, dureeAffichage);
       e.basinNum = g; e.basinPlace = place;
@@ -1917,7 +1947,7 @@ function runSimulation(paramsArg) {
           // gèlerait toute la ligne derrière lui.
           zoneBetonOccupee[ligne] = false;
           if (!zoneOutOccupee[ligne] && outfittingAutorise(e, dCur)) demarrerPush(e, ligne, dCur);
-          else e.statut = 'AttenteOutfitting';
+          else { e.statut = 'AttenteOutfitting'; signalerStallOutfitting(ligne, dCur); }
         }
         break;
       case 'AttenteOutfitting':
@@ -2167,34 +2197,18 @@ function runSimulation(paramsArg) {
     return Math.min(...partants.map(e => isFinite(e.rangImmersion) ? e.rangImmersion : Infinity));
   }
 
+  // Une seule paire de portes sur le site : un seul float-up à la fois, tous bassins
+  // confondus (règle fixe, voir REGLES.floatUpUnique). Le groupe dont l'élément est le plus
+  // urgent (rang d'immersion) passe d'abord, les autres attendent la porte.
   function verifierFloatUpGroupes(dCur) {
-    // Sans la contrainte, chaque groupe part dès qu'il est prêt : c'est l'ancien comportement.
-    if (PARAMS.floatUpUnique !== false) {
-      const candidats = [];
-      if (porteFloatUpOccupee()) {
-        // Porte prise : on note qui patiente, c'est le coût réel de la contrainte.
-        for (const [lA, lB] of GROUPES) {
-          const p = partantsDuGroupe(lA, lB);
-          if (p && p.length) portesEnAttente.push({date: new Date(dCur), passe: '(porte occupée)',
-            attendent: [LIGNE_NOM[lA]]});
-        }
-        return;
-      }
+    const candidats = [];
+    if (porteFloatUpOccupee()) {
+      // Porte prise : on note qui patiente, c'est le coût réel de la contrainte.
       for (const [lA, lB] of GROUPES) {
-        const p = partantsDuGroupe(lA, lB);
-        if (!p || !p.length) continue;
-        if (!basinPretAAccueillir(p)) { bassinsPleins.push({date: new Date(dCur), groupe: 'ABC'[groupeId(lA)-1],
-          ids: p.map(e => e.id)}); continue; }
-        candidats.push({lA, lB, p});
+        const p = partantsDuGroupe(lA, lB, dCur);
+        if (p && p.length) portesEnAttente.push({date: new Date(dCur), passe: '(porte occupée)',
+          attendent: [LIGNE_NOM[lA]]});
       }
-      if (!candidats.length) return;
-      candidats.sort((a, b) => urgenceGroupe(a.p) - urgenceGroupe(b.p));
-      const retenu = candidats[0];
-      if (candidats.length > 1) {
-        portesEnAttente.push({date: new Date(dCur), passe: LIGNE_NOM[retenu.lA],
-          attendent: candidats.slice(1).map(c => LIGNE_NOM[c.lA])});
-      }
-      lancerFloatUp(retenu.p, dCur);
       return;
     }
     for (const [lA, lB] of GROUPES) {
@@ -2202,8 +2216,16 @@ function runSimulation(paramsArg) {
       if (!p || !p.length) continue;
       if (!basinPretAAccueillir(p)) { bassinsPleins.push({date: new Date(dCur), groupe: 'ABC'[groupeId(lA)-1],
         ids: p.map(e => e.id)}); continue; }
-      lancerFloatUp(p, dCur);
+      candidats.push({lA, lB, p});
     }
+    if (!candidats.length) return;
+    candidats.sort((a, b) => urgenceGroupe(a.p) - urgenceGroupe(b.p));
+    const retenu = candidats[0];
+    if (candidats.length > 1) {
+      portesEnAttente.push({date: new Date(dCur), passe: LIGNE_NOM[retenu.lA],
+        attendent: candidats.slice(1).map(c => LIGNE_NOM[c.lA])});
+    }
+    lancerFloatUp(retenu.p, dCur);
   }
 
   /* Le bassin de destination a-t-il de quoi accueillir ces partants ?
@@ -2225,11 +2247,27 @@ function runSimulation(paramsArg) {
   }
 
   // Éléments qu'un groupe ferait partir aujourd'hui, ou null s'il n'est pas prêt.
-  function partantsDuGroupe(lA, lB) {
+  function partantsDuGroupe(lA, lB, dCur) {
     // PL-5 / SPE : cadences indépendantes (le SPE stationne en Basin C bien après que les
     // éléments normaux l'aient traversé), un float-up synchronisé bloquerait la ligne.
     if (lA === 5) {
-      return [lA, lB].map(l => premierDeLigne(l, 'AttenteFloatUp')).filter(Boolean);
+      // Portes du Basin C (confirmées par l'utilisateur, 11/08/2026, jalons d'étanchéité) :
+      // le float-up inonde l'Upper Basin, donc les deux sens s'interdisent mutuellement tant
+      // que l'autre camp n'est pas prêt à être noyé.
+      //   - un STE ne peut flotter que si tout SPE présent en Upper Basin est étanche (sinon
+      //     l'inondation le compromettrait) — extension de speNonEtancheEnUB, qui aujourd'hui
+      //     ne bloque que la sortie du Lower Basin, pas l'entrée ;
+      //   - un SPE ne peut être transféré vers le Lower Basin que s'il n'y a pas de STE en
+      //     Upper Basin, ou que ce STE est terminé (son outfitting est fini, il n'attend plus
+      //     que la porte en AttenteFloatUp — l'inonder ne compromet alors plus rien).
+      const eSTE = premierDeLigne(5, 'AttenteFloatUp');
+      const eSPE = premierDeLigne(6, 'AttenteFloatUp');
+      const steEnUBNonTermine = elements.some(x => x.ligne === 5 && !x.termine
+        && (x.statut === 'Push' || x.statut === 'Outfitting'));
+      const partants = [];
+      if (eSTE && !speNonEtancheEnUB(dCur)) partants.push(eSTE);
+      if (eSPE && !steEnUBNonTermine) partants.push(eSPE);
+      return partants;
     }
     const eA = premierDeLigne(lA, 'AttenteFloatUp');
     const eB = premierDeLigne(lB, 'AttenteFloatUp');
@@ -2421,6 +2459,10 @@ function runSimulation(paramsArg) {
   if (parkingReserveUsages.length) log(`6e place de parking (réserve) utilisée ${parkingReserveUsages.length} fois : ${parkingReserveUsages.slice(0,5).map(u=>u.id).join(', ')}${parkingReserveUsages.length>5?'…':''}.`, 'warn');
   if (evacuationsSPE.length) log(`Zone de stockage SPE : ${evacuationsSPE.length} évacuation(s) anticipée(s) du Basin C — ${evacuationsSPE.map(x=>`${x.id} le ${fmt(x.date)}`).join(', ')}.`);
   if (floatUpSolo.length) log(`${floatUpSolo.length} Float-up sans partenaire (ligne jumelle épuisée) : ${floatUpSolo.slice(0,5).map(f=>f.id).join(', ')}${floatUpSolo.length>5?'…':''}.`, 'warn');
+  if (stallsOutfitting.length) {
+    log(`Attente réelle avant push (upper basin plein) : ${stallsOutfitting.length} fois — la cadence a été revue à la baisse en réaction, comme l'exige la règle « pas d'arrêt de production » — `
+      + `${stallsOutfitting.slice(0,5).map(s=>`${s.ligne} le ${fmt(s.date)} (rythme ${s.rythme} sem écarté)`).join(', ')}${stallsOutfitting.length>5?'…':''}.`, 'warn');
+  }
   if (nonTermines) log(`${nonTermines} élément(s) non immergé(s) à la fin de l'horizon de simulation (6 ans).`, 'warn');
   if (portesEnAttente.length) {
     const jours = new Set(portesEnAttente.map(p => +p.date)).size;
