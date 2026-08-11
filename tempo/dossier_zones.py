@@ -66,6 +66,32 @@ OF4 seulement ; une fois en position, le big push amène l'élément à sa posit
 jusqu'au float-up. Voir le registre de validation pour ce qui reste à établir
 précisément (correspondance complète segment↔position, zones N1/N2/N3 pas encore
 représentées dans le schéma).
+
+NOUVEAU (11/08/2026, dépouillement de STE__General_Temo_Overview__DRAFT.pptx — storyboard
+de 19 diapos « Tempo X & Y » plus une diapo d'organisation d'ateliers) :
+  - PREUVE DIRECTE de la concurrence des deux familles de phases : chaque diapo « Tempo X
+    & Y » montre un même instant où la famille M/N/O/P/Q/R/S/T/U/K/L (production/curing)
+    est à la lettre X ET la famille A à I (armature, cf. plus haut) est à la lettre Y, en
+    même temps — exactement ce que l'utilisateur avait indiqué dès la première demande de
+    ce chantier. Séquence complète observée (19 diapos, cycle de 18 pas qui boucle — la
+    diapo 20 « Tempo M & B » répète la diapo 2) : M&B, M&C, N&C, N&D, O&D, O&E, P&E, P&F,
+    Q&F, Q&G, R&G, S&H, T&H, T&I, U&I (« Push 24m »), K&A (« 18m Push »), L&A (« 30m »),
+    L&B, puis M&B à nouveau.
+  - AFFINEMENT : U et K sont deux pas DISTINCTS d'un seul pas chacun (« U & I » puis
+    « K & A »), pas un seul « U+K » fusionné comme le laissait penser le classeur N3 (qui
+    les regroupe dans une seule colonne/zone R2). Le déroulé réel semble donc avoir 11
+    lettres dans cette famille (M,N,O,P,Q,R,S,T,U,K,L), pas 10.
+  - NOUVELLE ZONE : « Lower Basin » apparaît comme aire à part entière (en-tête de colonne
+    sur chaque diapo, à gauche d'« Upper Basin ») — pas encore représentée dans ce dossier
+    ni dans le schéma interactif. Position exacte dans le flux (après Upper Basin ?) à
+    confirmer — voir le registre de validation.
+  - CONTRADICTION À NOTER : sur ce document, les en-têtes de colonne (aires) sont, de
+    gauche à droite : Lower Basin, Upper Basin, Outfitting Area, Curing Hall, Production
+    Hall, Rebar Hall — et Buffer/LASCA/BS/Walls sont dessinés sous l'en-tête « Rebar Hall »,
+    pas « Production Hall ». Ce dossier classe actuellement Buffer sous Production Hall
+    (voir `_AIRE_PAR_ZONE_REELLE`) — à réconcilier, voir le registre de validation.
+  - La diapo « WORKSHOP ORGA » liste les ateliers de détail prévus (sujet, responsable en
+    initiales, semaine, équipes impliquées) — voir `ATELIERS_DETAIL` ci-dessous.
 """
 
 ZONES = {
@@ -734,6 +760,53 @@ EQUIPEMENTS = [
               "confirmé directement par l'utilisateur du projet (11/08/2026, pour GTA/MSE)"},
 ]
 
+# Ateliers de détail (« WORKSHOP ORGA », dernière diapo de STE__General_Temo_Overview__
+# DRAFT.pptx) : sujet, responsable pressenti (initiales telles que dans le document — non
+# décodées, voir le registre de validation), semaine(s) planifiée(s), équipes impliquées.
+# C'est une liste d'ateliers à tenir, pas des points à trancher — gardée séparée du
+# registre de validation pour cette raison, même structure de traçabilité.
+ATELIERS_DETAIL = [
+    {'sujet': 'Sliding Gate', 'responsable': 'PDE',
+     'notes': "Bien avancé mais pas formalisé — à fusionner avec l'atelier Float-up ? "
+              "(question posée dans le document lui-même).",
+     'semaines': [], 'equipes': ['Marine', 'OF', 'Skidding', 'PP & R'], 'statut': 'provisoire'},
+    {'sujet': 'Float-up', 'responsable': None,
+     'notes': "Aucun responsable ni semaine indiqués dans le document (points "
+              "d'interrogation « Float-up ?? ») — atelier pas encore cadré.",
+     'semaines': [], 'equipes': ['Marine', 'Plant', 'OF', 'Skidding'], 'statut': 'a_trancher'},
+    {'sujet': 'General Post-Pour', 'responsable': 'SFO',
+     'notes': "Atelier de 2025 — à revoir après les ateliers détaillés Outfitting.",
+     'semaines': ['1 – W19'], 'equipes': ['PP & R', 'Outfitting', 'TE System', 'Survey', 'Plant'],
+     'statut': 'confirme'},
+    {'sujet': 'Detailed Outfitting Transversal', 'responsable': 'MTS',
+     'notes': '', 'semaines': ['1 – W18 28/04'], 'equipes': ['OF.T'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Outfitting Integrated', 'responsable': 'MJA',
+     'notes': '', 'semaines': ['1 – W18 28/04'], 'equipes': ['OF.I', 'TES'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Repairs', 'responsable': 'JUO',
+     'notes': "Fait, à revoir/mettre à jour d'après le document.",
+     'semaines': [], 'equipes': ['PP & R'], 'statut': 'provisoire'},
+    {'sujet': 'General Pre-Pour', 'responsable': 'SFO',
+     'notes': '', 'semaines': ['1 – W19'],
+     'equipes': ['FW', 'CAS', 'Skidding', 'Rebar Hall', 'Survey', 'Plant'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Casting Pit', 'responsable': 'OSI',
+     'notes': '', 'semaines': ['1 – W17 23/04', '2 – W18 29/04'],
+     'equipes': ['FW', 'CAS', 'Skidding', 'Survey'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Rebar Hall', 'responsable': 'MDI',
+     'notes': "Un 3e passage évoqué (« from 2nd WS? ») mais pas confirmé.",
+     'semaines': ['1 – W17 22/04', '2 – W18 29/04'],
+     'equipes': ['Rebar Hall', 'Panel Factory', 'Skidding', 'Survey', 'CAS'], 'statut': 'confirme'},
+    {'sujet': 'Panel Factory', 'responsable': 'PBR',
+     'notes': "Périmètre : jusqu'aux livraisons dans les halls.",
+     'semaines': ['1 – W17 23/04', '2 – W19'],
+     'equipes': ['Panel Factory', 'Rebar Hall'], 'statut': 'confirme'},
+    {'sujet': 'Detailed S9-S1', 'responsable': 'AGA',
+     'notes': '', 'semaines': ['3 – W17 21/04', '4 – W17 22/04', '5 – W18 27/04'],
+     'equipes': ['FW (KST + PKR)'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Casting Sequence', 'responsable': 'PPB / DHU',
+     'notes': '', 'semaines': ['1 – W18 27/04'],
+     'equipes': ['CAS', 'Lab', 'Batching Plant'], 'statut': 'confirme'},
+]
+
 # Registre de validation : une ligne par point encore ouvert, tous zones confondues — la
 # matière d'une réunion de conciliation, pas un rapport de plus. Regroupé par personne
 # responsable pressentie, pour qu'une invitation de réunion puisse s'écrire directement
@@ -821,4 +894,23 @@ REGISTRE_VALIDATION = [
               "clarifier : flux partiel ou fenêtre temporelle partielle ?",
      'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'élevé — conditionne le dimensionnement de flotte si DeliveryPlan doit servir de référence'},
+    {'point': "NOUVEAU 11/08/2026 (STE__General_Temo_Overview__DRAFT.pptx) : une aire « Lower "
+              "Basin » apparaît en en-tête sur les 19 diapos du storyboard tempo, à gauche "
+              "d'« Upper Basin » — pas encore représentée dans ce dossier ni dans le schéma "
+              "interactif. Sa position exacte dans le flux (juste après Upper Basin ? une "
+              "sous-zone ?) et son contenu (sous-zones, tâches) restent à établir.",
+     'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'moyen — une aire entière du site manque au schéma actuel'},
+    {'point': "CONTRADICTION 11/08/2026 (STE__General_Temo_Overview__DRAFT.pptx) : ce document "
+              "dessine Buffer/LASCA/BS/Walls sous l'en-tête « Rebar Hall », alors que ce dossier "
+              "classe Buffer sous « Production Hall » (voir `_AIRE_PAR_ZONE_REELLE`). À "
+              "réconcilier — peut-être une zone de transition comptée différemment selon les "
+              "documents.",
+     'zone': 'Buffer', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'faible — n\'affecte que le regroupement visuel par aire, pas les données de zone elles-mêmes'},
+    {'point': "Initiales des responsables d'ateliers non décodées : PDE, SFO, MTS, MJA, JUO, OSI, "
+              "MDI, PBR, AGA, PPB, DHU (voir ATELIERS_DETAIL, tiré de STE__General_Temo_Overview__"
+              "DRAFT.pptx, diapo « WORKSHOP ORGA »).",
+     'zone': 'toutes', 'responsable': 'équipe TEMPO',
+     'impact': 'faible — gêne la lecture, pas le calcul'},
 ]

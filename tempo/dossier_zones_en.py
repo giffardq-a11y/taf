@@ -868,6 +868,53 @@ EQUIPEMENTS_EN = [
               "confirmed directly by the project's user (08/11/2026, for GTA/MSE)"},
 ]
 
+# Detail workshops ("WORKSHOP ORGA", last slide of STE__General_Temo_Overview__DRAFT.pptx):
+# topic, likely owner (initials as in the document — undecoded, see the validation
+# register), planned week(s), teams involved. A list of workshops to hold, not open
+# points to settle — kept separate from the validation register for that reason, same
+# traceability structure.
+ATELIERS_DETAIL_EN = [
+    {'sujet': 'Sliding Gate', 'responsable': 'PDE',
+     'notes': "Well advanced but not formalised — to merge with the Float-up workshop? "
+              "(question raised in the document itself).",
+     'semaines': [], 'equipes': ['Marine', 'OF', 'Skidding', 'PP & R'], 'statut': 'provisoire'},
+    {'sujet': 'Float-up', 'responsable': None,
+     'notes': "No owner or week given in the document (question marks: “Float-up ??”) "
+              "— workshop not yet scoped.",
+     'semaines': [], 'equipes': ['Marine', 'Plant', 'OF', 'Skidding'], 'statut': 'a_trancher'},
+    {'sujet': 'General Post-Pour', 'responsable': 'SFO',
+     'notes': "2025 workshop — to review after the detailed Outfitting workshops.",
+     'semaines': ['1 – W19'], 'equipes': ['PP & R', 'Outfitting', 'TE System', 'Survey', 'Plant'],
+     'statut': 'confirme'},
+    {'sujet': 'Detailed Outfitting Transversal', 'responsable': 'MTS',
+     'notes': '', 'semaines': ['1 – W18 28/04'], 'equipes': ['OF.T'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Outfitting Integrated', 'responsable': 'MJA',
+     'notes': '', 'semaines': ['1 – W18 28/04'], 'equipes': ['OF.I', 'TES'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Repairs', 'responsable': 'JUO',
+     'notes': "Done, per the document, to review/update.",
+     'semaines': [], 'equipes': ['PP & R'], 'statut': 'provisoire'},
+    {'sujet': 'General Pre-Pour', 'responsable': 'SFO',
+     'notes': '', 'semaines': ['1 – W19'],
+     'equipes': ['FW', 'CAS', 'Skidding', 'Rebar Hall', 'Survey', 'Plant'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Casting Pit', 'responsable': 'OSI',
+     'notes': '', 'semaines': ['1 – W17 23/04', '2 – W18 29/04'],
+     'equipes': ['FW', 'CAS', 'Skidding', 'Survey'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Rebar Hall', 'responsable': 'MDI',
+     'notes': "A 3rd pass mentioned (“from 2nd WS?”) but not confirmed.",
+     'semaines': ['1 – W17 22/04', '2 – W18 29/04'],
+     'equipes': ['Rebar Hall', 'Panel Factory', 'Skidding', 'Survey', 'CAS'], 'statut': 'confirme'},
+    {'sujet': 'Panel Factory', 'responsable': 'PBR',
+     'notes': "Scope: up to deliveries in the halls.",
+     'semaines': ['1 – W17 23/04', '2 – W19'],
+     'equipes': ['Panel Factory', 'Rebar Hall'], 'statut': 'confirme'},
+    {'sujet': 'Detailed S9-S1', 'responsable': 'AGA',
+     'notes': '', 'semaines': ['3 – W17 21/04', '4 – W17 22/04', '5 – W18 27/04'],
+     'equipes': ['FW (KST + PKR)'], 'statut': 'confirme'},
+    {'sujet': 'Detailed Casting Sequence', 'responsable': 'PPB / DHU',
+     'notes': '', 'semaines': ['1 – W18 27/04'],
+     'equipes': ['CAS', 'Lab', 'Batching Plant'], 'statut': 'confirme'},
+]
+
 REGISTRE_VALIDATION_EN = [
     {'point': "QUASI-RESOLVED 08/10/2026. Recap: (1) the user directly confirmed that the letter "
               "codes (A to I/M to L) are PHASES, not physical zones; (2) a physical zone can be "
@@ -948,4 +995,22 @@ REGISTRE_VALIDATION_EN = [
               "flow or partial time window?",
      'zone': 'Logistique', 'responsable': 'logistics team',
      'impact': 'high — governs fleet sizing if DeliveryPlan is to be used as the reference'},
+    {'point': "NEW 08/11/2026 (STE__General_Temo_Overview__DRAFT.pptx): a \"Lower Basin\" area "
+              "appears as a header on all 19 slides of the tempo storyboard, to the left of "
+              "\"Upper Basin\" — not yet represented in this dossier or in the interactive "
+              "diagram. Its exact position in the flow (right after Upper Basin? a sub-zone?) "
+              "and its content (sub-zones, tasks) still need establishing.",
+     'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'medium — a whole site area is missing from the current diagram'},
+    {'point': "CONTRADICTION 08/11/2026 (STE__General_Temo_Overview__DRAFT.pptx): this document "
+              "draws Buffer/LASCA/BS/Walls under the \"Rebar Hall\" header, while this dossier "
+              "classes Buffer under \"Production Hall\" (see `_AIRE_PAR_ZONE_REELLE`). Needs "
+              "reconciling — possibly a transition zone counted differently across documents.",
+     'zone': 'Buffer', 'responsable': 'Valery Claise / Joanna',
+     'impact': "low — only affects the visual area grouping, not the zone data itself"},
+    {'point': "Workshop owner initials undecoded: PDE, SFO, MTS, MJA, JUO, OSI, MDI, PBR, AGA, "
+              "PPB, DHU (see ATELIERS_DETAIL_EN, from STE__General_Temo_Overview__DRAFT.pptx, "
+              "the \"WORKSHOP ORGA\" slide).",
+     'zone': 'toutes', 'responsable': 'TEMPO team',
+     'impact': 'low — hinders reading, not the calculation'},
 ]

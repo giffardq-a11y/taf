@@ -378,3 +378,55 @@ détaillées) et n'ont été dépouillés qu'au niveau de leurs feuilles de synt
 (`Sequence of Work`, `Wall * task and duration`) — suffisant pour confirmer la donnée
 ci-dessus ; un dépouillement complet des grilles détaillées reste possible si un point
 précis d'un segment en a besoin, mais n'a pas semblé justifié pour l'instant.
+
+## 13. Corrections directes de l'utilisateur + storyboard général (11/08/2026)
+
+L'utilisateur a corrigé plusieurs points directement, sans attendre la réunion de
+conciliation (voir aussi la correction en tête de `tempo/dossier_zones.py`) :
+
+- **Pas de « phase d'origine » par zone.** Un élément passe par TOUTES les phases au
+  cours de sa construction — le libellé introduit dans le schéma interactif (une seule
+  lettre par zone) était une régression sur la clarification phase/zone du 10/08, retiré.
+- **Sens global de la séquence de lettres** : phases A à J = préparation d'armature ;
+  phases L à U (même intervalle que M/N/O/P/Q/R/S/T/U+K/L) = casting/curing puis
+  réparations et outfitting. Cohérent avec la répartition réelle par UNIT déjà calculée
+  (§10-12) : les phases A à I portent bien des tâches Base Slab/LASCA/Walls/Buffer.
+- **GTA** = sous-traitant fireprotection ; **MSE** (coquille pour MSI) = sous-traitant
+  béton de ballast.
+- **Lyon et Brest sont des zones DU SITE**, pas des villes de départ extérieures — un
+  plan général du site (avec d'autres zones du même type) a été annoncé, pas encore reçu.
+- **Mécanisme outfitting précisé** : N1/N2/N3 = zones à l'intérieur du hall (après
+  casting, avant que l'élément ne dépasse du hall) ; OF1-OF5 = positions à l'extérieur du
+  hall ; UB = position après le big push. S1 à S9 = segments de l'élément (pas des zones
+  ni des lettres de phase) : le segment S1 est poussé successivement en N1, N2, ...
+  jusqu'à OF5 ; le segment S2 s'arrête à OF4 ; big push puis float-up ensuite.
+
+**`STE__General_Temo_Overview__DRAFT.pptx`** (21 diapos, dépouillé le 11/08/2026) :
+storyboard de la mise en concurrence des deux familles de phases, plus une diapo
+d'organisation d'ateliers.
+
+- 19 diapos « Tempo X & Y » montrent, à chaque instant, la lettre courante de la famille
+  M/N/O/P/Q/R/S/T/U/K/L (production/curing) ET celle de la famille A à I (armature) en
+  même temps — **preuve directe de la concurrence des deux familles**, cohérente avec ce
+  que l'utilisateur avait indiqué dès la première demande sur ce chantier. Séquence
+  complète (cycle de 18 pas qui boucle) : M&B, M&C, N&C, N&D, O&D, O&E, P&E, P&F, Q&F,
+  Q&G, R&G, S&H, T&H, T&I, U&I (« Push 24m »), K&A (« 18m Push »), L&A (« 30m »), L&B,
+  puis M&B à nouveau.
+- **U et K sont deux pas distincts** (« U & I » puis « K & A »), pas un seul « U+K »
+  fusionné comme le classeur N3 le laisse penser (colonne/zone R2) — la famille
+  production/curing compte donc vraisemblablement 11 lettres, pas 10.
+- **Nouvelle aire « Lower Basin »**, en en-tête sur chaque diapo à gauche d'« Upper
+  Basin » — pas encore représentée dans ce dossier ni dans le schéma interactif. Position
+  exacte dans le flux à confirmer.
+- **Contradiction à noter** : sur ce document, Buffer/LASCA/BS/Walls sont dessinés sous
+  l'en-tête « Rebar Hall », alors que ce dossier classe Buffer sous « Production Hall ».
+  Impact faible (regroupement visuel seulement), inscrit au registre de validation.
+- La diapo « WORKSHOP ORGA » liste 12 ateliers de détail prévus (sujet, responsable en
+  initiales non décodées, semaine, équipes impliquées) — repris dans
+  `tempo.dossier_zones.ATELIERS_DETAIL`.
+
+Tout ce qui précède a été répercuté dans `tempo/dossier_zones.py` (+ le miroir anglais
+`tempo/dossier_zones_en.py`) et dans le schéma interactif (retrait du libellé « phase
+d'origine », bandeau d'alerte réécrit) — voir le registre de validation pour ce qui
+reste ouvert (Lower Basin, contradiction Buffer, initiales d'ateliers, correspondance
+segment↔position N1/N2/N3/OF).
