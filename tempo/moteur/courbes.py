@@ -116,6 +116,135 @@ def courbes_par_unite(taches, charges, params, horizon_jours=140):
     return par_unite
 
 
+def _recouvrement(debut, fin, borne_debut, borne_fin):
+    """Heures de recouvrement entre [debut, fin) et [borne_debut, borne_fin), sans
+    wraparound — utilisé par `_repartir_par_shift` après découpage des fenêtres qui
+    traversent minuit."""
+    return max(0.0, min(fin, borne_fin) - max(debut, borne_debut))
+
+
+def _shift_dominant(fenetre, duree_shift_h=12):
+    """Renvoie l'indice de shift (0, 1, ... `24/duree_shift_h - 1`) où une fenêtre
+    horaire (debut, fin) passe le plus de temps — les fenêtres qui traversent minuit
+    (ex. (21.0, 1.75)) sont découpées en deux segments avant comparaison. Une fenêtre
+    à cheval entre deux shifts est donc rattachée à celui où elle passe la majorité de
+    son temps, pas la moyenne des deux."""
+    debut, fin = fenetre
+    segments = [(debut, 24.0), (0.0, fin)] if fin <= debut else [(debut, fin)]
+    nb_shifts = max(1, round(24 / duree_shift_h))
+    bornes = [(i * duree_shift_h, (i + 1) * duree_shift_h) for i in range(nb_shifts)]
+    recouvrements = [sum(_recouvrement(d, f, b0, b1) for d, f in segments) for b0, b1 in bornes]
+    return max(range(nb_shifts), key=lambda i: recouvrements[i])
+
+
+def courbes_par_unite_par_shift(taches, charges, params, horizon_jours=140, duree_shift_h=12):
+    """Comme `courbes_par_unite`, mais la valeur par jour est éclatée en shifts de
+    `duree_shift_h` heures (2 shifts de 12h par défaut, hypothèse « pour le moment »)
+    au lieu d'un seul point par jour — chaque fenêtre horaire N3 est rattachée au
+    shift où elle passe le plus de temps (voir `_shift_dominant`). Clé renvoyée :
+    (jour_absolu, indice_shift), triable directement (tuple). Les phases A-I et M-L
+    partagent le même axe temporel par ligne (le même `offset` dans
+    `construire_charge`) — pas de recalage supplémentaire nécessaire pour les rendre
+    concurrentes, elles le sont déjà dans le moteur."""
+    points = _points_par_unite(taches, charges, params, horizon_jours)
+    par_unite_shift = defaultdict(lambda: defaultdict(float))
+    for p in points.values():
+        shift = _shift_dominant(p.fenetre, duree_shift_h) if p.fenetre else 0
+        par_unite_shift[p.ressource][(p.jour_absolu, shift)] += p.demande
+
+    par_unite = {u: dict(d) for u, d in par_unite_shift.items()}
+    global_ = defaultdict(float)
+    for c in par_unite.values():
+        for cle, effectif in c.items():
+            global_[cle] += effectif
+    par_unite['GLOBAL'] = dict(global_)
+    return par_unite
+
+
+def courbes_par_aire_par_shift(courbes_unite_shift, aire_par_zone):
+    """Regroupe des courbes par-zone-par-shift (ex. la sortie de
+    `courbes_par_unite_par_shift`) en courbes par AIRE (Panel Factory, Rebar Hall,
+    Production Hall, Curing Hall, Outfitting Area, Upper Basin), en sommant les zones
+    qui appartiennent à la même aire — `aire_par_zone` : {nom_zone: nom_aire}, tel que
+    fourni par `tempo.dossier_zones.ZONES_REELLES[...]['aire']`."""
+    par_aire = defaultdict(lambda: defaultdict(float))
+    for zone, courbe in courbes_unite_shift.items():
+        if zone == 'GLOBAL':
+            continue
+        aire = aire_par_zone.get(zone)
+        if not aire:
+            continue
+        for cle, effectif in courbe.items():
+            par_aire[aire][cle] += effectif
+    return {aire: dict(c) for aire, c in par_aire.items()}
+
+
+def _heures_grue_numerique(tache):
+    v = tache.get('heures_grue')
+    return v if isinstance(v, (int, float)) else None
+
+
+def courbes_grue_par_unite_par_shift(taches, charges, params, horizon_jours=140, duree_shift_h=12):
+    """Charge grue par zone et par shift, en heures — même principe temporel que
+    `courbes_par_unite_par_shift`, mais sur `Tache.heures_grue` plutôt que sur
+    l'effectif. Donnée nettement plus incomplète que la main-d'œuvre : seules 185 des
+    3243 tâches du classeur portent un `heures_grue` numérique (le champ contient
+    parfois du texte), et seulement pour les phases M à L (aucune pour A à I) — les
+    zones sans grue documentée n'apparaissent tout simplement pas ici, ce n'est pas
+    forcément qu'aucune grue n'y est utilisée.
+
+    `heures_grue` est une donnée par TÂCHE (pas par fenêtre horaire) ; en l'absence
+    d'une répartition explicite par fenêtre, elle est divisée à parts égales entre les
+    fenêtres non vides de la tâche — une hypothèse de calcul, pas une lecture directe,
+    à traiter comme telle."""
+    from tempo.moteur.modele import PointDeCharge
+
+    par_cle = {(t['feuille'], t['ligne_excel']): t for t in taches}
+    nb_fenetres_par_tache = defaultdict(int)
+    for c in charges:
+        if not c['jalon'] and c['effectif'] and c['tempo'] is not None:
+            nb_fenetres_par_tache[(c['feuille'], c['ligne_excel'])] += 1
+
+    points = {}
+    for ligne, demarrage in params.demarrage_tempo.items():
+        nb_elements = max(1, horizon_jours // params.periode_relance_jours)
+        for indice in range(nb_elements):
+            offset = demarrage + indice * params.periode_relance_jours - 1
+            for c in charges:
+                if c['jalon'] or not c['effectif'] or c['tempo'] is None:
+                    continue
+                cle_tache = (c['feuille'], c['ligne_excel'])
+                t = par_cle.get(cle_tache)
+                if not t:
+                    continue
+                hg = _heures_grue_numerique(t)
+                if hg is None:
+                    continue
+                nb_fenetres = nb_fenetres_par_tache.get(cle_tache, 1) or 1
+                unite = t.get('unite') or 'NC (unité non renseignée)'
+                jour_absolu = offset + c['tempo']
+                shift = _shift_dominant(c['fenetre'], duree_shift_h) if c['fenetre'] else 0
+                cle = (unite, jour_absolu, shift)
+                if cle not in points:
+                    points[cle] = 0.0
+                points[cle] += hg / nb_fenetres
+
+    par_unite = defaultdict(dict)
+    for (unite, jour, shift), heures in points.items():
+        par_unite[unite][(jour, shift)] = heures
+    return dict(par_unite)
+
+
+def utilisation_grue_pct(courbe_heures_grue, nb_grues=1, duree_shift_h=12):
+    """Convertit une courbe d'heures-grue par (jour, shift) en pourcentage
+    d'utilisation, sur la base de `nb_grues` grues disponibles pendant tout le shift —
+    capacité = nb_grues x duree_shift_h. `nb_grues` par défaut à 1 : à corriger zone
+    par zone dès qu'un chiffre de dimensionnement grue existe (cf.
+    tempo/dossier_zones.py — 1,5 pour Base Slab, 2 pour Top Slab, 1 pour un mur...)."""
+    capacite = max(0.001, nb_grues * duree_shift_h)
+    return {cle: min(999.0, heures / capacite * 100) for cle, heures in courbe_heures_grue.items()}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)

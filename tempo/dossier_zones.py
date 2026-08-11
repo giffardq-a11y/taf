@@ -256,6 +256,16 @@ ZONES = {
                         "dans la ligne de coulée. C'est la mécanique concrète derrière le skidding "
                         "déjà évoqué en zone S.", 'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp '
                         '(tâches Casting/Pushing TE 01 -Segment 01 à 09)', 'statut': 'confirme'},
+              {'texte': "L'équipe logistique identifiée dans le classeur N3 lui-même est "
+                        "« Skidding » (ressource dédiée, ~44 lignes de charge) — trouvée "
+                        "presque exclusivement dans les phases T, U+K et L (R1/R2/R3), "
+                        "rattachée aux tâches UNIT=Casting Pit et P/U Point qui s'y trouvent. "
+                        "C'est la même équipe que le « Skidding team » du planning MPP "
+                        "(Casting/Pushing, Big Push) — la logistique de déplacement des "
+                        "éléments d'une position à l'autre, pas la logistique amont "
+                        "(camions/livraisons, voir LOGISTIQUE).",
+               'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, colonne ressource) + '
+                         'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
           ], 'hypotheses': [], 'contradictions': [],
           'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp']},
     'U+K': {'aire': 'Curing Hall', 'unite': 'R2', 'donnees': [], 'hypotheses': [], 'contradictions': [],
@@ -601,6 +611,73 @@ LOGISTIQUE = {
                  'General_Tempo_Staggering_MDI_V5.xlsm (non encore dépouillé au-delà de la feuille '
                  'HYPOTHESE PL)', 'PROCESS.xlsx (fichier vide, aucune donnée)'],
 }
+
+# Équipements et prestataires trouvés, tous documents confondus, consolidés par zone —
+# répond directement à « tout les équipements que tu as trouvé ». `type` distingue
+# grue/centrale/véhicule/prestataire/stockage pour un futur filtre ; `zones` cite les
+# zones réelles (ZONES_REELLES) où l'équipement a été relevé, 'Logistique' pour ce qui
+# concerne l'amont (hors zones de production).
+EQUIPEMENTS = [
+    {'nom': 'Skidding team', 'type': 'équipe logistique interne',
+     'description': "Déplace les éléments d'une position de coulée/curing à l'autre "
+                     "(« Pushing »), et l'élément complet vers l'Upper Basin (« Big Push »). "
+                     "Identifiée à la fois dans le N3 (ressource dédiée, phases T/U+K/L) et "
+                     "dans le planning MPP outfitting.",
+     'zones': ['R1', 'R2', 'R3', 'Casting Pit', 'Upper Basin'],
+     'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx + Tempo_full_schedule_linked_V4_70_jour.mpp'},
+    {'nom': 'Grues Casting Pit (nombre non précisé)', 'type': 'grue',
+     'description': "Seule zone où le classeur N3 documente des heures-grue par tâche "
+                     "(185 tâches sur 3243, uniquement phases M à L) — voir la courbe "
+                     "d'utilisation grue calculée dans le schéma.",
+     'zones': ['Casting Pit'], 'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé)'},
+    {'nom': 'Grue(s) Base Slab', 'type': 'grue', 'description': '1,5 grue affectée.',
+     'zones': ['Base Slab'], 'source': 'TEMPO_N2_Presentation_Rebar_04062026.pptx + '
+              'General_Tempo_Staggering_MDI_V5.xlsm'},
+    {'nom': 'Grue(s) Top Slab', 'type': 'grue', 'description': '2 grues affectées.',
+     'zones': ['Base Slab'], 'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base)'},
+    {'nom': 'Grue spéciale murs', 'type': 'grue', 'description': '1 grue dédiée aux murs.',
+     'zones': ['Walls'], 'source': 'General_Tempo_Staggering_MDI_V5.xlsm (feuille Data base)'},
+    {'nom': 'C1 / C2', 'type': 'grue', 'description': "Grues de mise en stock RF, capacités "
+                     "citées à 15,25 et 15,00 (unité non confirmée) — voir aussi le plafond "
+                     "« pas plus de 2 grues pour un top slab, 1 pour un mur, 3 pour deux base "
+                     "slabs même halle ».",
+     'zones': ['Logistique'], 'source': 'Detailed_Truck__Loading_Time.xlsx + '
+              'Explanations_Takt_time_files.pptx'},
+    {'nom': 'Centrales à béton (6, dont B6 pas encore construite)', 'type': 'centrale à béton',
+     'description': 'A1/A2/A3, B4/B5/B6 — B6 n\'existe pas encore.',
+     'zones': ['Casting Pit'], 'source': 'General_Tempo_Staggering.xlsx (feuille Casting Pattern)'},
+    {'nom': 'Flotte plateformes/remorques (24 recommandées)', 'type': 'véhicule',
+     'description': "Dimensionnement recommandé pour le flux Stock→Halls, marge "
+                     "opérationnelle 20% incluse — voir aussi le risque n°1 du registre RF "
+                     "(tampon de 3 à 5 remorques proposé) et le module tempo/moteur/alea.py.",
+     'zones': ['Logistique'], 'source': 'TRAILER_QUANTITY_PER_FLOW.xlsx (feuille STOCK RF to HALL)'},
+    {'nom': 'Racks (mesh/ESS, White Rack, Yellow Rack — nombre de types non confirmé)',
+     'type': 'stockage', 'description': "Trois désignations trouvées pour ce qui pourrait "
+                     "être 2 ou 3 types réels — voir le registre de validation.",
+     'zones': ['Logistique'], 'source': 'réunion TEMPO (10/08) + MASTERVIEW.xlsm + LAYOUT_RF.pptx'},
+    {'nom': 'PR14 / PR51 / PR52 / PR53', 'type': 'moyen de manutention',
+     'description': "Moyens de manutention cités pour la mise en stock (Starter Bar, panels "
+                     "DCM) dans les zones de stockage nommées Toulouse/Sogod.",
+     'zones': ['Logistique'], 'source': 'LIST_FLUX_ET_QUANTITE_MISE_EN_STOCK.xlsx'},
+    {'nom': 'Manitou / Truck Mounted Crane', 'type': 'moyen de manutention',
+     'description': "Cités pour la manutention de Niches, TO, EF (zone de stockage nommée "
+                     "Krakow) et Threading/Progress (zone nommée Monaco/Toulouse).",
+     'zones': ['Logistique'], 'source': 'LIST_FLUX_ET_QUANTITE_MISE_EN_STOCK.xlsx'},
+    {'nom': 'Dywidag (post-tension)', 'type': 'prestataire',
+     'description': "PT Threading (3,25j), PT Stressing (3,25j), PT Grout (2,5j) — planifiés "
+                     "après le Big Push d'après l'ordre du planning MPP.",
+     'zones': ['Upper Basin'], 'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp'},
+    {'nom': 'FLC WORKER', 'type': 'main-d\'œuvre (BC FLC)',
+     'description': "Ressource des tâches « Casting » par segment dans le planning MPP "
+                     "(~1,5 jour/segment).", 'zones': ['Casting Pit'],
+     'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp'},
+    {'nom': 'CEAS, GTA, Impostal, Sejerslev, Constructel, JD Steel, MSE, WL, BL',
+     'type': 'sous-traitant', 'description': "Codes sous-traitants relevés dans les colonnes "
+                     "ressource du N3 — décodage encore incomplet pour GTA, MSE et WL (voir "
+                     "le registre de validation).",
+     'zones': ['toutes'], 'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (feuille Data) + '
+              'Tempo_full_schedule_linked_V4_70_jour.mpp'},
+]
 
 # Registre de validation : une ligne par point encore ouvert, tous zones confondues — la
 # matière d'une réunion de conciliation, pas un rapport de plus. Regroupé par personne
