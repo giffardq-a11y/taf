@@ -17,9 +17,20 @@ ZONES_REELLES_EN = {
              'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (sheets CP__M)', 'statut': 'confirme'},
             {'texte': "JD Steel appears only in this zone, nowhere else in N3.",
              'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'statut': 'confirme'},
+            {'texte': "Location found on the general site plan (08/11/2026): most likely zone 223 "
+                      "“Panels & Cut&Bend Rebar Factory”, official code, in the Western Land Area "
+                      "— a building ENTIRELY SEPARATE from the Rebar Hall (zone 102, Central "
+                      "Production Area), not a sub-part of the same building. Confirms there is a "
+                      "real truck route between Panel Factory and the halls, consistent with the "
+                      "fact that no N3 task is ever attached to UNIT=“Panel Factory” (see the "
+                      "correction at the top of the module) — it's an upstream prefabrication site, "
+                      "not a zone of the halls' tempo template.",
+             'source': 'TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A (general site plan, direct reading, '
+                       '08/11/2026)', 'statut': 'confirme'},
         ],
         'hypotheses': [], 'contradictions': [],
-        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
+        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
+                     'TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A'],
     },
     'Walls': {
         'aire': 'Rebar Hall', 'lettre_origine': 'N', 'phases': [('A', 13), ('B', 13), ('C', 13),
@@ -979,15 +990,19 @@ REGISTRE_VALIDATION_EN = [
     {'point': "Number of trailer parking spots: 13 or 59 depending on the document (likely "
               "different scopes)", 'zone': 'Logistique', 'responsable': 'logistics team',
      'impact': 'low'},
-    {'point': "MECHANISM CLARIFIED 08/11/2026 (user), exact correspondence still open. N1/N2/N3 "
-              "= zones inside the hall (after casting, before the element extends beyond the "
-              "hall); OF1-OF5 = positions outside the hall; UB = position after the big push. S1 "
-              "to S9 are segments of the element, not zones: segment S1 is pushed successively "
-              "into N1, N2, ... up to OF5; segment S2 stops at OF4. Still to establish: the exact "
-              "number of N1/N2/(N3?) positions, the segment↔position detail for S3 to S9, and "
-              "where to show the N1/N2/N3 zones in this diagram (absent for now — only "
-              "OF1-OF5/SG and UB-S9/S8/S7 are represented). A general site plan, announced by "
-              "the user, should help settle this.",
+    {'point': "REFINED 08/11/2026 with the general site plan (TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A), "
+              "strong hypothesis but no literal confirmation. N1/N2/N3 = zones inside the hall, "
+              "before the element extends beyond it — would correspond to sub-positions of official "
+              "zone 107 “STE initial outfitting area” (adjacent to Curing hall 106, same "
+              "structure). OF1-OF5 = positions outside the hall — would correspond to zone 122 "
+              "“STE upper basin outfitting area”. UB (after the big push) = zone 124 “Lower basin” "
+              "(Basin A/B/C). The spatial sequence on the plan fits this reading well, but no "
+              "N1/N2/N3/OF1-OF5 label appears literally on it (different official numbering). S1 "
+              "to S9 remain segments of the element, not zones: segment S1 is pushed successively "
+              "into N1, N2, ... up to OF5; segment S2 stops at OF4. Still to establish: explicit "
+              "confirmation of this 107↔N1-N3/122↔OF1-OF5 correspondence, the segment↔position "
+              "detail for S3 to S9, and whether/how to show 107 and 122 in this diagram (currently "
+              "only OF1-OF5/SG and UB-S9/S8/S7 appear, with no direct link drawn to 107/122/124).",
      'zone': 'Outfitting Area, Upper Basin', 'responsable': 'Valery Claise / Joanna',
      'impact': 'medium — needed to attach the 631 MPP tasks to a usable zone code'},
     {'point': "Deliveries/day recomputed from DeliveryPlan (11.6 average, peak 22) far below the "
@@ -995,11 +1010,16 @@ REGISTRE_VALIDATION_EN = [
               "flow or partial time window?",
      'zone': 'Logistique', 'responsable': 'logistics team',
      'impact': 'high — governs fleet sizing if DeliveryPlan is to be used as the reference'},
-    {'point': "NEW 08/11/2026 (STE__General_Temo_Overview__DRAFT.pptx): a \"Lower Basin\" area "
-              "appears as a header on all 19 slides of the tempo storyboard, to the left of "
-              "\"Upper Basin\" — not yet represented in this dossier or in the interactive "
-              "diagram. Its exact position in the flow (right after Upper Basin? a sub-zone?) "
-              "and its content (sub-zones, tasks) still need establishing.",
+    {'point': "IDENTIFIED 08/11/2026 thanks to the general site plan (TUX-DWG-PFA-AL-AL-GEN-FLC-"
+              "002005-9A), still to add to the interactive diagram. \"Lower Basin\" = official "
+              "zone 124, which groups Basin A/B/C (three compartments separated by floating gates, "
+              "-10 to -12m deep, the flotation/ballasting basin) — LINE 1+2 → Basin A, LINE 3+4 → "
+              "Basin B, LINE 5+SPE → Basin C. \"Upper Basin\" (already in this dossier) "
+              "corresponds to dykes 125-128, a shallow buffer zone right at the hall exit (zone "
+              "122), not a separate basin. Still to do: add Lower Basin to the interactive diagram "
+              "(zone/area/letter), and clarify whether the current UB-S9/S8/S7 zones correspond to "
+              "Upper Basin (dykes 125-128) or should instead be attached to Lower Basin "
+              "(Basin A/B/C, zone 124).",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
      'impact': 'medium — a whole site area is missing from the current diagram'},
     {'point': "RESOLVED 08/11/2026, directly by the project's user: not a real contradiction. "
@@ -1016,4 +1036,12 @@ REGISTRE_VALIDATION_EN = [
               "the \"WORKSHOP ORGA\" slide).",
      'zone': 'toutes', 'responsable': 'TEMPO team',
      'impact': 'low — hinders reading, not the calculation'},
+    {'point': "NEW 08/11/2026 (general site plan, TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A): the site "
+              "has 6 production lines, not 5 — LINE 1 to LINE 5 plus \"LINE SPE\" (explicitly "
+              "named \"LINE 6\" in the plan's legend, zone 111, dedicated to SPE special elements). "
+              "The engine (tempo/moteur/charge.py and courbes.py) currently only models 5 "
+              "staggered lines. To settle: should LINE SPE/6 enter the load model (workforce, "
+              "crane...) or stay out of scope like Outfitting/Upper Basin currently are?",
+     'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'medium — a whole production line is missing from the load engine'},
 ]

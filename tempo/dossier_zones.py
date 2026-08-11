@@ -109,6 +109,69 @@ cette sous-aire restent à corriger (voir le registre de validation) ; « Panel 
 « Outfitting Area », « Upper Basin » et la nouvelle « Lower Basin » restent, pour
 l'instant, considérées comme des aires de premier niveau — non confirmé explicitement,
 à vérifier sur le plan général du site annoncé par l'utilisateur.
+
+PLAN GÉNÉRAL DU SITE REÇU (11/08/2026) : TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A « Lolland
+Site Installation — General Layout » (Femern, plan officiel avec légende numérotée
+complète — pas un support de présentation TEMPO comme les autres fichiers de ce
+dossier). Répond directement à plusieurs points ouverts :
+
+  - **Numérotation officielle des zones du site**, par grande aire : 100 Central
+    Production Area, 200 Western Land Area, 300 Eastern Land Area, 400 Western Berth
+    Area, 500 Eastern Berth Area, 600 FLC Village, 700 Harbour Area. Codes pertinents
+    pour ce dossier : 101 Rebar storage, 102 Rebar hall, 105 Casting hall, 106 Curing
+    hall, 107 STE initial outfitting area, 109-1/2 SPE prefabrication, 110 SPE storage,
+    111 SPE production facilities (**LINE 6**), 121 Cofferdam & sliding gate parking
+    area, 122 STE upper basin outfitting area, 124 **Lower basin**, 125-128 Upper basin
+    outer/inner dykes West/East, 129-133 Lower basin outer/inner/seaward dykes,
+    134-136 floating gate (abutment/sill/gate), 223 Panels & Cut&Bend Rebar Factory
+    (Western Land Area), 229 Skidding System Workshop.
+  - **6 lignes de production, pas 5** : LINE 1, LINE 2, LINE 3, LINE 4, LINE 5, et
+    LINE SPE (= « LINE 6 » explicitement dans la légende, zone 111 — dédiée aux
+    éléments spéciaux SPE). Le classeur N3/le moteur ne modélisaient jusqu'ici que 5
+    lignes décalées — LINE SPE/6 en plus, à vérifier si elle doit entrer dans le
+    modèle de charge ou rester hors périmètre (comme Outfitting/Upper Basin jusqu'ici).
+  - **« Lower Basin » identifiée** (répond au point ouvert de STE__General_Temo_
+    Overview__DRAFT.pptx) : c'est la zone 124, qui regroupe BASIN A, BASIN B et
+    BASIN C (trois compartiments séparés par des portes flottantes 134/136,
+    profondeur -10 à -12 m — bassin de flottaison/ballastage). Chaque paire de lignes
+    alimente un bassin : LINE 1+2 → Basin A, LINE 3+4 → Basin B, LINE 5+SPE → Basin C
+    (lu directement sur le plan). « Upper Basin » (dykes 125-128) est en réalité la
+    zone-tampon peu profonde directement à la sortie de chaque ligne (associée à 122,
+    « STE upper basin outfitting area », élévations proches de 0 à -1,75 m) — pas un
+    bassin séparé avec son propre plan d'eau nommé comme Basin A/B/C.
+  - **Enchaînement physique confirmé, par ligne, d'amont en aval** (lu directement sur
+    le plan, même bâtiment) : 101 Rebar storage → 102 Rebar hall (Walls/Base Slab/
+    LASCA) → 105 Casting hall (Buffer/P-U Point/Casting Pit) → 106 Curing hall
+    (R1/R2/R3) → 107 STE initial outfitting area (adjacent, même structure, avant la
+    sortie du hall) → 121 cofferdam/sliding gate (sortie du hall) → 122 STE upper
+    basin outfitting area (hors hall) → dykes 125-128 (Upper Basin) → 124 Lower Basin
+    (Basin A/B/C, flottaison) → porte flottante → Harbour Area → immersion.
+  - **Hypothèse forte pour la correspondance N1/N2/N3 ↔ OF1-OF5 ↔ UB** (mécanisme déjà
+    confirmé par l'utilisateur le 11/08 — voir plus haut), maintenant recoupée avec
+    cette numérotation officielle : N1/N2/N3 (« à l'intérieur du hall, avant que
+    l'élément ne dépasse du hall ») correspondraient à des sous-positions de la zone
+    **107** ; OF1-OF5 (« à l'extérieur du hall ») à des sous-positions de la zone
+    **122** ; UB (« après le big push ») à la zone **124** (Lower Basin/Basin A-B-C).
+    Cohérent avec la position et l'adjacence de ces zones sur le plan, mais aucun
+    libellé N1/N2/N3/OF1-OF5 n'apparaît littéralement sur ce plan officiel (qui a sa
+    propre numérotation) — reste une hypothèse forte, pas une confirmation littérale.
+    Voir le registre de validation.
+  - **Panel Factory retrouvée** : c'est très probablement la zone **223 « Panels &
+    Cut&Bend Rebar Factory »**, dans la Western Land Area — un bâtiment ENTIÈREMENT
+    SÉPARÉ du Rebar Hall (102, Central Production Area), pas une sous-partie du même
+    bâtiment. Ça confirme qu'il y a un vrai trajet logistique (camion) entre Panel
+    Factory et les halls, pas un simple passage interne — cohérent avec le classeur N3
+    qui ne rattache jamais de tâche à UNIT=« Panel Factory » (voir plus haut).
+    Cheminement routier lisible sur le plan : sortie sud de la zone 223 (repère P4) →
+    est via le rond-point près de 209/219/231/210 → couloir des grues à tour TC4/TC5/
+    TC7, le long de LINE SPE/111/110 → jonction avec la boucle routière périphérique
+    de la Central Production Area (ronds-points P7/P8) → dessertes de 102/105/106 par
+    ligne. Pas de mesure de distance/temps de trajet tirée de cette lecture — juste le
+    tracé.
+  - Confirme aussi, indépendamment, la clarification déjà obtenue de l'utilisateur :
+    Rebar Hall (102) et Casting/Curing (105/106) sont bien dans un même ensemble
+    bâti, que ce plan nomme « Central Production Area » — cohérent avec « Production
+    Hall » utilisé par l'utilisateur pour la même idée (traité comme synonymes ici).
 """
 
 ZONES = {
@@ -121,10 +184,21 @@ ZONES = {
              'statut': 'confirme'},
             {'texte': "JD Steel n'apparaît que dans cette zone, nulle part ailleurs dans le N3.",
              'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'statut': 'confirme'},
+            {'texte': "Localisation retrouvée sur le plan général du site (11/08/2026) : "
+                      "vraisemblablement la zone officielle 223 « Panels & Cut&Bend Rebar Factory », "
+                      "dans la Western Land Area — un bâtiment ENTIÈREMENT SÉPARÉ du Rebar Hall "
+                      "(zone 102, Central Production Area), pas une sous-partie du même bâtiment. "
+                      "Confirme qu'il y a un vrai trajet routier (camion) entre Panel Factory et les "
+                      "halls, cohérent avec le fait qu'aucune tâche N3 n'est jamais rattachée à "
+                      "UNIT=« Panel Factory » (voir la correction en tête de module) — c'est un "
+                      "site de pré-fabrication en amont, pas une zone du gabarit tempo des halls.",
+             'source': 'TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A (plan général du site, lecture directe, '
+                       '11/08/2026)', 'statut': 'confirme'},
         ],
         'hypotheses': [],
         'contradictions': [],
-        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx'],
+        'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx',
+                     'TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A'],
     },
     'N': {
         'aire': 'Rebar Hall', 'unite': 'Walls',
@@ -908,16 +982,21 @@ REGISTRE_VALIDATION = [
     {'point': "Nombre de places de parking remorques : 13 ou 59 selon le document (périmètres "
               "probablement différents)", 'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'faible'},
-    {'point': "MÉCANISME PRÉCISÉ le 11/08/2026 (utilisateur), correspondance exacte encore ouverte. "
-              "N1/N2/N3 = zones à l'intérieur du hall (après casting, avant que l'élément ne dépasse "
-              "du hall) ; OF1-OF5 = positions à l'extérieur du hall ; UB = position après le big "
-              "push. S1 à S9 sont des segments de l'élément, pas des zones : le segment S1 est "
-              "poussé successivement en N1, N2, ... jusqu'à OF5 ; le segment S2 s'arrête à OF4. "
-              "Reste à établir : le nombre exact de positions N1/N2/(N3 ?), le détail "
-              "segment↔position pour S3 à S9, et où faire figurer les zones N1/N2/N3 dans ce "
-              "schéma (absentes pour l'instant — seules OF1-OF5/SG et UB-S9/S8/S7 y sont "
-              "représentées). Un plan général du site, annoncé par l'utilisateur, doit aider à "
-              "trancher.",
+    {'point': "AFFINÉ le 11/08/2026 avec le plan général du site (TUX-DWG-PFA-AL-AL-GEN-FLC-"
+              "002005-9A), hypothèse forte mais pas de confirmation littérale. N1/N2/N3 = zones à "
+              "l'intérieur du hall, avant que l'élément ne dépasse du hall — correspondraient à des "
+              "sous-positions de la zone officielle 107 « STE initial outfitting area » (adjacente "
+              "au Curing hall 106, même structure). OF1-OF5 = positions à l'extérieur du hall — "
+              "correspondraient à la zone 122 « STE upper basin outfitting area ». UB (après le big "
+              "push) = zone 124 « Lower basin » (Basin A/B/C). L'enchaînement spatial sur le plan "
+              "colle bien à cette lecture, mais aucun libellé N1/N2/N3/OF1-OF5 n'apparaît "
+              "littéralement dessus (numérotation officielle différente). S1 à S9 restent des "
+              "segments de l'élément, pas des zones : le segment S1 est poussé successivement en "
+              "N1, N2, ... jusqu'à OF5 ; le segment S2 s'arrête à OF4. Reste à établir : "
+              "confirmation explicite de cette correspondance 107↔N1-N3/122↔OF1-OF5, le détail "
+              "segment↔position pour S3 à S9, et si/comment représenter 107 et 122 dans ce schéma "
+              "(actuellement seules OF1-OF5/SG et UB-S9/S8/S7 y figurent, sans lien direct posé "
+              "avec 107/122/124).",
      'zone': 'Outfitting Area, Upper Basin', 'responsable': 'Valery Claise / Joanna',
      'impact': 'moyen — nécessaire pour rattacher les 631 tâches MPP à un code de zone exploitable'},
     {'point': "Livraisons/jour recalculées depuis DeliveryPlan (11,6 en moyenne, pic 22) très "
@@ -925,11 +1004,16 @@ REGISTRE_VALIDATION = [
               "clarifier : flux partiel ou fenêtre temporelle partielle ?",
      'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'élevé — conditionne le dimensionnement de flotte si DeliveryPlan doit servir de référence'},
-    {'point': "NOUVEAU 11/08/2026 (STE__General_Temo_Overview__DRAFT.pptx) : une aire « Lower "
-              "Basin » apparaît en en-tête sur les 19 diapos du storyboard tempo, à gauche "
-              "d'« Upper Basin » — pas encore représentée dans ce dossier ni dans le schéma "
-              "interactif. Sa position exacte dans le flux (juste après Upper Basin ? une "
-              "sous-zone ?) et son contenu (sous-zones, tâches) restent à établir.",
+    {'point': "IDENTIFIÉE le 11/08/2026 grâce au plan général du site (TUX-DWG-PFA-AL-AL-GEN-FLC-"
+              "002005-9A), reste à intégrer au schéma interactif. « Lower Basin » = zone officielle "
+              "124, qui regroupe Basin A/B/C (trois compartiments séparés par des portes flottantes, "
+              "profondeur -10 à -12 m, bassin de flottaison/ballastage) — LINE 1+2 → Basin A, "
+              "LINE 3+4 → Basin B, LINE 5+SPE → Basin C. « Upper Basin » (déjà dans ce dossier) "
+              "correspond aux dykes 125-128, une zone-tampon peu profonde directement en sortie de "
+              "hall (zone 122), pas un bassin séparé. Reste à faire : ajouter Lower Basin au schéma "
+              "interactif (zones/aire/lettre), et clarifier si les UB-S9/S8/S7 actuels du schéma "
+              "correspondent à Upper Basin (dykes 125-128) ou devraient plutôt être rattachés à "
+              "Lower Basin (Basin A/B/C, zone 124).",
      'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
      'impact': 'moyen — une aire entière du site manque au schéma actuel'},
     {'point': "RÉSOLU le 11/08/2026, directement par l'utilisateur du projet : ce n'était pas une "
@@ -946,4 +1030,13 @@ REGISTRE_VALIDATION = [
               "DRAFT.pptx, diapo « WORKSHOP ORGA »).",
      'zone': 'toutes', 'responsable': 'équipe TEMPO',
      'impact': 'faible — gêne la lecture, pas le calcul'},
+    {'point': "NOUVEAU 11/08/2026 (plan général du site, TUX-DWG-PFA-AL-AL-GEN-FLC-002005-9A) : "
+              "le site compte 6 lignes de production, pas 5 — LINE 1 à LINE 5 plus « LINE SPE » "
+              "(explicitement nommée « LINE 6 » dans la légende du plan, zone 111, dédiée aux "
+              "éléments spéciaux SPE). Le moteur (tempo/moteur/charge.py et courbes.py) ne modélise "
+              "actuellement que 5 lignes décalées. À trancher : LINE SPE/6 doit-elle entrer dans le "
+              "modèle de charge (main-d'œuvre, grue...) ou rester hors périmètre comme "
+              "Outfitting/Upper Basin le sont pour l'instant ?",
+     'zone': 'toutes', 'responsable': 'Valery Claise / Joanna',
+     'impact': 'moyen — une ligne de production entière est absente du moteur de charge'},
 ]
