@@ -268,25 +268,40 @@ ZONES_REELLES_EN = {
                       "cabling, lighting, cathodic protection, realignment system, GINA, and "
                       "post-tension (see below) — 631 tasks in total for a single element.",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's breakdown (by "
-                      "segment S1-S9 of a “TE 01” element) and the N1/N3 zone codes "
-                      "(OF1-OF5/SG for the Outfitting Area, UB-S9/S8/S7 for the Upper Basin). Both "
-                      "likely describe the same work seen through two different breakdowns (by "
-                      "physical position in the area vs. by element segment), but nothing "
-                      "confirms it explicitly.",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (it "
-                      "carries 85 to 94 real tasks, see the real breakdown under Data): the old "
-                      "claim of “no detailed task” relied on the mistaken reading of "
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
                       "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
-                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting — the "
-                      "correspondence with the outfitting MPP schedule (Data above) therefore "
-                      "still needs confirming, not resolved by this finding.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -301,25 +316,40 @@ ZONES_REELLES_EN = {
                       "cabling, lighting, cathodic protection, realignment system, GINA, and "
                       "post-tension (see below) — 631 tasks in total for a single element.",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's breakdown (by "
-                      "segment S1-S9 of a “TE 01” element) and the N1/N3 zone codes "
-                      "(OF1-OF5/SG for the Outfitting Area, UB-S9/S8/S7 for the Upper Basin). Both "
-                      "likely describe the same work seen through two different breakdowns (by "
-                      "physical position in the area vs. by element segment), but nothing "
-                      "confirms it explicitly.",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (it "
-                      "carries 85 to 94 real tasks, see the real breakdown under Data): the old "
-                      "claim of “no detailed task” relied on the mistaken reading of "
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
                       "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
-                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting — the "
-                      "correspondence with the outfitting MPP schedule (Data above) therefore "
-                      "still needs confirming, not resolved by this finding.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -332,18 +362,40 @@ ZONES_REELLES_EN = {
                       "for a single element (crack repairs, fire protection, networks, cathodic "
                       "protection, post-tension...).",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7) — likely the same work, "
-                      "two different breakdowns, not explicitly confirmed.",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (85-94 real tasks); "
-                      "its tasks are actually mostly Base Slab/LASCA/Walls/Buffer, not Outfitting "
-                      "— the MPP correspondence still needs confirming.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
+                      "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -355,16 +407,40 @@ ZONES_REELLES_EN = {
                       "element (“TE 01”), a large volume of tasks — 631 tasks in total "
                       "for a single element.",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7).",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (85-94 real tasks); "
-                      "mostly Base Slab/LASCA/Walls/Buffer, not Outfitting.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
+                      "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -375,16 +451,40 @@ ZONES_REELLES_EN = {
                       "element (“TE 01”), a large volume of tasks — 631 tasks in total "
                       "for a single element.",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7).",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (85-94 real tasks); "
-                      "mostly Base Slab/LASCA/Walls/Buffer, not Outfitting.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
+                      "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -396,16 +496,40 @@ ZONES_REELLES_EN = {
                       "element (“TE 01”), a large volume of tasks — 631 tasks in total "
                       "for a single element.",
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+            {'texte': "Mechanism clarified (08/11/2026): zones N1/N2/N3 are inside the "
+                      "hall (after casting, before the element extends beyond the hall); "
+                      "OF1-OF5 are the positions outside the hall; UB is the position after "
+                      "the big push. S1 to S9 are segments of the element being produced "
+                      "(not zones or phase letters): once produced, segment S1 is pushed "
+                      "successively into N1, then N2, and so on up to OF5; segment S2 "
+                      "follows the same path but stops at OF4. Once in position, the whole "
+                      "element does the big push toward its final position, up to float-up.",
+             'source': "confirmed directly by the project's user (08/11/2026)", 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7).",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (85-94 real tasks); "
-                      "mostly Base Slab/LASCA/Walls/Buffer, not Outfitting.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook "
+                      "(it carries 85 to 94 real tasks, see the real breakdown under Data): "
+                      "the old claim of “no detailed task” relied on the mistaken reading of "
+                      "this letter as the Outfitting Area/OF1-OF5 zone. Its tasks are actually "
+                      "mostly attached to Base Slab/LASCA/Walls/Buffer, not to Outfitting. "
+                      "Clarified 08/11/2026: this isn't a data gap, it's consistent — phases A "
+                      "to I are in fact armature-preparation phases (confirmed by the user), "
+                      "so attaching this letter to an OF1-OF5/SG slot (inherited from the Data "
+                      "sheet, never reliable) was simply wrong. The correspondence with the "
+                      "outfitting MPP schedule still needs establishing precisely (see "
+                      "hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -435,23 +559,29 @@ ZONES_REELLES_EN = {
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's breakdown (by "
-                      "segment S1-S9 of a “TE 01” element) and the N1/N3 zone codes "
-                      "(OF1-OF5/SG for the Outfitting Area, UB-S9/S8/S7 for the Upper Basin). Both "
-                      "likely describe the same work seen through two different breakdowns (by "
-                      "physical position in the area vs. by element segment), but nothing "
-                      "confirms it explicitly.",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (50 to "
-                      "87 real tasks, see the real breakdown under Data), contrary to the old "
-                      "claim of “no detailed task” which relied on the mistaken reading "
-                      "of this letter as the Upper Basin/UB-S9-S7 zone. Its tasks are actually "
-                      "mostly attached to LASCA/Base Slab/Walls, not to the Upper Basin — the "
-                      "correspondence with the outfitting MPP schedule (Big Push, post-tension, "
-                      "floating — Data above) therefore still needs confirming.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (50 "
+                      "to 87 real tasks, see the real breakdown under Data), contrary to the "
+                      "old claim of “no detailed task” which relied on the mistaken "
+                      "reading of this letter as the Upper Basin/UB-S9-S7 zone. Its tasks are "
+                      "actually mostly attached to LASCA/Base Slab/Walls, not to the Upper "
+                      "Basin. Clarified 08/11/2026: consistent with phases A to I actually "
+                      "covering armature preparation (confirmed by the user), so attaching "
+                      "this letter to a UB-S9/S8/S7 slot (inherited from the Data sheet, never "
+                      "reliable) was wrong. The correspondence with the outfitting MPP "
+                      "schedule (Big Push, post-tension, floating — Data above) still needs "
+                      "establishing precisely (see hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -473,15 +603,29 @@ ZONES_REELLES_EN = {
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7).",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (50-87 real tasks); "
-                      "mostly LASCA/Base Slab/Walls, not Upper Basin — MPP correspondence still "
-                      "needs confirming.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (50 "
+                      "to 87 real tasks, see the real breakdown under Data), contrary to the "
+                      "old claim of “no detailed task” which relied on the mistaken "
+                      "reading of this letter as the Upper Basin/UB-S9-S7 zone. Its tasks are "
+                      "actually mostly attached to LASCA/Base Slab/Walls, not to the Upper "
+                      "Basin. Clarified 08/11/2026: consistent with phases A to I actually "
+                      "covering armature preparation (confirmed by the user), so attaching "
+                      "this letter to a UB-S9/S8/S7 slot (inherited from the Data sheet, never "
+                      "reliable) was wrong. The correspondence with the outfitting MPP "
+                      "schedule (Big Push, post-tension, floating — Data above) still needs "
+                      "establishing precisely (see hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
@@ -503,22 +647,36 @@ ZONES_REELLES_EN = {
              'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
         ],
         'hypotheses': [
-            {'texte': "No correspondence established between the MPP schedule's segment breakdown "
-                      "and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7).",
+            {'texte': "The general mechanism (see Data above) is confirmed, but the full "
+                      "correspondence still needs establishing: how many N1/N2/(N3?) "
+                      "positions actually exist, which segment (S1 to S9) ends up in which "
+                      "exact OF1-OF5/SG slot, and where the N1/N2/N3 zones themselves should "
+                      "appear in this diagram (not shown yet — only OF1-OF5/SG and "
+                      "UB-S9/S8/S7 are represented). A general site plan, announced by the "
+                      "user, should help settle this.",
              'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher'},
         ],
         'contradictions': [
-            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in N3 (50-87 real tasks); "
-                      "mostly LASCA/Base Slab/Walls, not Upper Basin — MPP correspondence still "
-                      "needs confirming.",
-             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)']},
+            {'texte': "Corrected 08/10/2026 — this phase is NOT empty in the N3 workbook (50 "
+                      "to 87 real tasks, see the real breakdown under Data), contrary to the "
+                      "old claim of “no detailed task” which relied on the mistaken "
+                      "reading of this letter as the Upper Basin/UB-S9-S7 zone. Its tasks are "
+                      "actually mostly attached to LASCA/Base Slab/Walls, not to the Upper "
+                      "Basin. Clarified 08/11/2026: consistent with phases A to I actually "
+                      "covering armature preparation (confirmed by the user), so attaching "
+                      "this letter to a UB-S9/S8/S7 slot (inherited from the Data sheet, never "
+                      "reliable) was wrong. The correspondence with the outfitting MPP "
+                      "schedule (Big Push, post-tension, floating — Data above) still needs "
+                      "establishing precisely (see hypothesis).",
+             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (computed, 08/10/2026)',
+                         "confirmed directly by the project's user (08/11/2026)"]},
         ],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     },
 }
 
 LOGISTIQUE_EN = {
-    'nom': 'Upstream logistics — Lyon/Brest deliveries → storage → halls',
+    'nom': 'Upstream logistics — supply → storage (site zones, incl. Lyon/Brest) → halls',
     'donnees': [
         {'texte': "35,345 parcels logged across 84 elements, with weight, supplier and delivery date.",
          'source': 'MASTERVIEW.xlsm (sheet ALL ELEMENTS)', 'statut': 'confirme'},
@@ -575,16 +733,16 @@ LOGISTIQUE_EN = {
                    'LIST_FLUX_ET_QUANTITE_MISE_EN_STOCK.xlsx', 'statut': 'confirme'},
     ],
     'hypotheses': [
-        {'texte': "The names “Lyon”, “Brest”, but also “Toulouse”, "
-                  "“Warsaw”, “Krakow”, “Monaco”, “Drogo” "
-                  "and “Sogod” are likely internal code names for storage/loading areas "
-                  "on site, not real geographic truck destinations — the initial hypothesis "
-                  "(“Lyon/Brest = real loading points”) needs revising: several of these "
-                  "same names denote storage areas alongside cities with clearly no geographic "
-                  "link to the site (Drogo, Monaco). Needs explicit confirmation — the distinction "
-                  "between “loading point” and “similarly-named storage area” "
-                  "may not be so clean either.",
-             'a_valider_par': 'Valery Claise', 'statut': 'a_trancher'},
+        {'texte': "Lyon and Brest CONFIRMED (08/11/2026, directly by the project's user) as "
+                  "zones ON SITE, not real geographic destinations — a general site plan "
+                  "listing the other zones of the same kind should follow. Still likely but not "
+                  "confirmed one by one: “Toulouse”, “Warsaw”, “Krakow”, “Monaco”, "
+                  "“Drogo” and “Sogod” likely follow the same internal-code-name convention "
+                  "for storage/loading areas on site — several of these same names already "
+                  "denote storage areas alongside cities with clearly no geographic link to the "
+                  "site (Drogo, Monaco), which supports this. To verify once the general plan "
+                  "is received.",
+             'a_valider_par': 'Valery Claise', 'statut': 'confirme'},
         {'texte': "Shift duration: 4 different values found depending on the document — 9h (Rebar "
                   "presentation, Cranes_conclusions.xlsx, AND Tempo_Walls.xlsx which literally has "
                   "columns “duration S3-S7 (shift 9h)” — 3 sources now converge on 9h), "
@@ -702,10 +860,12 @@ EQUIPEMENTS_EN = [
      'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp'},
     {'nom': 'CEAS, GTA, Impostal, Sejerslev, Constructel, JD Steel, MSE, WL, BL',
      'type': 'subcontractor', 'description': "Subcontractor codes found in the N3 resource "
-                     "columns — decoding still incomplete for GTA, MSE and WL (see the validation "
-                     "register).",
+                     "columns. GTA = fire protection, MSE (typo for MSI) = ballast concrete — "
+                     "decoded 08/11/2026, confirmed by the user. Decoding still incomplete for "
+                     "WL (see the validation register).",
      'zones': ['toutes'], 'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (sheet Data) + '
-              'Tempo_full_schedule_linked_V4_70_jour.mpp'},
+              'Tempo_full_schedule_linked_V4_70_jour.mpp + '
+              "confirmed directly by the project's user (08/11/2026, for GTA/MSE)"},
 ]
 
 REGISTRE_VALIDATION_EN = [
@@ -753,23 +913,35 @@ REGISTRE_VALIDATION_EN = [
      'responsable': 'Valery Claise / Joanna', 'impact': 'low'},
     {'point': "Number of trucks at Lyon 2 (12 or 13) and Brest 2 (14.5 or 12.5) depending on the "
               "document", 'zone': 'Logistique', 'responsable': 'logistics team', 'impact': 'medium'},
-    {'point': "Do the names Lyon/Brest/Toulouse/Warsaw/Krakow/Monaco/Drogo/Sogod denote real "
-              "destinations, storage areas named by convention, or both depending on context?",
+    {'point': "PARTIALLY RESOLVED 08/11/2026: Lyon and Brest confirmed as ON-SITE zones (not real "
+              "geographic destinations), directly by the user, who announced a general site plan "
+              "listing the other zones of the same kind. Still open: "
+              "Toulouse/Warsaw/Krakow/Monaco/Drogo/Sogod likely follow the same convention but "
+              "aren't confirmed one by one yet — to check on the general plan once received.",
      'zone': 'Logistique', 'responsable': 'Valery Claise',
      'impact': 'medium — shapes the entire reading of the flows'},
     {'point': "RF risk register item #1 (score 50): insufficient platforms for production supply "
               "— proposed action (buffer of 3 to 5 trailers) to validate and cost out",
      'zone': 'Logistique', 'responsable': 'logistics team',
      'impact': 'high — a condition of the chosen fleet size (24 platforms)'},
-    {'point': "Undecoded resource codes: GTA, MSE/MSI, WL (“ask Lotte” — even the source "
-              "doesn't know)", 'zone': 'toutes', 'responsable': 'Lotte (for WL), TEMPO team (for the rest)',
+    {'point': "NEARLY RESOLVED 08/11/2026: GTA (fire protection) and MSE/MSI (ballast concrete) "
+              "decoded, confirmed directly by the user. Only WL remains open (“ask Lotte” — "
+              "even the source doesn't know).",
+     'zone': 'toutes', 'responsable': 'Lotte (for WL)',
      'impact': 'low — hinders reading, not the calculation'},
     {'point': "Number of trailer parking spots: 13 or 59 depending on the document (likely "
               "different scopes)", 'zone': 'Logistique', 'responsable': 'logistics team',
      'impact': 'low'},
-    {'point': "Correspondence still to establish between the outfitting MPP schedule's breakdown "
-              "(by segment S1-S9 of an element) and the N1/N3 zone codes (OF1-OF5/SG, UB-S9/S8/S7)",
-     'zone': 'A, B, C, D, E, F, G, H, I', 'responsable': 'Valery Claise / Joanna',
+    {'point': "MECHANISM CLARIFIED 08/11/2026 (user), exact correspondence still open. N1/N2/N3 "
+              "= zones inside the hall (after casting, before the element extends beyond the "
+              "hall); OF1-OF5 = positions outside the hall; UB = position after the big push. S1 "
+              "to S9 are segments of the element, not zones: segment S1 is pushed successively "
+              "into N1, N2, ... up to OF5; segment S2 stops at OF4. Still to establish: the exact "
+              "number of N1/N2/(N3?) positions, the segment↔position detail for S3 to S9, and "
+              "where to show the N1/N2/N3 zones in this diagram (absent for now — only "
+              "OF1-OF5/SG and UB-S9/S8/S7 are represented). A general site plan, announced by "
+              "the user, should help settle this.",
+     'zone': 'Outfitting Area, Upper Basin', 'responsable': 'Valery Claise / Joanna',
      'impact': 'medium — needed to attach the 631 MPP tasks to a usable zone code'},
     {'point': "Deliveries/day recomputed from DeliveryPlan (11.6 average, peak 22) far below the "
               "96/day cited elsewhere — DeliveryPlan's scope (912 rows) needs clarifying: partial "

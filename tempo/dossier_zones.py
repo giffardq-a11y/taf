@@ -34,6 +34,38 @@ ne pas casser la continuité du schéma, mais porte désormais aussi la réparti
 des UNIT trouvés dans les tâches de cette phase (champ `donnees`, entrée
 « Répartition réelle... ») — c'est cette répartition qui reflète ce qui s'y passe
 vraiment, pas le libellé unique hérité de la feuille Data.
+
+SUITE (11/08/2026, confirmée directement par l'utilisateur du projet) : le schéma
+interactif affichait malgré tout, pour chaque zone, une seule lettre étiquetée « phase
+d'origine » — régression sur la correction ci-dessus, puisqu'un élément passe en
+réalité par TOUTES les phases au cours de sa construction ; il n'y a pas de phase
+« d'origine » propre à une zone. Ce libellé a été retiré de l'affichage (le détail par
+zone continue de lister toutes les phases où elle apparaît, via
+`ZONES_PHYSIQUES_REELLES`/`ZONES_REELLES[...]['phases']`, ce qui était déjà correct).
+L'utilisateur a aussi précisé le sens global de la séquence de lettres : les phases A à
+J sont les phases de préparation d'armature, les phases L à U (au sens large — le même
+intervalle alphabétique que M/N/O/P/Q/R/S/T/U+K/L déjà utilisé ici) couvrent le
+casting/curing puis les réparations et l'outfitting. C'est cohérent avec la
+« Répartition réelle » déjà calculée : les phases A à I portent en réalité des tâches
+Base Slab/LASCA/Walls/Buffer (armature), les phases M à L portent des tâches Casting
+Pit/R1/R2/R3 (casting/curing), avec un début de bascule vers l'outfitting (OF1) déjà
+visible sur T et L. Ça confirme aussi, a contrario, que le rattachement d'OF1-OF5/SG/
+UB-S9-S7 aux lettres A-I (hérité de la feuille `Data`, jamais fiable) était erroné — voir
+la contradiction déjà notée sur ces zones. La correspondance précise entre lettre de
+phase et zones Outfitting/Upper Basin reste ouverte (voir le registre de validation).
+
+Autres corrections du 11/08/2026 (utilisateur) : GTA est le sous-traitant fireprotection ;
+MSE (coquille pour MSI) est le sous-traitant béton de ballast ; Lyon et Brest sont des
+zones DU SITE (pas des villes de départ extérieures) — un plan général du site, avec
+d'autres zones du même type, doit suivre. Mécanisme outfitting précisé : les zones
+N1/N2/N3 sont à l'intérieur du hall (après casting, avant que l'élément ne dépasse du
+hall) ; OF1-OF5 sont les positions à l'extérieur du hall ; UB est la position après le
+big push. S1 à S9 désignent des segments de l'élément (pas les lettres de phase) : le
+segment S1 est poussé successivement en N1, N2, ... jusqu'à OF5 ; le segment S2 jusqu'à
+OF4 seulement ; une fois en position, le big push amène l'élément à sa position finale,
+jusqu'au float-up. Voir le registre de validation pour ce qui reste à établir
+précisément (correspondance complète segment↔position, zones N1/N2/N3 pas encore
+représentées dans le schéma).
 """
 
 ZONES = {
@@ -289,13 +321,23 @@ _DONNEES_OUTFITTING_MPP = [
               "protection cathodique, système de réalignement, GINA, et post-tension (voir "
               "ci-dessous) — 631 tâches au total pour un seul élément.",
      'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp', 'statut': 'confirme'},
+    {'texte': "Mécanisme précisé (11/08/2026) : les zones N1/N2/N3 sont à l'intérieur du hall "
+              "(après casting, avant que l'élément ne dépasse du hall) ; OF1-OF5 sont les "
+              "positions à l'extérieur du hall ; UB est la position après le big push. S1 à S9 "
+              "désignent des segments de l'élément produit (pas des zones ni des lettres de "
+              "phase) : une fois produit, le segment S1 est poussé successivement en N1, puis N2, "
+              "et ainsi de suite jusqu'à OF5 ; le segment S2 suit le même chemin mais s'arrête à "
+              "OF4. Une fois en position, l'élément complet fait le big push vers sa position "
+              "finale, jusqu'au float-up.",
+     'source': "confirmé directement par l'utilisateur du projet (11/08/2026)", 'statut': 'confirme'},
 ]
 _HYPOTHESE_MAPPING_MPP = {
-    'texte': "Correspondance non établie entre le découpage du planning MPP (par segment S1-S9 "
-             "d'un élément « TE 01 ») et les codes de zone N1/N3 (OF1-OF5/SG pour l'Outfitting "
-             "Area, UB-S9/S8/S7 pour l'Upper Basin). Les deux décrivent vraisemblablement les "
-             "mêmes travaux vus sous deux découpages différents (par position physique dans "
-             "l'aire vs par segment de l'élément), mais rien ne le confirme explicitement.",
+    'texte': "Le mécanisme général (voir Données ci-dessus) est confirmé, mais la correspondance "
+             "complète reste à établir : combien de positions N1/N2/(N3 ?) existent réellement, "
+             "quel segment (S1 à S9) termine dans quelle case OF1-OF5/SG précise, et où les zones "
+             "N1/N2/N3 elles-mêmes doivent apparaître dans ce schéma (elles n'y figurent pas "
+             "encore — seules OF1-OF5/SG et UB-S9/S8/S7 y sont représentées). Un plan général du "
+             "site, annoncé par l'utilisateur, doit aider à trancher.",
     'a_valider_par': 'Valery Claise / Joanna', 'statut': 'a_trancher',
 }
 
@@ -308,10 +350,15 @@ for _z in ['A', 'B', 'C', 'D', 'E', 'F']:
                              "réelle en Données) : l'ancienne affirmation « aucune tâche détaillée » "
                              "reposait sur la lecture erronée de cette lettre comme zone Outfitting "
                              "Area/OF1-OF5. En réalité ses tâches sont majoritairement rattachées à "
-                             "Base Slab/LASCA/Walls/Buffer, pas à l'Outfitting — la correspondance "
-                             "avec le planning MPP outfitting (Données ci-dessus) reste donc "
-                             "elle-même à confirmer, pas résolue par ce constat.",
-                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)']}],
+                             "Base Slab/LASCA/Walls/Buffer, pas à l'Outfitting. Éclairci le "
+                             "11/08/2026 : ce n'est pas un trou de donnée, c'est cohérent — les "
+                             "phases A à I sont en réalité des phases de préparation d'armature "
+                             "(confirmé par l'utilisateur), donc le rattachement de cette lettre à "
+                             "une case OF1-OF5/SG (hérité de la feuille Data, jamais fiable) était "
+                             "simplement erroné. La correspondance avec le planning MPP outfitting "
+                             "reste néanmoins à établir précisément (voir l'hypothèse).",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)',
+                                         "confirmé directement par l'utilisateur du projet (11/08/2026)"]}],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
 _DONNEES_UPPER_BASIN_MPP = [
@@ -345,10 +392,15 @@ for _z, _u in [('G', 'UB-S9'), ('H', 'UB-S8'), ('I', 'UB-S7')]:
                              "Données), contrairement à l'ancienne affirmation « aucune tâche "
                              "détaillée » qui reposait sur la lecture erronée de cette lettre comme "
                              "zone Upper Basin/UB-S9-S7. Ses tâches sont en réalité majoritairement "
-                             "rattachées à LASCA/Base Slab/Walls, pas à l'Upper Basin — la "
-                             "correspondance avec le planning MPP outfitting (Big Push, "
-                             "post-tension, flottaison — Données ci-dessus) reste donc à confirmer.",
-                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)']}],
+                             "rattachées à LASCA/Base Slab/Walls, pas à l'Upper Basin. Éclairci le "
+                             "11/08/2026 : cohérent avec le fait que les phases A à I couvrent en "
+                             "réalité la préparation d'armature (confirmé par l'utilisateur), donc "
+                             "le rattachement de cette lettre à une case UB-S9/S8/S7 (hérité de la "
+                             "feuille Data, jamais fiable) était erroné. La correspondance avec le "
+                             "planning MPP outfitting (Big Push, post-tension, flottaison — Données "
+                             "ci-dessus) reste néanmoins à établir précisément (voir l'hypothèse).",
+                             'sources': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (calculé, 10/08/2026)',
+                                         "confirmé directement par l'utilisateur du projet (11/08/2026)"]}],
         'fichiers': ['STE__TEMPO__N3_Takt_Plan__V0_1.xlsx', 'Tempo_full_schedule_linked_V4_70_jour.mpp'],
     }
 
@@ -479,7 +531,7 @@ for _lettre, _nom in _LETTRE_VERS_ZONE_REELLE.items():
     }
 
 LOGISTIQUE = {
-    'nom': 'Logistique amont — livraisons Lyon/Brest → stock → halls',
+    'nom': 'Logistique amont — approvisionnement → stock (zones du site, dont Lyon/Brest) → halls',
     'donnees': [
         {'texte': "35 345 colis référencés sur 84 éléments, avec poids, fournisseur et date de "
                   "livraison.", 'source': 'MASTERVIEW.xlsm (feuille ALL ELEMENTS)', 'statut': 'confirme'},
@@ -539,16 +591,17 @@ LOGISTIQUE = {
                     'LIST_FLUX_ET_QUANTITE_MISE_EN_STOCK.xlsx', 'statut': 'confirme'},
     ],
     'hypotheses': [
-        {'texte': "Les noms « Lyon », « Brest », mais aussi « Toulouse », « Varsovie », "
-                  "« Cracovie », « Monaco », « Drogo » et « Sogod » sont vraisemblablement des "
-                  "noms de code internes pour des zones de stockage/chargement sur site, et non des "
-                  "destinations géographiques réelles des camions — l'hypothèse initiale (« Lyon/"
-                  "Brest = points de chargement réels ») doit être révisée : plusieurs de ces mêmes "
-                  "noms désignent des zones de stockage aux côtés de villes qui n'ont manifestement "
-                  "aucun rapport géographique avec le chantier (Drogo, Monaco). À confirmer "
-                  "explicitement — la distinction « point de chargement » vs « zone de stockage "
-                  "nommée pareil » n'est peut-être pas si nette non plus.",
-             'a_valider_par': 'Valery Claise', 'statut': 'a_trancher'},
+        {'texte': "Lyon et Brest CONFIRMÉS (11/08/2026, directement par l'utilisateur du projet) "
+                  "comme des zones DU SITE, pas des destinations géographiques réelles — un plan "
+                  "général du site listant les autres zones du même type doit suivre. Reste "
+                  "probable mais non confirmé un par un : « Toulouse », « Varsovie », « Cracovie », "
+                  "« Monaco », « Drogo » et « Sogod » suivent vraisemblablement la même convention "
+                  "de noms de code internes pour des zones de stockage/chargement sur site — "
+                  "plusieurs de ces mêmes noms désignent déjà des zones de stockage aux côtés de "
+                  "villes qui n'ont manifestement aucun rapport géographique avec le chantier "
+                  "(Drogo, Monaco), ce qui va dans ce sens. À vérifier sur le plan général une fois "
+                  "reçu.",
+             'a_valider_par': 'Valery Claise', 'statut': 'confirme'},
         {'texte': "Durée d'un poste : 4 valeurs différentes trouvées selon le document — 9h "
                   "(présentation Rebar, Cranes_conclusions.xlsx, ET Tempo_Walls.xlsx qui a "
                   "littéralement des colonnes « duration S3-S7 (shift 9h) » — 3 sources "
@@ -673,10 +726,12 @@ EQUIPEMENTS = [
      'source': 'Tempo_full_schedule_linked_V4_70_jour.mpp'},
     {'nom': 'CEAS, GTA, Impostal, Sejerslev, Constructel, JD Steel, MSE, WL, BL',
      'type': 'sous-traitant', 'description': "Codes sous-traitants relevés dans les colonnes "
-                     "ressource du N3 — décodage encore incomplet pour GTA, MSE et WL (voir "
-                     "le registre de validation).",
+                     "ressource du N3. GTA = fireprotection, MSE (coquille pour MSI) = béton de "
+                     "ballast — décodés le 11/08/2026, confirmés par l'utilisateur. Décodage "
+                     "encore incomplet pour WL (voir le registre de validation).",
      'zones': ['toutes'], 'source': 'STE__TEMPO__N3_Takt_Plan__V0_1.xlsx (feuille Data) + '
-              'Tempo_full_schedule_linked_V4_70_jour.mpp'},
+              'Tempo_full_schedule_linked_V4_70_jour.mpp + '
+              "confirmé directement par l'utilisateur du projet (11/08/2026, pour GTA/MSE)"},
 ]
 
 # Registre de validation : une ligne par point encore ouvert, tous zones confondues — la
@@ -729,23 +784,37 @@ REGISTRE_VALIDATION = [
      'responsable': 'Valery Claise / Joanna', 'impact': 'faible'},
     {'point': "Nombre de camions Lyon 2 (12 ou 13) et Brest 2 (14,5 ou 12,5) selon le document",
      'zone': 'Logistique', 'responsable': 'équipe logistique', 'impact': 'moyen'},
-    {'point': "Les noms Lyon/Brest/Toulouse/Varsovie/Cracovie/Monaco/Drogo/Sogod désignent-ils des "
-              "destinations réelles, des zones de stockage nommées par convention, ou les deux à la "
-              "fois selon le contexte ?", 'zone': 'Logistique', 'responsable': 'Valery Claise',
+    {'point': "PARTIELLEMENT RÉSOLU le 11/08/2026 : Lyon et Brest confirmés comme zones DU SITE "
+              "(pas des destinations géographiques réelles), directement par l'utilisateur, qui a "
+              "annoncé fournir un plan général du site listant les autres zones du même type. "
+              "Reste ouvert : Toulouse/Varsovie/Cracovie/Monaco/Drogo/Sogod suivent "
+              "vraisemblablement la même convention mais ne sont pas encore confirmés "
+              "explicitement un par un — à vérifier sur le plan général une fois reçu.",
+     'zone': 'Logistique', 'responsable': 'Valery Claise',
      'impact': 'moyen — structure toute la lecture des flux'},
     {'point': "Risque n°1 du registre RF (score 50) : plateformes insuffisantes pour "
               "l'approvisionnement production — action proposée (tampon 3 à 5 remorques) à valider "
               "et chiffrer", 'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'élevé — condition du dimensionnement de flotte retenu (24 plateformes)'},
-    {'point': "Codes de ressource non décodés : GTA, MSE/MSI, WL (« ask Lotte » — même la source "
-              "ne sait pas)", 'zone': 'toutes', 'responsable': 'Lotte (pour WL), équipe TEMPO (pour le reste)',
+    {'point': "PRESQUE RÉSOLU le 11/08/2026 : GTA (fireprotection) et MSE/MSI (béton de ballast) "
+              "décodés, confirmés directement par l'utilisateur. Ne reste ouvert que WL (« ask "
+              "Lotte » — même la source ne sait pas).",
+     'zone': 'toutes', 'responsable': 'Lotte (pour WL)',
      'impact': 'faible — gêne la lecture, pas le calcul'},
     {'point': "Nombre de places de parking remorques : 13 ou 59 selon le document (périmètres "
               "probablement différents)", 'zone': 'Logistique', 'responsable': 'équipe logistique',
      'impact': 'faible'},
-    {'point': "Correspondance à établir entre le découpage du planning MPP outfitting (par "
-              "segment S1-S9 d'un élément) et les codes de zone N1/N3 (OF1-OF5/SG, UB-S9/S8/S7)",
-     'zone': 'A, B, C, D, E, F, G, H, I', 'responsable': 'Valery Claise / Joanna',
+    {'point': "MÉCANISME PRÉCISÉ le 11/08/2026 (utilisateur), correspondance exacte encore ouverte. "
+              "N1/N2/N3 = zones à l'intérieur du hall (après casting, avant que l'élément ne dépasse "
+              "du hall) ; OF1-OF5 = positions à l'extérieur du hall ; UB = position après le big "
+              "push. S1 à S9 sont des segments de l'élément, pas des zones : le segment S1 est "
+              "poussé successivement en N1, N2, ... jusqu'à OF5 ; le segment S2 s'arrête à OF4. "
+              "Reste à établir : le nombre exact de positions N1/N2/(N3 ?), le détail "
+              "segment↔position pour S3 à S9, et où faire figurer les zones N1/N2/N3 dans ce "
+              "schéma (absentes pour l'instant — seules OF1-OF5/SG et UB-S9/S8/S7 y sont "
+              "représentées). Un plan général du site, annoncé par l'utilisateur, doit aider à "
+              "trancher.",
+     'zone': 'Outfitting Area, Upper Basin', 'responsable': 'Valery Claise / Joanna',
      'impact': 'moyen — nécessaire pour rattacher les 631 tâches MPP à un code de zone exploitable'},
     {'point': "Livraisons/jour recalculées depuis DeliveryPlan (11,6 en moyenne, pic 22) très "
               "inférieures aux 96/jour cités ailleurs — périmètre de DeliveryPlan (912 lignes) à "
