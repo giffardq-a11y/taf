@@ -276,6 +276,28 @@ function defaultOutfittingConfig() {
    ================================================================ */
 function addDays(d, n) { const r = new Date(d.getTime()); r.setDate(r.getDate() + Math.round(n)); return r; }
 function diffDays(a, b) { return (a.getTime() - b.getTime()) / 86400000; }
+// Construit un planning béton segment par segment pour les lignes PL.
+// Option C : les demi-journées sont réparties par bornes cumulées arrondies.
+function buildSegmentsBeton(debut, rythme, nbSegments = 9) {
+  const joursParSegment = rythme * 7;
+  const segments = [];
+  for (let i = 0; i < nbSegments; i++) {
+    const a = Math.round(i * joursParSegment);
+    const b = Math.round((i + 1) * joursParSegment);
+    segments.push({no: i + 1, debut: addDays(debut, a), fin: addDays(debut, b), rythme, dureeJours: b - a});
+  }
+  return segments;
+}
+function rebuildSegmentsBetonDepuisSegment(debutSegment, rythme, noSegment, nbSegments = 9) {
+  const n = Math.min(nbSegments, Math.max(1, Math.round(noSegment || 1)));
+  const offset = Math.round((n - 1) * rythme * 7);
+  return buildSegmentsBeton(addDays(debutSegment, -offset), rythme, nbSegments);
+}
+function finSegmentBeton(e, noSegment) {
+  if (e && e.segmentsBeton && e.segmentsBeton[noSegment - 1]) return e.segmentsBeton[noSegment - 1].fin;
+  if (e && e.dateDebutBeton) return addDays(e.dateDebutBeton, noSegment * (e.rythme || anchorRhythm(e.ligne)) * 7);
+  return null;
+}
 function fmt(d) { return d ? d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'; }
 function excelDate(v) {
   if (v instanceof Date) return v;
@@ -380,7 +402,7 @@ function parseWorkbook(dateRefArg) {
       elements.push({
         id: raw, ligne: l, ordreSeq, statutBrut, zoneSPE: 0, statut: 'EnAttente', termine: false,
         rythme: null, atRisk: false,
-        dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+        dateDebutBeton:null, dateFinBeton:null, segmentsBeton:null, dateDebutOut:null, dateFinOut:null,
         dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
         basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
         dateBallast:null, dateImmersion:null,
@@ -646,7 +668,7 @@ function runSimulation(paramsArg) {
   // reset element states (garde id/ligne/ordreSeq/dateImmersion/statutBrut)
   elements.forEach(e => Object.assign(e, {
     zoneSPE: 0, statut: 'EnAttente', termine: false, rythme: null, atRisk: false,
-    dateDebutBeton:null, dateFinBeton:null, dateDebutOut:null, dateFinOut:null,
+    dateDebutBeton:null, dateFinBeton:null, segmentsBeton:null, dateDebutOut:null, dateFinOut:null,
     dateDebutFU:null, dateFinFU:null, dateDebutBasin:null, dateFinBasin:null,
     basinNum:0, basinPlace:0, parkingSaute:false, dateDebutParking:null, parkingNum:0,
     dateBallast:null, dateFinBallast:null, dateHookup:null, dateEntreeUB:null, dateEtanche:null, dateImmersionReelle:null, parkingReserve:false, stockeEnBassin:false,
@@ -711,10 +733,12 @@ function runSimulation(paramsArg) {
         e.termine = true; e.statut = 'Immerge'; nbOverride++; return;
       case 'beton': {
         if (ligne > 5) { nbOverrideIgnore++; return; }
-        const n = Math.min(9, Math.max(1, code.n || 1));
+        const n = Math.min(9, Math.max(1, Math.round(code.n || 1)));
         e.rythme = anchorR;
-        e.dateDebutBeton = code.date || addDays(REF, -n * anchorR * 7);
-        e.dateFinBeton = addDays(e.dateDebutBeton, anchorR * 7 * 9);
+        // Beton:N = élément dans le segment N. Beton:N:AAAA-MM-JJ = début réel du segment N.
+        e.segmentsBeton = rebuildSegmentsBetonDepuisSegment(code.date || REF, anchorR, n, 9);
+        e.dateDebutBeton = e.segmentsBeton[0].debut;
+        e.dateFinBeton = e.segmentsBeton[8].fin;
         e.statut = 'Beton';
         zoneBetonOccupee[ligne] = true;
         break;
@@ -883,7 +907,8 @@ function runSimulation(paramsArg) {
     e.dateDebutBeton = dCur;
     const {rhythm, atRisk} = chooseRhythm(e.ligne, dCur, e);
     e.rythme = rhythm; e.atRisk = atRisk;
-    e.dateFinBeton = addDays(dCur, rhythm * 7 * 9);
+    e.segmentsBeton = buildSegmentsBeton(dCur, rhythm, 9);
+    e.dateFinBeton = e.segmentsBeton[8].fin;
   }
   // Élément immédiatement suivant sur la même ligne, au sens de la séquence de production.
   function suivantSurLigne(e) {
@@ -900,8 +925,8 @@ function runSimulation(paramsArg) {
   function finOutfittingAtteinte(e, dCur) {
     const suiv = suivantSurLigne(e);
     if (suiv && suiv.dateDebutBeton) {
-      const seg7 = addDays(suiv.dateDebutBeton, SEGMENTS_OUTFITTING * (suiv.rythme || anchorRhythm(suiv.ligne)) * 7);
-      return dCur >= seg7;
+      const seg7 = finSegmentBeton(suiv, SEGMENTS_OUTFITTING);
+      return seg7 ? dCur >= seg7 : false;
     }
     if (suiv) return false;            // le suivant n'est pas encore lancé : on patiente
     return dCur >= e.dateFinOut;       // dernier de la ligne : durée nominale
